@@ -311,7 +311,7 @@ const confirmMarkDone = async () => {
     }));
     
     const formData = new FormData();
-    formData.append('sheetName', 'WB');
+    formData.append('sheetName', 'HR');
     formData.append('action', 'updateSalesData');
     formData.append('rowData', JSON.stringify(submissionData));
     
@@ -349,100 +349,6 @@ const confirmMarkDone = async () => {
 }
 
   // Fetch sheet data function
-  const shouldShowTaskBasedOnFrequency = (taskDate, frequency) => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    
-    const tomorrow = new Date(today)
-    tomorrow.setDate(today.getDate() + 1)
-    
-    console.log('Processing task:', { taskDate, frequency })
-    
-    const taskDateObj = parseDateFromDDMMYYYY(taskDate)
-    if (!taskDateObj) {
-      console.log('❌ Invalid date parsing for:', taskDate)
-      return false
-    }
-    
-    taskDateObj.setHours(0, 0, 0, 0)
-    
-    // For past due tasks, always show regardless of frequency
-    if (taskDateObj < today) {
-      console.log('✅ Past due task shown:', taskDate)
-      return true
-    }
-    
-    // Handle different frequencies
-    switch (frequency?.toLowerCase()) {
-      case 'weekly':
-        // Today is Friday, July 25, 2025
-        // Current week: Sunday July 20 - Saturday July 26
-        // Next week: Sunday July 27 - Saturday August 2
-        
-        // Find the most recent Sunday (start of current week)
-        const currentWeekStart = new Date(today)
-        const daysSinceSunday = today.getDay() // 0=Sunday, 1=Monday, ..., 6=Saturday
-        currentWeekStart.setDate(today.getDate() - daysSinceSunday)
-        currentWeekStart.setHours(0, 0, 0, 0)
-        
-        // End of next week (Saturday of next week)
-        const nextWeekEnd = new Date(currentWeekStart)
-        nextWeekEnd.setDate(currentWeekStart.getDate() + 13) // 13 days later = end of next week
-        nextWeekEnd.setHours(23, 59, 59, 999)
-        
-        const isWeeklyMatch = taskDateObj >= currentWeekStart && taskDateObj <= nextWeekEnd
-        
-        console.log('🗓️ Weekly filter debug for', taskDate, ':', {
-          today: today.toDateString(),
-          todayDayOfWeek: today.getDay(),
-          taskDateObj: taskDateObj.toDateString(),
-          taskDayOfWeek: taskDateObj.getDay(),
-          frequency: frequency,
-          currentWeekStart: currentWeekStart.toDateString(),
-          nextWeekEnd: nextWeekEnd.toDateString(),
-          daysSinceSunday: daysSinceSunday,
-          isInRange: isWeeklyMatch,
-          taskTime: taskDateObj.getTime(),
-          startTime: currentWeekStart.getTime(),
-          endTime: nextWeekEnd.getTime(),
-          taskAfterStart: taskDateObj >= currentWeekStart,
-          taskBeforeEnd: taskDateObj <= nextWeekEnd
-        })
-        
-        if (isWeeklyMatch) {
-          console.log('✅ Weekly task SHOWN:', taskDate)
-        } else {
-          console.log('❌ Weekly task HIDDEN:', taskDate)
-        }
-        
-        return isWeeklyMatch
-      
-      case 'monthly':
-        // Monthly: show current month AND next month
-        const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1)
-        const nextMonthEnd = new Date(today.getFullYear(), today.getMonth() + 2, 0) // Last day of next month
-        
-        const isMonthlyMatch = taskDateObj >= currentMonthStart && taskDateObj <= nextMonthEnd
-        console.log('📅 Monthly task:', taskDate, isMonthlyMatch ? 'SHOWN' : 'HIDDEN')
-        return isMonthlyMatch
-      
-      case 'yearly':
-        // Yearly: show current year AND next year
-        const currentYearStart = new Date(today.getFullYear(), 0, 1)
-        const nextYearEnd = new Date(today.getFullYear() + 2, 0, 0) // Last day of next year
-        
-        const isYearlyMatch = taskDateObj >= currentYearStart && taskDateObj <= nextYearEnd
-        console.log('📆 Yearly task:', taskDate, isYearlyMatch ? 'SHOWN' : 'HIDDEN')
-        return isYearlyMatch
-      
-      default:
-        // For daily or no frequency specified, use existing logic (today and tomorrow)
-        const isDailyMatch = taskDateObj.getTime() === today.getTime() || 
-                            taskDateObj.getTime() === tomorrow.getTime()
-        console.log('📋 Daily task:', taskDate, isDailyMatch ? 'SHOWN' : 'HIDDEN')
-        return isDailyMatch
-    }
-  }
   const fetchSheetData = async () => {
     try {
       setLoading(true);
@@ -450,9 +356,9 @@ const confirmMarkDone = async () => {
       const pendingAccounts = [];
       const historyRows = [];
       
-      // const response = await fetch(`https://docs.google.com/spreadsheets/d/1a1jPYstX2Wy778hD9OpM_PZkYE3KGktL0JxSL8dJiTY/gviz/tq?tqx=out:json&sheet=ADMIN`);
+      // const response = await fetch(`https://docs.google.com/spreadsheets/d/1a1jPYstX2Wy778hD9OpM_PZkYE3KGktL0JxSL8dJiTY/gviz/tq?tqx=out:json&sheet=ACCOUNT`);
       const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygIvQKoBIOy0xmUddkJw_L2KUO8475ldRIt8Si1ZuBingQaROb5zD__cmt8_rZYz4AWA/exec"
-      const sheetName = 'WB';
+      const sheetName = 'HR';
       const response = await fetch(`${APPS_SCRIPT_URL}?sheet=${sheetName}`);
       
       if (!response.ok) {
@@ -467,7 +373,7 @@ const confirmMarkDone = async () => {
       
       const username = sessionStorage.getItem('username')
       const userRole = sessionStorage.getItem('role')
-  
+
       // Extract headers
       const headers = data.table.cols.map((col, index) => ({
         id: `col${index}`,
@@ -512,7 +418,7 @@ const confirmMarkDone = async () => {
         const columnMValue = getCellValue(row, 12);
         const columnPValue = getCellValue(row, 15);
         const columnQValue = getCellValue(row, 16);
-  
+
         // Skip rows marked as DONE in column Q
         if (columnQValue && columnQValue.toString().trim() === 'DONE') {
           return;
@@ -550,20 +456,19 @@ const confirmMarkDone = async () => {
         
         // For pending tasks: Column L is not null and column M is null
         if (hasColumnL && isColumnMEmpty) {
-          // Get frequency from column I (index 8) - FIXED: Reading from correct frequency column
-          const frequency = getCellValue(row, 8) || 'daily' // Column I contains frequency (weekly, monthly, yearly, etc.)
-          
-          // Use frequency-based filtering
-          if (shouldShowTaskBasedOnFrequency(formattedRowDate, frequency)) {
+          // Filter for today and tomorrow OR past dates
+          if (formattedRowDate === todayStr || 
+              formattedRowDate === tomorrowStr || 
+              (parseDateFromDDMMYYYY(formattedRowDate) <= today)) {
+            
             debugRows.push({
               rowIndex,
               hasColumnL,
               isColumnMEmpty,
               formattedRowDate,
-              frequency,
               todayStr,
               tomorrowStr,
-              matches: true
+              matches: formattedRowDate === todayStr || formattedRowDate === tomorrowStr
             });
             
             pendingAccounts.push(rowData);
@@ -688,7 +593,7 @@ const confirmMarkDone = async () => {
       }))
       
       const formData = new FormData()
-      formData.append('sheetName', 'WB')
+      formData.append('sheetName', 'HR')
       formData.append('action', 'updateSalesData')
       formData.append('rowData', JSON.stringify(submissionData))
       

@@ -209,7 +209,10 @@ const filterTasksByDateRange = () => {
   const fetchMasterSheetColumnA = async () => {
     try {
       setIsFetchingMaster(true)
-      const response = await fetch(`https://docs.google.com/spreadsheets/d/1a1jPYstX2Wy778hD9OpM_PZkYE3KGktL0JxSL8dJiTY/gviz/tq?tqx=out:json&sheet=MASTER`)
+      // const response = await fetch(`https://docs.google.com/spreadsheets/d/1hHdACIjGa_OC2iSmg5LrPHqpMvvWzD33X3U8lobUQ_A/gviz/tq?tqx=out:json&sheet=MASTER`)
+      const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygIvQKoBIOy0xmUddkJw_L2KUO8475ldRIt8Si1ZuBingQaROb5zD__cmt8_rZYz4AWA/exec"
+      const sheetName = 'MASTER';
+      const response = await fetch(`${APPS_SCRIPT_URL}?sheet=${sheetName}`);
       
       if (!response.ok) {
         throw new Error(`Failed to fetch master sheet data: ${response.status}`)
@@ -277,7 +280,10 @@ const fetchDepartmentData = async (department) => {
   
   try {
     setIsFetchingMaster(true);
-    const response = await fetch(`https://docs.google.com/spreadsheets/d/1a1jPYstX2Wy778hD9OpM_PZkYE3KGktL0JxSL8dJiTY/gviz/tq?tqx=out:json&sheet=${sheetName}`);
+    // const response = await fetch(`https://docs.google.com/spreadsheets/d/1hHdACIjGa_OC2iSmg5LrPHqpMvvWzD33X3U8lobUQ_A/gviz/tq?tqx=out:json&sheet=${sheetName}`);
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygIvQKoBIOy0xmUddkJw_L2KUO8475ldRIt8Si1ZuBingQaROb5zD__cmt8_rZYz4AWA/exec";
+    //const response = await fetch(`https://docs.google.com/spreadsheets/d/1a1jPYstX2Wy778hD9OpM_PZkYE3KGktL0JxSL8dJiTY/gviz/tq?tqx=out:json&sheet=${sheetName}`);
+    const response = await fetch(`${APPS_SCRIPT_URL}?sheet=${sheetName}`);
     
     if (!response.ok) {
       throw new Error(`Failed to fetch ${sheetName} sheet data: ${response.status}`);

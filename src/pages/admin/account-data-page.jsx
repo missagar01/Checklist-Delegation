@@ -6,9 +6,9 @@ import AdminLayout from "../../components/layout/AdminLayout"
 import ReactDOM from 'react-dom';
 
 // Google Apps Script URL
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzCl0b_3-jQtZLNGGFngdMaMz7s6X0WYnCZ7Ct58ejTR_sp_SEdR65NptfS7w7S1Jh4/exec"
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygIvQKoBIOy0xmUddkJw_L2KUO8475ldRIt8Si1ZuBingQaROb5zD__cmt8_rZYz4AWA/exec"
 // Google Drive folder ID
-const DRIVE_FOLDER_ID = "1TzjAIpRAoz017MfzZ0gZaN-v5jyKtg7E"
+const DRIVE_FOLDER_ID = "1CICXUJMkw_KBH1NgkincyFlMlhN5xpDE"
 
 function AccountDataPage() {
   const [accountData, setAccountData] = useState([])
@@ -63,40 +63,57 @@ function AccountDataPage() {
   }, [])
 
   // Parse Google Sheets Date format into a proper date string
-  const parseGoogleSheetsDate = (dateStr) => {
-    if (!dateStr) return '';
-    
-    if (typeof dateStr === 'string' && dateStr.startsWith('Date(')) {
-      // Handle Google Sheets Date(year,month,day) format
-      const match = /Date\((\d+),(\d+),(\d+)\)/.exec(dateStr);
-      if (match) {
-        const year = parseInt(match[1], 10);
-        const month = parseInt(match[2], 10); // 0-indexed in Google's format
-        const day = parseInt(match[3], 10);
-        
-        // Format as DD/MM/YYYY
-        return `${day.toString().padStart(2, '0')}/${(month + 1).toString().padStart(2, '0')}/${year}`;
-      }
+// Replace the existing parseGoogleSheetsDate function with this simplified version
+const parseGoogleSheetsDate = (dateStr) => {
+  if (!dateStr) return '';
+  
+  // Convert to string first
+  const dateString = String(dateStr).trim();
+  
+  // If it's already in DD/MM/YYYY format, return as is
+  if (dateString.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+    return dateString;
+  }
+  
+  // Handle Google Sheets Date(year,month,day) format (legacy support)
+  if (dateString.startsWith('Date(')) {
+    const match = /Date\((\d+),(\d+),(\d+)\)/.exec(dateString);
+    if (match) {
+      const year = parseInt(match[1], 10);
+      const month = parseInt(match[2], 10); // 0-indexed in Google's format
+      const day = parseInt(match[3], 10);
+      
+      // Format as DD/MM/YYYY
+      return `${day.toString().padStart(2, '0')}/${(month + 1).toString().padStart(2, '0')}/${year}`;
     }
-    
-    // If it's already in DD/MM/YYYY format, return as is
-    if (typeof dateStr === 'string' && dateStr.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-      return dateStr;
-    }
-    
-    // If we get here, try to parse as a date and format
+  }
+  
+  // Handle ISO date format (2025-07-22T18:30:00.000Z) or other date formats
+  if (dateString.includes('T') || dateString.includes('Z') || dateString.match(/^\d{4}-\d{2}-\d{2}/)) {
     try {
-      const date = new Date(dateStr);
+      const date = new Date(dateString);
       if (!isNaN(date.getTime())) {
         return formatDateToDDMMYYYY(date);
       }
     } catch (e) {
-      console.error("Error parsing date:", e);
+      console.error("Error parsing ISO date:", e);
     }
-    
-    // Return original if parsing fails
-    return dateStr;
   }
+  
+  // Try to parse as a general date and format
+  try {
+    const date = new Date(dateString);
+    if (!isNaN(date.getTime())) {
+      return formatDateToDDMMYYYY(date);
+    }
+  } catch (e) {
+    console.error("Error parsing date:", e);
+  }
+  
+  // If all parsing fails, return the original string
+  return dateString;
+}
+
 
   // Parse date from DD/MM/YYYY format
   const parseDateFromDDMMYYYY = (dateStr) => {
@@ -311,7 +328,7 @@ const confirmMarkDone = async () => {
     }));
     
     const formData = new FormData();
-    formData.append('sheetName', 'ACCOUNT');
+    formData.append('sheetName', 'HR');
     formData.append('action', 'updateSalesData');
     formData.append('rowData', JSON.stringify(submissionData));
     
@@ -348,151 +365,404 @@ const confirmMarkDone = async () => {
   }
 }
 
-  // Fetch sheet data function
-  const fetchSheetData = async () => {
-    try {
-      setLoading(true);
-      // Clear existing data before fetching to prevent duplicates
-      const pendingAccounts = [];
-      const historyRows = [];
+
+// Add this helper function before fetchSheetData
+// Updated helper function before fetchSheetData
+// Updated helper function before fetchSheetData
+const shouldShowTaskBasedOnFrequency = (taskDate, frequency) => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  
+  const tomorrow = new Date(today)
+  tomorrow.setDate(today.getDate() + 1)
+  
+  console.log('Processing task:', { taskDate, frequency })
+  
+  const taskDateObj = parseDateFromDDMMYYYY(taskDate)
+  if (!taskDateObj) {
+    console.log('❌ Invalid date parsing for:', taskDate)
+    return false
+  }
+  
+  taskDateObj.setHours(0, 0, 0, 0)
+  
+  // For past due tasks, always show regardless of frequency
+  if (taskDateObj < today) {
+    console.log('✅ Past due task shown:', taskDate)
+    return true
+  }
+  
+  // Handle different frequencies
+  switch (frequency?.toLowerCase()) {
+    case 'weekly':
+      // Today is Friday, July 25, 2025
+      // Current week: Sunday July 20 - Saturday July 26
+      // Next week: Sunday July 27 - Saturday August 2
       
-      const response = await fetch(`https://docs.google.com/spreadsheets/d/1a1jPYstX2Wy778hD9OpM_PZkYE3KGktL0JxSL8dJiTY/gviz/tq?tqx=out:json&sheet=ACCOUNT`);
+      // Find the most recent Sunday (start of current week)
+      const currentWeekStart = new Date(today)
+      const daysSinceSunday = today.getDay() // 0=Sunday, 1=Monday, ..., 6=Saturday
+      currentWeekStart.setDate(today.getDate() - daysSinceSunday)
+      currentWeekStart.setHours(0, 0, 0, 0)
       
-      if (!response.ok) {
-        throw new Error(`Failed to fetch data: ${response.status}`);
+      // End of next week (Saturday of next week)
+      const nextWeekEnd = new Date(currentWeekStart)
+      nextWeekEnd.setDate(currentWeekStart.getDate() + 13) // 13 days later = end of next week
+      nextWeekEnd.setHours(23, 59, 59, 999)
+      
+      const isWeeklyMatch = taskDateObj >= currentWeekStart && taskDateObj <= nextWeekEnd
+      
+      console.log('🗓️ Weekly filter debug for', taskDate, ':', {
+        today: today.toDateString(),
+        todayDayOfWeek: today.getDay(),
+        taskDateObj: taskDateObj.toDateString(),
+        taskDayOfWeek: taskDateObj.getDay(),
+        frequency: frequency,
+        currentWeekStart: currentWeekStart.toDateString(),
+        nextWeekEnd: nextWeekEnd.toDateString(),
+        daysSinceSunday: daysSinceSunday,
+        isInRange: isWeeklyMatch,
+        taskTime: taskDateObj.getTime(),
+        startTime: currentWeekStart.getTime(),
+        endTime: nextWeekEnd.getTime(),
+        taskAfterStart: taskDateObj >= currentWeekStart,
+        taskBeforeEnd: taskDateObj <= nextWeekEnd
+      })
+      
+      if (isWeeklyMatch) {
+        console.log('✅ Weekly task SHOWN:', taskDate)
+      } else {
+        console.log('❌ Weekly task HIDDEN:', taskDate)
       }
       
-      const text = await response.text();
-      const jsonStart = text.indexOf('{');
-      const jsonEnd = text.lastIndexOf('}');
-      const jsonString = text.substring(jsonStart, jsonEnd + 1);
-      const data = JSON.parse(jsonString);
+      return isWeeklyMatch
+    
+    case 'monthly':
+      // Monthly: show current month AND next month
+      const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1)
+      const nextMonthEnd = new Date(today.getFullYear(), today.getMonth() + 2, 0) // Last day of next month
       
-      const username = sessionStorage.getItem('username')
-      const userRole = sessionStorage.getItem('role')
+      const isMonthlyMatch = taskDateObj >= currentMonthStart && taskDateObj <= nextMonthEnd
+      console.log('📅 Monthly task:', taskDate, isMonthlyMatch ? 'SHOWN' : 'HIDDEN')
+      return isMonthlyMatch
+    
+    case 'yearly':
+      // Yearly: show current year AND next year
+      const currentYearStart = new Date(today.getFullYear(), 0, 1)
+      const nextYearEnd = new Date(today.getFullYear() + 2, 0, 0) // Last day of next year
+      
+      const isYearlyMatch = taskDateObj >= currentYearStart && taskDateObj <= nextYearEnd
+      console.log('📆 Yearly task:', taskDate, isYearlyMatch ? 'SHOWN' : 'HIDDEN')
+      return isYearlyMatch
+    
+    default:
+      // For daily or no frequency specified, use existing logic (today and tomorrow)
+      const isDailyMatch = taskDateObj.getTime() === today.getTime() || 
+                          taskDateObj.getTime() === tomorrow.getTime()
+      console.log('📋 Daily task:', taskDate, isDailyMatch ? 'SHOWN' : 'HIDDEN')
+      return isDailyMatch
+  }
+}
 
-      // Extract headers
-      const headers = data.table.cols.map((col, index) => ({
-        id: `col${index}`,
-        label: col.label || `Column ${index + 1}`,
-        type: col.type
-      })).filter(header => header.label !== '');
-      
-      setSheetHeaders(headers);
-      
-      // Get today and tomorrow's dates
-      const today = new Date()
-      const tomorrow = new Date(today)
-      tomorrow.setDate(today.getDate() + 1)
-      
-      const todayStr = formatDateToDDMMYYYY(today)
-      const tomorrowStr = formatDateToDDMMYYYY(tomorrow)
-      
-      console.log("Filtering dates:", { todayStr, tomorrowStr })
-      
-      // Debugging array to track row filtering
-      const debugRows = [];
-      
-      // Track all unique members for filtering
-      const membersSet = new Set();
-      
-      // Process all rows
-      data.table.rows.forEach((row, rowIndex) => {
-        if (rowIndex === 0) return;
-        
-        // For non-admin users, filter by username in Column E (index 4)
-        const assignedTo = getCellValue(row, 4) || 'Unassigned';
-        membersSet.add(assignedTo); // Add to members list for dropdown
-        
-        const isUserMatch = userRole === 'admin' || 
-                            assignedTo.toLowerCase() === username.toLowerCase();
-        
-        // If not a match and not admin, skip this row
-        if (!isUserMatch && userRole !== 'admin') return;
-        
-        // Safely get values from columns L, M, P, and Q
-        const columnLValue = getCellValue(row, 11);
-        const columnMValue = getCellValue(row, 12);
-        const columnPValue = getCellValue(row, 15);
-        const columnQValue = getCellValue(row, 16);
+// Complete fetchSheetData function
+// Complete fetchSheetData function
+const fetchSheetData = async () => {
+  try {
+    setLoading(true);
+    // Clear existing data before fetching to prevent duplicates
+    const pendingAccounts = [];
+    const historyRows = [];
+    
+    // const response = await fetch(`https://docs.google.com/spreadsheets/d/1a1jPYstX2Wy778hD9OpM_PZkYE3KGktL0JxSL8dJiTY/gviz/tq?tqx=out:json&sheet=ADMIN`);
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygIvQKoBIOy0xmUddkJw_L2KUO8475ldRIt8Si1ZuBingQaROb5zD__cmt8_rZYz4AWA/exec"
+    const sheetName = 'HR';
+    const response = await fetch(`${APPS_SCRIPT_URL}?sheet=${sheetName}`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch data: ${response.status}`);
+    }
+    
+    const text = await response.text();
+    const jsonStart = text.indexOf('{');
+    const jsonEnd = text.lastIndexOf('}');
+    const jsonString = text.substring(jsonStart, jsonEnd + 1);
+    const data = JSON.parse(jsonString);
+    
+    const username = sessionStorage.getItem('username')
+    const userRole = sessionStorage.getItem('role')
 
-        // Skip rows marked as DONE in column Q
-        if (columnQValue && columnQValue.toString().trim() === 'DONE') {
-          return;
-        }
+    // Extract headers
+    const headers = data.table.cols.map((col, index) => ({
+      id: `col${index}`,
+      label: col.label || `Column ${index + 1}`,
+      type: col.type
+    })).filter(header => header.label !== '');
+    
+    setSheetHeaders(headers);
+    
+    // Get today and tomorrow's dates
+    const today = new Date()
+    const tomorrow = new Date(today)
+    tomorrow.setDate(today.getDate() + 1)
+    
+    const todayStr = formatDateToDDMMYYYY(today)
+    const tomorrowStr = formatDateToDDMMYYYY(tomorrow)
+    
+    console.log("Filtering dates:", { todayStr, tomorrowStr })
+    
+    // Debugging array to track row filtering
+    const debugRows = [];
+    
+    // Track all unique members for filtering
+    const membersSet = new Set();
+    
+    // Process all rows
+    data.table.rows.forEach((row, rowIndex) => {
+      if (rowIndex === 0) return;
+      
+      // For non-admin users, filter by username in Column E (index 4)
+      const assignedTo = getCellValue(row, 4) || 'Unassigned';
+      membersSet.add(assignedTo); // Add to members list for dropdown
+      
+      const isUserMatch = userRole === 'admin' || 
+                          assignedTo.toLowerCase() === username.toLowerCase();
+      
+      // If not a match and not admin, skip this row
+      if (!isUserMatch && userRole !== 'admin') return;
+      
+      // Safely get values from columns L, M, P, and Q
+      const columnLValue = getCellValue(row, 11);
+      const columnMValue = getCellValue(row, 12);
+      const columnPValue = getCellValue(row, 15);
+      const columnQValue = getCellValue(row, 16);
+
+      // Skip rows marked as DONE in column Q
+      if (columnQValue && columnQValue.toString().trim() === 'DONE') {
+        return;
+      }
+      
+      // Convert column L value to string and format properly
+      let rowDateStr = columnLValue ? String(columnLValue).trim() : '';
+      let formattedRowDate = parseGoogleSheetsDate(rowDateStr);
+      
+      // Create row data object
+      const rowData = {
+        _id: Math.random().toString(36).substring(2, 15),  
+        _rowIndex: rowIndex + 2 // +2 for header row and 1-indexing
+      };
+      
+      // Populate row data dynamically with proper date formatting
+      headers.forEach((header, index) => {
+        const cellValue = getCellValue(row, index);
         
-        // Convert column L value to string and format properly
-        let rowDateStr = columnLValue ? String(columnLValue).trim() : '';
-        let formattedRowDate = parseGoogleSheetsDate(rowDateStr);
-        
-        // Create row data object
-        const rowData = {
-          _id: Math.random().toString(36).substring(2, 15),  
-          _rowIndex: rowIndex + 2 // +2 for header row and 1-indexing
-        };
-        
-        // Populate row data dynamically with proper date formatting
-        headers.forEach((header, index) => {
-          const cellValue = getCellValue(row, index);
-          
-          // If this is a date column, format properly
-          if (header.type === 'date' || (cellValue && String(cellValue).startsWith('Date('))) {
-            rowData[header.id] = cellValue ? parseGoogleSheetsDate(String(cellValue)) : '';
-          } else if (header.type === 'number' && cellValue !== null && cellValue !== '') {
-            // Handle numeric values
-            rowData[header.id] = cellValue;
-          } else {
-            // Handle all other values
-            rowData[header.id] = cellValue !== null ? cellValue : '';
-          }
-        });
-        
-        // Check if column L is not null/empty and column M is null/empty
-        const hasColumnL = !isEmpty(columnLValue);
-        const isColumnMEmpty = isEmpty(columnMValue);
-        
-        // For pending tasks: Column L is not null and column M is null
-        if (hasColumnL && isColumnMEmpty) {
-          // Filter for today and tomorrow OR past dates
-          if (formattedRowDate === todayStr || 
-              formattedRowDate === tomorrowStr || 
-              (parseDateFromDDMMYYYY(formattedRowDate) <= today)) {
-            
-            debugRows.push({
-              rowIndex,
-              hasColumnL,
-              isColumnMEmpty,
-              formattedRowDate,
-              todayStr,
-              tomorrowStr,
-              matches: formattedRowDate === todayStr || formattedRowDate === tomorrowStr
-            });
-            
-            pendingAccounts.push(rowData);
-          }
-        } 
-        // For history: Both column L and M are not null
-        else if (hasColumnL && !isColumnMEmpty) {
-          historyRows.push(rowData);
+        // If this is a date column, format properly
+        if (header.type === 'date' || (cellValue && String(cellValue).startsWith('Date('))) {
+          rowData[header.id] = cellValue ? parseGoogleSheetsDate(String(cellValue)) : '';
+        } else if (header.type === 'number' && cellValue !== null && cellValue !== '') {
+          // Handle numeric values
+          rowData[header.id] = cellValue;
+        } else {
+          // Handle all other values
+          rowData[header.id] = cellValue !== null ? cellValue : '';
         }
       });
       
-      // Set debug information for display
-      setDebugInfo(debugRows);
+      // Check if column L is not null/empty and column M is null/empty
+      const hasColumnL = !isEmpty(columnLValue);
+      const isColumnMEmpty = isEmpty(columnMValue);
       
-      // Set members list from all unique values in column E
-      setMembersList(Array.from(membersSet).sort());
-      
-      // Set account data and history data separately to avoid duplication
-      setAccountData(pendingAccounts);
-      setHistoryData(historyRows);
-      setLoading(false);
-    } catch (error) {
-      console.error("Error fetching sheet data:", error);
-      setError("Failed to load account data");  
-      setLoading(false);
-    }
+      // For pending tasks: Column L is not null and column M is null
+      if (hasColumnL && isColumnMEmpty) {
+        // Get frequency from column I (index 8) - FIXED: Reading from correct frequency column
+        const frequency = getCellValue(row, 8) || 'daily' // Column I contains frequency (weekly, monthly, yearly, etc.)
+        
+        // Use frequency-based filtering
+        if (shouldShowTaskBasedOnFrequency(formattedRowDate, frequency)) {
+          debugRows.push({
+            rowIndex,
+            hasColumnL,
+            isColumnMEmpty,
+            formattedRowDate,
+            frequency,
+            todayStr,
+            tomorrowStr,
+            matches: true
+          });
+          
+          pendingAccounts.push(rowData);
+        }
+      } 
+      // For history: Both column L and M are not null
+      else if (hasColumnL && !isColumnMEmpty) {
+        historyRows.push(rowData);
+      }
+    });
+    
+    // Set debug information for display
+    setDebugInfo(debugRows);
+    
+    // Set members list from all unique values in column E
+    setMembersList(Array.from(membersSet).sort());
+    
+    // Set account data and history data separately to avoid duplication
+    setAccountData(pendingAccounts);
+    setHistoryData(historyRows);
+    setLoading(false);
+  } catch (error) {
+    console.error("Error fetching sheet data:", error);
+    setError("Failed to load account data");  
+    setLoading(false);
   }
+}
+
+  // Fetch sheet data function
+  // const fetchSheetData = async () => {
+  //   try {
+  //     setLoading(true);
+  //     // Clear existing data before fetching to prevent duplicates
+  //     const pendingAccounts = [];
+  //     const historyRows = [];
+      
+  //     // const response = await fetch(`https://docs.google.com/spreadsheets/d/1a1jPYstX2Wy778hD9OpM_PZkYE3KGktL0JxSL8dJiTY/gviz/tq?tqx=out:json&sheet=ADMIN`);
+  //     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygIvQKoBIOy0xmUddkJw_L2KUO8475ldRIt8Si1ZuBingQaROb5zD__cmt8_rZYz4AWA/exec"
+  //     const sheetName = 'Admin';
+  //     const response = await fetch(`${APPS_SCRIPT_URL}?sheet=${sheetName}`);
+      
+  //     if (!response.ok) {
+  //       throw new Error(`Failed to fetch data: ${response.status}`);
+  //     }
+      
+  //     const text = await response.text();
+  //     const jsonStart = text.indexOf('{');
+  //     const jsonEnd = text.lastIndexOf('}');
+  //     const jsonString = text.substring(jsonStart, jsonEnd + 1);
+  //     const data = JSON.parse(jsonString);
+      
+  //     const username = sessionStorage.getItem('username')
+  //     const userRole = sessionStorage.getItem('role')
+
+  //     // Extract headers
+  //     const headers = data.table.cols.map((col, index) => ({
+  //       id: `col${index}`,
+  //       label: col.label || `Column ${index + 1}`,
+  //       type: col.type
+  //     })).filter(header => header.label !== '');
+      
+  //     setSheetHeaders(headers);
+      
+  //     // Get today and tomorrow's dates
+  //     const today = new Date()
+  //     const tomorrow = new Date(today)
+  //     tomorrow.setDate(today.getDate() + 1)
+      
+  //     const todayStr = formatDateToDDMMYYYY(today)
+  //     const tomorrowStr = formatDateToDDMMYYYY(tomorrow)
+      
+  //     console.log("Filtering dates:", { todayStr, tomorrowStr })
+      
+  //     // Debugging array to track row filtering
+  //     const debugRows = [];
+      
+  //     // Track all unique members for filtering
+  //     const membersSet = new Set();
+      
+  //     // Process all rows
+  //     data.table.rows.forEach((row, rowIndex) => {
+  //       if (rowIndex === 0) return;
+        
+  //       // For non-admin users, filter by username in Column E (index 4)
+  //       const assignedTo = getCellValue(row, 4) || 'Unassigned';
+  //       membersSet.add(assignedTo); // Add to members list for dropdown
+        
+  //       const isUserMatch = userRole === 'admin' || 
+  //                           assignedTo.toLowerCase() === username.toLowerCase();
+        
+  //       // If not a match and not admin, skip this row
+  //       if (!isUserMatch && userRole !== 'admin') return;
+        
+  //       // Safely get values from columns L, M, P, and Q
+  //       const columnLValue = getCellValue(row, 11);
+  //       const columnMValue = getCellValue(row, 12);
+  //       const columnPValue = getCellValue(row, 15);
+  //       const columnQValue = getCellValue(row, 16);
+
+  //       // Skip rows marked as DONE in column Q
+  //       if (columnQValue && columnQValue.toString().trim() === 'DONE') {
+  //         return;
+  //       }
+        
+  //       // Convert column L value to string and format properly
+  //       let rowDateStr = columnLValue ? String(columnLValue).trim() : '';
+  //       let formattedRowDate = parseGoogleSheetsDate(rowDateStr);
+        
+  //       // Create row data object
+  //       const rowData = {
+  //         _id: Math.random().toString(36).substring(2, 15),  
+  //         _rowIndex: rowIndex + 2 // +2 for header row and 1-indexing
+  //       };
+        
+  //       // Populate row data dynamically with proper date formatting
+  //       headers.forEach((header, index) => {
+  //         const cellValue = getCellValue(row, index);
+          
+  //         // If this is a date column, format properly
+  //         if (header.type === 'date' || (cellValue && String(cellValue).startsWith('Date('))) {
+  //           rowData[header.id] = cellValue ? parseGoogleSheetsDate(String(cellValue)) : '';
+  //         } else if (header.type === 'number' && cellValue !== null && cellValue !== '') {
+  //           // Handle numeric values
+  //           rowData[header.id] = cellValue;
+  //         } else {
+  //           // Handle all other values
+  //           rowData[header.id] = cellValue !== null ? cellValue : '';
+  //         }
+  //       });
+        
+  //       // Check if column L is not null/empty and column M is null/empty
+  //       const hasColumnL = !isEmpty(columnLValue);
+  //       const isColumnMEmpty = isEmpty(columnMValue);
+        
+  //       // For pending tasks: Column L is not null and column M is null
+  //       if (hasColumnL && isColumnMEmpty) {
+  //         // Filter for today and tomorrow OR past dates
+  //         if (formattedRowDate === todayStr || 
+  //             formattedRowDate === tomorrowStr || 
+  //             (parseDateFromDDMMYYYY(formattedRowDate) <= today)) {
+            
+  //           debugRows.push({
+  //             rowIndex,
+  //             hasColumnL,
+  //             isColumnMEmpty,
+  //             formattedRowDate,
+  //             todayStr,
+  //             tomorrowStr,
+  //             matches: formattedRowDate === todayStr || formattedRowDate === tomorrowStr
+  //           });
+            
+  //           pendingAccounts.push(rowData);
+  //         }
+  //       } 
+  //       // For history: Both column L and M are not null
+  //       else if (hasColumnL && !isColumnMEmpty) {
+  //         historyRows.push(rowData);
+  //       }
+  //     });
+      
+  //     // Set debug information for display
+  //     setDebugInfo(debugRows);
+      
+  //     // Set members list from all unique values in column E
+  //     setMembersList(Array.from(membersSet).sort());
+      
+  //     // Set account data and history data separately to avoid duplication
+  //     setAccountData(pendingAccounts);
+  //     setHistoryData(historyRows);
+  //     setLoading(false);
+  //   } catch (error) {
+  //     console.error("Error fetching sheet data:", error);
+  //     setError("Failed to load account data");  
+  //     setLoading(false);
+  //   }
+  // }
 
   // Load data on component mount
   useEffect(() => {
@@ -590,7 +860,7 @@ const confirmMarkDone = async () => {
       }))
       
       const formData = new FormData()
-      formData.append('sheetName', 'ACCOUNT')
+      formData.append('sheetName', 'HR')
       formData.append('action', 'updateSalesData')
       formData.append('rowData', JSON.stringify(submissionData))
       
@@ -1006,7 +1276,7 @@ const confirmMarkDone = async () => {
                             </div>
                           </td>
                         ))}
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap bg-yellow-50">
                           <select
                             disabled={!selectedItems.includes(account._id)}
                             value={additionalData[account._id] || ""}
@@ -1018,7 +1288,7 @@ const confirmMarkDone = async () => {
                             <option value="No">No</option>
                           </select>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap bg-green-50">
                           {account.image ? (
                             <div className="flex items-center">
                               <img

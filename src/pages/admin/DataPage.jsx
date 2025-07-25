@@ -12,6 +12,27 @@ import DirectorDataPage from "./director-data-page.jsx"
 import ManagingDirector from "./managingDirector-data-page.jsx"
 import AdminDataPage from "./admin-data-page.jsx"
 import Coo from "./coo-data-page.jsx"
+import InwardDataPage from "./inward-data-page.jsx"
+import StoreDataPage from "./store-data-page.jsx"
+import LabQualityControlDataPage from "./lab-quality-control-datqa-page.jsx"
+import SecurityDataPage from "./security-data-page.jsx"
+import TransportDataPage from "./transport-data-page.jsx"
+import FurnanceProductionDataPage from "./furnance-production-data-page.jsx"
+import SripeMillProductionDataPage from "./stripe-mill-production-data-page.jsx"
+import PipeMillProductionDataPage from "./pipe-mill-production-data-page.jsx"
+import WorkshopDataPage from "./workshop-data-page.jsx"
+import SmsMaintenanceDataPage from "./sms-maintenance-data-page.jsx"
+import CcmMaintenanceDataPage from "./ccm-maintenance-data-page.jsx"
+import SriptMillManintenanceDataPage from "./stripe-mill-maintenance.jsx"
+import PipeMillMaintenanceDataPage from "./pipe-mill-maintenance-data-page.jsx"
+import SmsElectricalDataPage from "./sms-electrical-data-page.jsx"
+import CcmElectricalDataPage from "./ccm-electrical-data-page.jsx"
+import StripMillElectricalDataPage from "./strip-mill-electrical-data-page.jsx"
+import PipeMillElectricalDataPage from "./pipe-mill-electrical-data-page.jsx"
+import HousekeppingDataPage from "./housekepping-data-page.jsx"
+import CcmDataPage from "./ccm-data-page.jsx"
+import CrusherDataPage from "./crusher-data-page.jsx"
+import OneLineSecurityDataPage from "./on-line-security-data-page.jsx"
 
 export default function DataPage() {
   const { category } = useParams()
@@ -39,14 +60,56 @@ export default function DataPage() {
       return <AccountDataPage />
     case "warehouse":
       return <WarehouseDataPage />
-      case "purchase":
-        return <PurchaseDataPage/>
-        case "director":
-        return <DirectorDataPage/>
-        case "managing-director":
-          return <ManagingDirector/>
-          case "coo":
-          return <Coo/>
+    case "purchase":
+      return <PurchaseDataPage/>
+    case "director":
+      return <DirectorDataPage/>
+    case "managing-director":
+      return <ManagingDirector/>
+    case "coo":
+      return <Coo/>
+    case "inward":
+      return <InwardDataPage/>
+    case "store":
+      return <StoreDataPage/>
+    case "labQualityControl":
+      return <LabQualityControlDataPage/>
+    case "security":
+      return <SecurityDataPage/>
+    case "transport":
+      return <TransportDataPage/>
+    case "furnanceProduction":
+      return <FurnanceProductionDataPage/>
+    case "stripMillProduction":
+      return <SripeMillProductionDataPage/>
+    case "pipeMillProduction":
+      return <PipeMillProductionDataPage/>
+    case "workshop":
+      return <WorkshopDataPage/>
+    case "smsMaintenance":
+      return <SmsMaintenanceDataPage/>
+    case "ccmMaintenance":
+      return <CcmMaintenanceDataPage/>
+    case "stripMillMaintenance":
+      return <SriptMillManintenanceDataPage/>
+    case "pipeMillMaintenance":
+      return <PipeMillMaintenanceDataPage/>
+    case "smsElectrical":
+      return <SmsElectricalDataPage/>
+    case "ccmElectrical":
+      return <CcmElectricalDataPage/>
+    case "stripMillElectrical":
+      return <StripMillElectricalDataPage/>
+    case "pipeMillElectrical":
+      return <PipeMillElectricalDataPage/>
+    case "housekeeping":
+      return <HousekeppingDataPage/>
+    case "ccm":
+      return <CcmDataPage/>
+    case "crusher":
+      return <CrusherDataPage/>
+    case "onLineSecurity":
+      return <OneLineSecurityDataPage/>
     default:
       return (
         <AdminLayout>

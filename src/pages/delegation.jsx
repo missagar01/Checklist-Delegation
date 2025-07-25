@@ -5,9 +5,9 @@ import { CheckCircle2, Upload, X, Search, History, Clock } from "lucide-react"
 import AdminLayout from "../components/layout/AdminLayout"
 
 // Google Apps Script URL
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzCl0b_3-jQtZLNGGFngdMaMz7s6X0WYnCZ7Ct58ejTR_sp_SEdR65NptfS7w7S1Jh4/exec"
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygIvQKoBIOy0xmUddkJw_L2KUO8475ldRIt8Si1ZuBingQaROb5zD__cmt8_rZYz4AWA/exec"
 // Google Drive folder ID
-const DRIVE_FOLDER_ID = "1TzjAIpRAoz017MfzZ0gZaN-v5jyKtg7E"
+const DRIVE_FOLDER_ID = "1CICXUJMkw_KBH1NgkincyFlMlhN5xpDE"
 
 function SalesDataPage() {
   const [salesData, setSalesData] = useState([])
@@ -186,7 +186,10 @@ const filteredSalesData = salesData
   const fetchSheetData = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`https://docs.google.com/spreadsheets/d/1a1jPYstX2Wy778hD9OpM_PZkYE3KGktL0JxSL8dJiTY/gviz/tq?tqx=out:json&sheet=DELEGATION`)
+      // const response = await fetch(`https://docs.google.com/spreadsheets/d/1a1jPYstX2Wy778hD9OpM_PZkYE3KGktL0JxSL8dJiTY/gviz/tq?tqx=out:json&sheet=DELEGATION`)
+      const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygIvQKoBIOy0xmUddkJw_L2KUO8475ldRIt8Si1ZuBingQaROb5zD__cmt8_rZYz4AWA/exec"
+      const sheetName = 'DELEGATION';
+      const response = await fetch(`${APPS_SCRIPT_URL}?sheet=${sheetName}`);
       
       if (!response.ok) {
         throw new Error(`Failed to fetch data: ${response.status}`)
@@ -219,7 +222,10 @@ const filteredSalesData = salesData
       
       // Now, let's also fetch data from DELEGATION DONE sheet first to get task ID counts
       try {
-        const historyResponse = await fetch(`https://docs.google.com/spreadsheets/d/1a1jPYstX2Wy778hD9OpM_PZkYE3KGktL0JxSL8dJiTY/gviz/tq?tqx=out:json&sheet=DELEGATION%20DONE`)
+        // const historyResponse = await fetch(`https://docs.google.com/spreadsheets/d/1a1jPYstX2Wy778hD9OpM_PZkYE3KGktL0JxSL8dJiTY/gviz/tq?tqx=out:json&sheet=DELEGATION%20DONE`)
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygIvQKoBIOy0xmUddkJw_L2KUO8475ldRIt8Si1ZuBingQaROb5zD__cmt8_rZYz4AWA/exec"
+        const sheetName = 'DELEGATION DONE';
+        const historyResponse = await fetch(`${APPS_SCRIPT_URL}?sheet=${sheetName}`);
         
         if (historyResponse.ok) {
           const historyText = await historyResponse.text()

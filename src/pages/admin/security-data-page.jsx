@@ -311,7 +311,7 @@ const confirmMarkDone = async () => {
     }));
     
     const formData = new FormData();
-    formData.append('sheetName', 'WB');
+    formData.append('sheetName', 'SECURITY');
     formData.append('action', 'updateSalesData');
     formData.append('rowData', JSON.stringify(submissionData));
     
@@ -452,7 +452,7 @@ const confirmMarkDone = async () => {
       
       // const response = await fetch(`https://docs.google.com/spreadsheets/d/1a1jPYstX2Wy778hD9OpM_PZkYE3KGktL0JxSL8dJiTY/gviz/tq?tqx=out:json&sheet=ADMIN`);
       const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygIvQKoBIOy0xmUddkJw_L2KUO8475ldRIt8Si1ZuBingQaROb5zD__cmt8_rZYz4AWA/exec"
-      const sheetName = 'WB';
+      const sheetName = 'SECURITY';
       const response = await fetch(`${APPS_SCRIPT_URL}?sheet=${sheetName}`);
       
       if (!response.ok) {
@@ -688,7 +688,7 @@ const confirmMarkDone = async () => {
       }))
       
       const formData = new FormData()
-      formData.append('sheetName', 'WB')
+      formData.append('sheetName', 'SECURITY')
       formData.append('action', 'updateSalesData')
       formData.append('rowData', JSON.stringify(submissionData))
       

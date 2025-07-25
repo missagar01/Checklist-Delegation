@@ -311,7 +311,7 @@ const confirmMarkDone = async () => {
     }));
     
     const formData = new FormData();
-    formData.append('sheetName', 'WB');
+    formData.append('sheetName', 'FURNANCE PRODUCTION');
     formData.append('action', 'updateSalesData');
     formData.append('rowData', JSON.stringify(submissionData));
     
@@ -349,6 +349,154 @@ const confirmMarkDone = async () => {
 }
 
   // Fetch sheet data function
+  // const fetchSheetData = async () => {
+  //   try {
+  //     setLoading(true);
+  //     // Clear existing data before fetching to prevent duplicates
+  //     const pendingAccounts = [];
+  //     const historyRows = [];
+      
+  //     // const response = await fetch(`https://docs.google.com/spreadsheets/d/1a1jPYstX2Wy778hD9OpM_PZkYE3KGktL0JxSL8dJiTY/gviz/tq?tqx=out:json&sheet=ACCOUNT`);
+  //     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygIvQKoBIOy0xmUddkJw_L2KUO8475ldRIt8Si1ZuBingQaROb5zD__cmt8_rZYz4AWA/exec"
+  //     const sheetName = 'FURNANCE PRODUCTION';
+  //     const response = await fetch(`${APPS_SCRIPT_URL}?sheet=${sheetName}`);
+      
+  //     if (!response.ok) {
+  //       throw new Error(`Failed to fetch data: ${response.status}`);
+  //     }
+      
+  //     const text = await response.text();
+  //     const jsonStart = text.indexOf('{');
+  //     const jsonEnd = text.lastIndexOf('}');
+  //     const jsonString = text.substring(jsonStart, jsonEnd + 1);
+  //     const data = JSON.parse(jsonString);
+      
+  //     const username = sessionStorage.getItem('username')
+  //     const userRole = sessionStorage.getItem('role')
+
+  //     // Extract headers
+  //     const headers = data.table.cols.map((col, index) => ({
+  //       id: `col${index}`,
+  //       label: col.label || `Column ${index + 1}`,
+  //       type: col.type
+  //     })).filter(header => header.label !== '');
+      
+  //     setSheetHeaders(headers);
+      
+  //     // Get today and tomorrow's dates
+  //     const today = new Date()
+  //     const tomorrow = new Date(today)
+  //     tomorrow.setDate(today.getDate() + 1)
+      
+  //     const todayStr = formatDateToDDMMYYYY(today)
+  //     const tomorrowStr = formatDateToDDMMYYYY(tomorrow)
+      
+  //     console.log("Filtering dates:", { todayStr, tomorrowStr })
+      
+  //     // Debugging array to track row filtering
+  //     const debugRows = [];
+      
+  //     // Track all unique members for filtering
+  //     const membersSet = new Set();
+      
+  //     // Process all rows
+  //     data.table.rows.forEach((row, rowIndex) => {
+  //       if (rowIndex === 0) return;
+        
+  //       // For non-admin users, filter by username in Column E (index 4)
+  //       const assignedTo = getCellValue(row, 4) || 'Unassigned';
+  //       membersSet.add(assignedTo); // Add to members list for dropdown
+        
+  //       const isUserMatch = userRole === 'admin' || 
+  //                           assignedTo.toLowerCase() === username.toLowerCase();
+        
+  //       // If not a match and not admin, skip this row
+  //       if (!isUserMatch && userRole !== 'admin') return;
+        
+  //       // Safely get values from columns L, M, P, and Q
+  //       const columnLValue = getCellValue(row, 11);
+  //       const columnMValue = getCellValue(row, 12);
+  //       const columnPValue = getCellValue(row, 15);
+  //       const columnQValue = getCellValue(row, 16);
+
+  //       // Skip rows marked as DONE in column Q
+  //       if (columnQValue && columnQValue.toString().trim() === 'DONE') {
+  //         return;
+  //       }
+        
+  //       // Convert column L value to string and format properly
+  //       let rowDateStr = columnLValue ? String(columnLValue).trim() : '';
+  //       let formattedRowDate = parseGoogleSheetsDate(rowDateStr);
+        
+  //       // Create row data object
+  //       const rowData = {
+  //         _id: Math.random().toString(36).substring(2, 15),  
+  //         _rowIndex: rowIndex + 2 // +2 for header row and 1-indexing
+  //       };
+        
+  //       // Populate row data dynamically with proper date formatting
+  //       headers.forEach((header, index) => {
+  //         const cellValue = getCellValue(row, index);
+          
+  //         // If this is a date column, format properly
+  //         if (header.type === 'date' || (cellValue && String(cellValue).startsWith('Date('))) {
+  //           rowData[header.id] = cellValue ? parseGoogleSheetsDate(String(cellValue)) : '';
+  //         } else if (header.type === 'number' && cellValue !== null && cellValue !== '') {
+  //           // Handle numeric values
+  //           rowData[header.id] = cellValue;
+  //         } else {
+  //           // Handle all other values
+  //           rowData[header.id] = cellValue !== null ? cellValue : '';
+  //         }
+  //       });
+        
+  //       // Check if column L is not null/empty and column M is null/empty
+  //       const hasColumnL = !isEmpty(columnLValue);
+  //       const isColumnMEmpty = isEmpty(columnMValue);
+        
+  //       // For pending tasks: Column L is not null and column M is null
+  //       if (hasColumnL && isColumnMEmpty) {
+  //         // Filter for today and tomorrow OR past dates
+  //         if (formattedRowDate === todayStr || 
+  //             formattedRowDate === tomorrowStr || 
+  //             (parseDateFromDDMMYYYY(formattedRowDate) <= today)) {
+            
+  //           debugRows.push({
+  //             rowIndex,
+  //             hasColumnL,
+  //             isColumnMEmpty,
+  //             formattedRowDate,
+  //             todayStr,
+  //             tomorrowStr,
+  //             matches: formattedRowDate === todayStr || formattedRowDate === tomorrowStr
+  //           });
+            
+  //           pendingAccounts.push(rowData);
+  //         }
+  //       } 
+  //       // For history: Both column L and M are not null
+  //       else if (hasColumnL && !isColumnMEmpty) {
+  //         historyRows.push(rowData);
+  //       }
+  //     });
+      
+  //     // Set debug information for display
+  //     setDebugInfo(debugRows);
+      
+  //     // Set members list from all unique values in column E
+  //     setMembersList(Array.from(membersSet).sort());
+      
+  //     // Set account data and history data separately to avoid duplication
+  //     setAccountData(pendingAccounts);
+  //     setHistoryData(historyRows);
+  //     setLoading(false);
+  //   } catch (error) {
+  //     console.error("Error fetching sheet data:", error);
+  //     setError("Failed to load account data");  
+  //     setLoading(false);
+  //   }
+  // }
+
   const shouldShowTaskBasedOnFrequency = (taskDate, frequency) => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
@@ -452,7 +600,7 @@ const confirmMarkDone = async () => {
       
       // const response = await fetch(`https://docs.google.com/spreadsheets/d/1a1jPYstX2Wy778hD9OpM_PZkYE3KGktL0JxSL8dJiTY/gviz/tq?tqx=out:json&sheet=ADMIN`);
       const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygIvQKoBIOy0xmUddkJw_L2KUO8475ldRIt8Si1ZuBingQaROb5zD__cmt8_rZYz4AWA/exec"
-      const sheetName = 'WB';
+      const sheetName = 'FURNANCE PRODUCTION';
       const response = await fetch(`${APPS_SCRIPT_URL}?sheet=${sheetName}`);
       
       if (!response.ok) {
@@ -688,7 +836,7 @@ const confirmMarkDone = async () => {
       }))
       
       const formData = new FormData()
-      formData.append('sheetName', 'WB')
+      formData.append('sheetName', 'FURNANCE PRODUCTION')
       formData.append('action', 'updateSalesData')
       formData.append('rowData', JSON.stringify(submissionData))
       

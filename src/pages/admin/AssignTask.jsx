@@ -164,40 +164,77 @@ export default function AssignTask() {
   }
 
   // Function to fetch options from master sheet
-  const fetchMasterSheetOptions = async () => {
-    try {
-      const masterSheetId = '1a1jPYstX2Wy778hD9OpM_PZkYE3KGktL0JxSL8dJiTY'
-      const masterSheetName = 'master'
-      
-      const url = `https://docs.google.com/spreadsheets/d/${masterSheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(masterSheetName)}`
-      
-      const response = await fetch(url)
-      if (!response.ok) {
-        throw new Error(`Failed to fetch master data: ${response.status}`)
+// Function to fetch options from master sheet
+const fetchMasterSheetOptions = async () => {
+  try {
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygIvQKoBIOy0xmUddkJw_L2KUO8475ldRIt8Si1ZuBingQaROb5zD__cmt8_rZYz4AWA/exec"
+    const masterSheetName = 'master';
+    
+    // Correct way to call the Apps Script URL
+    const url = `${APPS_SCRIPT_URL}?sheet=${masterSheetName}`;
+    
+    const response = await fetch(url)
+    if (!response.ok) {
+      throw new Error(`Failed to fetch master data: ${response.status}`)
+    }
+
+    // Since this is an Apps Script response, it should return JSON directly
+    const data = await response.json()
+    
+    console.log("Raw data from Apps Script:", data); // Debug log
+
+    // Check if data has the expected structure
+    if (!data || !Array.isArray(data) && (!data.table || !data.table.rows)) {
+      console.log("No master data found or unexpected data structure:", data)
+      return
+    }
+
+    // Extract options from columns A, B, and C
+    const departments = []
+    const givenBy = []
+    const doers = []
+
+    // Handle different response formats
+    let rows = [];
+    if (Array.isArray(data)) {
+      // If data is a direct array
+      rows = data;
+    } else if (data.table && data.table.rows) {
+      // If data has Google Sheets visualization format
+      rows = data.table.rows;
+    }
+
+    // Process all rows
+    rows.forEach((row, index) => {
+      // Skip header row if it exists
+      if (index === 0 && (
+        (Array.isArray(row) && row[0] === 'Department') ||
+        (row.c && row.c[0] && row.c[0].v === 'Department')
+      )) {
+        return;
       }
-  
-      const text = await response.text()
-      const jsonStart = text.indexOf('{')
-      const jsonEnd = text.lastIndexOf('}')
-      const jsonString = text.substring(jsonStart, jsonEnd + 1)
-      const data = JSON.parse(jsonString)
-  
-      if (!data.table || !data.table.rows) {
-        console.log("No master data found")
-        return
-      }
-  
-      // Extract options from columns A, B, and C
-      const departments = []
-      const givenBy = []
-      const doers = []
-  
-      // Process all rows starting from index 0
-      data.table.rows.forEach((row) => {
+
+      // Handle array format
+      if (Array.isArray(row)) {
+        // Column A - Departments
+        if (row[0] && row[0].toString().trim() !== "") {
+          departments.push(row[0].toString().trim())
+        }
+        // Column B - Given By
+        if (row[1] && row[1].toString().trim() !== "") {
+          givenBy.push(row[1].toString().trim())
+        }
+        // Column C - Doers
+        if (row[2] && row[2].toString().trim() !== "") {
+          doers.push(row[2].toString().trim())
+        }
+      } 
+      // Handle Google Sheets visualization format
+      else if (row.c) {
         // Column A - Departments
         if (row.c && row.c[0] && row.c[0].v) {
           const value = row.c[0].v.toString().trim()
-          if (value !== "") { // Only add non-empty values
+          if (value !== "") {
             departments.push(value)
           }
         }
@@ -215,26 +252,27 @@ export default function AssignTask() {
             doers.push(value)
           }
         }
-      })
-  
-      // Remove duplicates and sort
-      setDepartmentOptions([...new Set(departments)].sort())
-      setGivenByOptions([...new Set(givenBy)].sort())
-      setDoerOptions([...new Set(doers)].sort())
-  
-      console.log("Master sheet options loaded successfully", {
-        departments,
-        givenBy,
-        doers
-      })
-    } catch (error) {
-      console.error("Error fetching master sheet options:", error)
-      // Set default options if fetch fails 
-      setDepartmentOptions(['Department 1', 'Department 2'])
-      setGivenByOptions(['User 1', 'User 2'])
-      setDoerOptions(['Doer 1', 'Doer 2'])
-    }
+      }
+    })
+
+    // Remove duplicates and sort
+    setDepartmentOptions([...new Set(departments)].sort())
+    setGivenByOptions([...new Set(givenBy)].sort())
+    setDoerOptions([...new Set(doers)].sort())
+
+    console.log("Master sheet options loaded successfully", {
+      departments: [...new Set(departments)],
+      givenBy: [...new Set(givenBy)],
+      doers: [...new Set(doers)]
+    })
+  } catch (error) {
+    console.error("Error fetching master sheet options:", error)
+    // Set default options if fetch fails 
+    setDepartmentOptions(['Department 1', 'Department 2'])
+    setGivenByOptions(['User 1', 'User 2'])
+    setDoerOptions(['Doer 1', 'Doer 2'])
   }
+}
 
   // Update date display format
   const getFormattedDate = (date) => {
@@ -254,7 +292,11 @@ export default function AssignTask() {
 // Add a function to get the last task ID
 const getLastTaskId = async (sheetName) => {
   try {
-    const url = `https://docs.google.com/spreadsheets/d/1a1jPYstX2Wy778hD9OpM_PZkYE3KGktL0JxSL8dJiTY/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`
+    // const url = `https://docs.google.com/spreadsheets/d/10AxkKvrYLodX2OgOjqtqMezGsTgx_vf8mV5HPfDpJXE/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygIvQKoBIOy0xmUddkJw_L2KUO8475ldRIt8Si1ZuBingQaROb5zD__cmt8_rZYz4AWA/exec"
+    // const url = await fetch(`${APPS_SCRIPT_URL}?sheet=${sheetName}`);
+    const url = `${APPS_SCRIPT_URL}?sheet=${sheetName}`;
+
 
     const response = await fetch(url)
     if (!response.ok) {
@@ -303,57 +345,121 @@ const formatDateToDDMMYYYY = (date) => {
 // Function to fetch working days from the Working Day Calendar sheet
 const fetchWorkingDays = async () => {
   try {
-    const sheetId = '1a1jPYstX2Wy778hD9OpM_PZkYE3KGktL0JxSL8dJiTY'
-    const sheetName = 'Working Day Calender'
-    
-    const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`
-    
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygIvQKoBIOy0xmUddkJw_L2KUO8475ldRIt8Si1ZuBingQaROb5zD__cmt8_rZYz4AWA/exec"
+    const sheetName = 'Working Day Calender';
+    const url = `${APPS_SCRIPT_URL}?sheet=${encodeURIComponent(sheetName)}`;
+
+    console.log("Fetching working days from:", url);
+
     const response = await fetch(url)
     if (!response.ok) {
       throw new Error(`Failed to fetch working days: ${response.status}`)
     }
 
-    const text = await response.text()
-    const jsonStart = text.indexOf('{')
-    const jsonEnd = text.lastIndexOf('}')
-    const jsonString = text.substring(jsonStart, jsonEnd + 1)
-    const data = JSON.parse(jsonString)
+    const data = await response.json()
+    console.log("Raw response from Apps Script:", data);
 
-    if (!data.table || !data.table.rows) {
-      console.log("No working day data found")
+    if (!data) {
+      console.log("No data received from Apps Script")
       return []
     }
 
-    // Extract dates from column A
+    // Extract dates from the response
     const workingDays = []
-    data.table.rows.forEach((row) => {
-      if (row.c && row.c[0] && row.c[0].v) {
-        let dateValue = row.c[0].v
-        
-        // Handle Google Sheets Date(year,month,day) format
-        if (typeof dateValue === 'string' && dateValue.startsWith('Date(')) {
-          const match = /Date\((\d+),(\d+),(\d+)\)/.exec(dateValue)
-          if (match) {
-            const year = parseInt(match[1], 10)
-            const month = parseInt(match[2], 10) // 0-indexed in Google's format
-            const day = parseInt(match[3], 10)
-            
-            dateValue = `${day.toString().padStart(2, '0')}/${(month + 1).toString().padStart(2, '0')}/${year}`
+    
+    // Handle array format (direct from Apps Script)
+    if (Array.isArray(data)) {
+      data.forEach((row, index) => {
+        // Skip header row
+        if (index === 0 && (row[0] === 'Working Dates' || row[0] === 'Date' || row[0] === 'Working Days')) {
+          return;
+        }
+
+        if (row[0]) {
+          let dateValue = row[0];
+          let formattedDate = null;
+
+          // If it's already a DD/MM/YYYY string, use it directly
+          if (typeof dateValue === 'string' && dateValue.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
+            const parts = dateValue.split('/');
+            const day = parts[0].padStart(2, '0');
+            const month = parts[1].padStart(2, '0');
+            const year = parts[2];
+            formattedDate = `${day}/${month}/${year}`;
           }
-        } else if (dateValue instanceof Date) {
-          // If it's a Date object
-          dateValue = formatDateToDDMMYYYY(dateValue)
+          // Handle Date object
+          else if (dateValue instanceof Date || (typeof dateValue === 'string' && !isNaN(Date.parse(dateValue)))) {
+            const date = new Date(dateValue);
+            formattedDate = formatDateToDDMMYYYY(date);
+          }
+
+          if (formattedDate && formattedDate.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+            workingDays.push(formattedDate);
+          }
+        }
+      });
+    }
+    // Handle object format (Google Sheets API format)
+    else if (data.table && data.table.rows) {
+      data.table.rows.forEach((row, index) => {
+        // Skip header row
+        if (index === 0 && row.c && row.c[0] && row.c[0].v && 
+            (row.c[0].v === 'Working Dates' || row.c[0].v === 'Date' || row.c[0].v === 'Working Days')) {
+          return;
         }
 
-        // Add to working days if it's a valid date string
-        if (typeof dateValue === 'string' && dateValue.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-          workingDays.push(dateValue)
-        }
-      }
-    })
+        if (row.c && row.c[0] && row.c[0].v) {
+          let dateValue = row.c[0].v;
+          let formattedDate = null;
 
-    console.log(`Fetched ${workingDays.length} working days`)
-    return workingDays
+          // Handle Google Sheets Date(year,month,day) format
+          if (typeof dateValue === 'string' && dateValue.startsWith('Date(')) {
+            const match = /Date\((\d+),(\d+),(\d+)\)/.exec(dateValue)
+            if (match) {
+              const year = parseInt(match[1], 10)
+              const month = parseInt(match[2], 10) // 0-indexed in Google's format
+              const day = parseInt(match[3], 10)
+              
+              formattedDate = `${day.toString().padStart(2, '0')}/${(month + 1).toString().padStart(2, '0')}/${year}`
+            }
+          }
+          // Handle DD/MM/YYYY string
+          else if (typeof dateValue === 'string' && dateValue.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
+            const parts = dateValue.split('/');
+            const day = parts[0].padStart(2, '0');
+            const month = parts[1].padStart(2, '0');
+            const year = parts[2];
+            formattedDate = `${day}/${month}/${year}`;
+          }
+          // Handle Date object or parseable string
+          else if (dateValue instanceof Date || (typeof dateValue === 'string' && !isNaN(Date.parse(dateValue)))) {
+            const date = new Date(dateValue);
+            formattedDate = formatDateToDDMMYYYY(date);
+          }
+
+          if (formattedDate && formattedDate.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+            workingDays.push(formattedDate);
+          }
+        }
+      });
+    }
+
+    console.log(`Fetched ${workingDays.length} working days:`, workingDays.slice(0, 10));
+    
+    if (workingDays.length === 0) {
+      console.error("No working days found. Check if your Apps Script is returning data correctly.");
+      console.log("Expected data format: Array of rows where first column contains dates in DD/MM/YYYY format");
+    }
+    
+    return workingDays.sort((a, b) => {
+      // Sort dates chronologically
+      const [dayA, monthA, yearA] = a.split('/').map(Number);
+      const [dayB, monthB, yearB] = b.split('/').map(Number);
+      const dateA = new Date(yearA, monthA - 1, dayA);
+      const dateB = new Date(yearB, monthB - 1, dayB);
+      return dateA - dateB;
+    });
+
   } catch (error) {
     console.error("Error fetching working days:", error)
     return [] // Return empty array if fetch fails
@@ -408,40 +514,53 @@ const generateTasks = async () => {
 
   const tasks = []
   const startDate = new Date(date)
-  const endDate = addYears(startDate, 2)
+  
+  // Find the last available working day
+  const lastWorkingDay = workingDays.length > 0 
+    ? new Date(workingDays[workingDays.length - 1].split('/').reverse().join('-'))
+    : addYears(startDate, 2) // Fallback if no working days
+  
+  const endDate = workingDays.length > 0 
+    ? lastWorkingDay 
+    : addYears(startDate, 2) // Default to 2 years if no working days
+  
   let currentDate = new Date(startDate)
   
   // Keep track of used working days to prevent duplicates
   const usedWorkingDays = []
 
-  // For one-time tasks, just check if the start date is a working day
+  // For one-time tasks
   if (formData.frequency === "one-time") {
     let taskDate = workingDays.length > 0 
       ? findNextWorkingDay(currentDate, workingDays, usedWorkingDays) 
       : currentDate
       
-    tasks.push({
-      title: formData.title,
-      description: formData.description,
-      department: formData.department,
-      givenBy: formData.givenBy,
-      doer: formData.doer,
-      dueDate: formatDateToDDMMYYYY(taskDate),
-      status: "pending",
-      frequency: formData.frequency,
-      enableReminders: formData.enableReminders,
-      requireAttachment: formData.requireAttachment,
-    })
+    // Only add if within working days range
+    if (taskDate <= endDate) {
+      tasks.push({
+        title: formData.title,
+        description: formData.description,
+        department: formData.department,
+        givenBy: formData.givenBy,
+        doer: formData.doer,
+        dueDate: formatDateToDDMMYYYY(taskDate),
+        status: "pending",
+        frequency: formData.frequency,
+        enableReminders: formData.enableReminders,
+        requireAttachment: formData.requireAttachment,
+      })
+    }
   } else {
-    // For recurring tasks, check each date
+    // For recurring tasks
     while (currentDate <= endDate) {
-      // Find the next valid working day that hasn't been used yet
+      // Find the next valid working day
       let taskDate = workingDays.length > 0 
         ? findNextWorkingDay(currentDate, workingDays, usedWorkingDays) 
         : currentDate
 
-      // Only add the task if we found a valid date
-      // (this prevents adding duplicate dates)
+      // Only add if within working days range
+      if (taskDate > endDate) break
+
       const formattedTaskDate = formatDateToDDMMYYYY(taskDate)
       if (!tasks.some(task => task.dueDate === formattedTaskDate)) {
         tasks.push({
@@ -484,6 +603,10 @@ const generateTasks = async () => {
     }
   }
 
+  if (tasks.length === 0) {
+    alert("No tasks were generated within the available working days range.")
+  }
+
   setGeneratedTasks(tasks)
   setAccordionOpen(true)
 }
@@ -491,59 +614,86 @@ const generateTasks = async () => {
 // Update handleSubmit function to avoid re-formatting an already formatted date
 // Update handleSubmit function to handle one-time tasks differently
 const handleSubmit = async (e) => {
-  e.preventDefault()
-  setIsSubmitting(true)
+  e.preventDefault();
+  setIsSubmitting(true);
 
   try {
     if (generatedTasks.length === 0) {
-      alert("Please generate tasks first by clicking Preview Generated Tasks")
-      setIsSubmitting(false)
-      return
+      alert("Please generate tasks first by clicking Preview Generated Tasks");
+      setIsSubmitting(false);
+      return;
     }
 
-    // Determine the sheet where tasks will be submitted
-    // If frequency is "one-time", use "DELEGATION" sheet, otherwise use the department sheet
+    // Submit to department sheet (or DELEGATION for one-time tasks)
     const submitSheetName = formData.frequency === "one-time" ? "DELEGATION" : formData.department;
     
-    // Get the last task ID from the appropriate sheet
-    const lastTaskId = await getLastTaskId(submitSheetName)
-    let nextTaskId = lastTaskId + 1
+    // Get last task IDs for both sheets
+    const [deptLastId, checklistLastId] = await Promise.all([
+      getLastTaskId(submitSheetName),
+      getLastTaskId("CHECKLIST")
+    ]);
 
-    // Current date formatted
-    const currentDate = formatDateToDDMMYYYY(new Date())
-
-    // Prepare all tasks data in one array
+    // Prepare data for both sheets
+    const currentDate = formatDateToDDMMYYYY(new Date());
     const allTasksData = generatedTasks.map((task, index) => ({
-      timestamp: formatDateToDDMMYYYY(new Date()),
-      taskId: (nextTaskId + index).toString(),
-      // Include the department field even when submitting to DELEGATION
+      timestamp: currentDate,
+      taskId: (deptLastId + 1 + index).toString(),
       department: task.department,
       givenBy: task.givenBy,
       doer: task.doer,
       title: task.title,
       description: task.description,
-      dueDate: task.dueDate, // Already formatted, don't format again
+      dueDate: task.dueDate,
       frequency: task.frequency,
       enableReminders: task.enableReminders ? 'Yes' : 'No',
       requireAttachment: task.requireAttachment ? 'Yes' : 'No',
       // currentDate: currentDate
-    }))
+    }));
 
-    // Submit all tasks in one request
-    const formPayload = new FormData()
-    formPayload.append('sheetName', submitSheetName) // Use the determined sheet name
-    formPayload.append('action', 'insert')
-    formPayload.append('rowData', JSON.stringify(allTasksData))
-    formPayload.append('batchInsert', 'true')
+    // Submit to department sheet
+    const deptPayload = new FormData();
+    deptPayload.append('sheetName', submitSheetName);
+    deptPayload.append('action', 'insert');
+    deptPayload.append('rowData', JSON.stringify(allTasksData));
+    deptPayload.append('batchInsert', 'true');
 
-    await fetch('https://script.google.com/macros/s/AKfycbzCl0b_3-jQtZLNGGFngdMaMz7s6X0WYnCZ7Ct58ejTR_sp_SEdR65NptfS7w7S1Jh4/exec', {
+    const deptResponse = await fetch('https://script.google.com/macros/s/AKfycbygIvQKoBIOy0xmUddkJw_L2KUO8475ldRIt8Si1ZuBingQaROb5zD__cmt8_rZYz4AWA/exec', {
       method: 'POST',
-      body: formPayload,
-      mode: 'no-cors'
-    })
+      body: deptPayload
+    });
 
-    // Show a success message with the appropriate sheet name
-    alert(`Successfully submitted ${generatedTasks.length} tasks to ${submitSheetName} sheet!`)
+    // Submit first task to CHECKLIST sheet
+    const firstTask = generatedTasks[0];
+    const checklistTaskData = {
+      timestamp: currentDate,
+      taskId: (checklistLastId + 1).toString(),
+      department: firstTask.department,
+      givenBy: firstTask.givenBy,
+      doer: firstTask.doer,
+      title: firstTask.title,
+      description: firstTask.description,
+      dueDate: firstTask.dueDate,
+      frequency: firstTask.frequency,
+      enableReminders: firstTask.enableReminders ? 'Yes' : 'No',
+      requireAttachment: firstTask.requireAttachment ? 'Yes' : 'No',
+      // currentDate: currentDate
+    };
+
+    const checklistPayload = new FormData();
+    checklistPayload.append('sheetName', 'Checklist');
+    checklistPayload.append('action', 'insert');
+    checklistPayload.append('rowData', JSON.stringify(checklistTaskData));
+
+    const checklistResponse = await fetch('https://script.google.com/macros/s/AKfycbygIvQKoBIOy0xmUddkJw_L2KUO8475ldRIt8Si1ZuBingQaROb5zD__cmt8_rZYz4AWA/exec', {
+      method: 'POST',
+      body: checklistPayload
+    });
+
+    if (!deptResponse.ok || !checklistResponse.ok) {
+      throw new Error('Failed to submit to one or more sheets');
+    }
+
+    alert(`Successfully submitted ${generatedTasks.length} tasks to ${submitSheetName} sheet and first task to CHECKLIST!`);
 
     // Reset form
     setFormData({
@@ -555,15 +705,15 @@ const handleSubmit = async (e) => {
       frequency: "daily",
       enableReminders: true,
       requireAttachment: false,
-    })
-    setSelectedDate(null)
-    setGeneratedTasks([])
-    setAccordionOpen(false)
+    });
+    setSelectedDate(null);
+    setGeneratedTasks([]);
+    setAccordionOpen(false);
   } catch (error) {
-    console.error('Submission error:', error)
-    alert("Failed to assign tasks. Please try again.")
+    console.error('Submission error:', error);
+    alert("Failed to assign tasks. Please try again.");
   } finally {
-    setIsSubmitting(false)
+    setIsSubmitting(false);
   }
 }
 

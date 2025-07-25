@@ -10,6 +10,7 @@ import DataPage from "./pages/admin/DataPage"
 import AdminDataPage from "./pages/admin/admin-data-page"
 import AccountDataPage from "./pages/delegation"
 import "./index.css"
+import QuickTask from "./pages/QuickTask"
 
 // Auth wrapper component to protect routes
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
@@ -89,6 +90,15 @@ function App() {
           }
         />
 
+<Route
+          path="/dashboard/quick-task"
+          element={
+            <ProtectedRoute allowedRoles={["admin", "user"]}>
+              <QuickTask />
+            </ProtectedRoute>
+          }
+        />
+
          {/* Delegation route for user */}
          <Route
           path="/dashboard/delegation"
@@ -122,6 +132,7 @@ function App() {
         {/* Backward compatibility redirects */}
         <Route path="/admin/*" element={<Navigate to="/dashboard/admin" replace />} />
         <Route path="/admin/dashboard" element={<Navigate to="/dashboard/admin" replace />} />
+        <Route parh="/admin/quick-task" element={<Navigate to="/dashboard/quick-task" replace />} />
         <Route path="/admin/assign-task" element={<Navigate to="/dashboard/assign-task" replace />} />
         <Route path="/admin/data/:category" element={<Navigate to="/dashboard/data/:category" replace />} />
         <Route path="/user/*" element={<Navigate to="/dashboard/admin" replace />} />

@@ -9,7 +9,8 @@ const LoginPage = () => {
   const [isLoginLoading, setIsLoginLoading] = useState(false)
   const [masterData, setMasterData] = useState({
     userCredentials: {}, // Object where keys are usernames and values are passwords
-    userRoles: {} // Object where keys are usernames and values are roles
+    userRoles: {}, // Object where keys are usernames and values are roles
+    userDepartments: {} // Object where keys are usernames and values are departments from column F
   })
   const [formData, setFormData] = useState({
     username: "",
@@ -21,7 +22,7 @@ const LoginPage = () => {
   const isInactiveRole = (role) => {
     if (!role) return false;
     
-    // Convert to lowercasex
+    // Convert to lowercase
     const normalizedRole = String(role).toLowerCase().trim();
     
     // Check for different variations of "inactive" status
@@ -36,7 +37,7 @@ const LoginPage = () => {
     const fetchMasterData = async () => {
       try {
         setIsDataLoading(true)
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzCl0b_3-jQtZLNGGFngdMaMz7s6X0WYnCZ7Ct58ejTR_sp_SEdR65NptfS7w7S1Jh4/exec"
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygIvQKoBIOy0xmUddkJw_L2KUO8475ldRIt8Si1ZuBingQaROb5zD__cmt8_rZYz4AWA/exec"
         
         // Using POST for better data handling
         const formData = new FormData()
@@ -50,9 +51,10 @@ const LoginPage = () => {
         
         const result = await response.json()
         
-        // Create userCredentials and userRoles objects from the sheet data
+        // Create userCredentials, userRoles, and userDepartments objects from the sheet data
         const userCredentials = {}
         const userRoles = {}
+        const userDepartments = {}
         
         // If there's data from the sheet, process it
         if (result.success && result.data) {
@@ -63,10 +65,12 @@ const LoginPage = () => {
           const usernamesCol = result.data.C || []; // Column C - Doer's Name
           const passwordsCol = result.data.D || []; // Column D - Password
           const rolesCol = result.data.E || [];     // Column E - Role
+          const accessCol = result.data.F || [];    // Column F - Access/Departments
           
           console.log("Username column:", usernamesCol);
           console.log("Password column:", passwordsCol);
           console.log("Role column:", rolesCol);
+          console.log("Access column:", accessCol);
           
           // Process all rows, including the first one
           for (let i = 0; i < usernamesCol.length; i++) {
@@ -74,8 +78,9 @@ const LoginPage = () => {
             const username = String(usernamesCol[i] || '').trim().toLowerCase();
             const password = String(passwordsCol[i] || '').trim();
             
-            // IMPORTANT: Get the actual role value directly from the sheet
+            // IMPORTANT: Get the actual role and access values directly from the sheet
             let role = rolesCol[i];
+            let access = accessCol[i]; // Get access from Column F
             
             // Only process if we have both username and password
             if (username && password && password.trim() !== '') {
@@ -86,9 +91,17 @@ const LoginPage = () => {
                 // Make sure it's a string
                 role = String(role).trim();
               }
+
+              // Convert access to string, handle null/undefined
+              if (access === null || access === undefined) {
+                access = ""; // Default to empty if no access is specified
+              } else {
+                // Make sure it's a string and keep original case for access
+                access = String(access).trim();
+              }
               
               // Log what we found for debugging
-              console.log(`Processing row ${i}: username=${username}, password=${password}, role=${role}`);
+              console.log(`Processing row ${i}: username=${username}, password=${password}, role=${role}, access=${access}`);
               
               // Check if the role is any kind of inactive status
               if (isInactiveRole(role)) {
@@ -96,28 +109,35 @@ const LoginPage = () => {
                 continue; // Skip this user
               }
               
-              // Store normalized role for comparison
+              // Store normalized role for comparison but keep original department case
               const normalizedRole = role.toLowerCase();
               
               // Store in our maps
               userCredentials[username] = password;
               userRoles[username] = normalizedRole;
+              userDepartments[username] = access; // Store access permissions from Column F
               
-              console.log(`Added credential for: ${username}, Role: ${normalizedRole}`);
+              console.log(`Added credential for: ${username}, Role: ${normalizedRole}, Access: ${access}`);
             }
           }
         }
         
-        setMasterData({ userCredentials, userRoles })
+        setMasterData({ userCredentials, userRoles, userDepartments })
         console.log("Loaded credentials from master sheet:", Object.keys(userCredentials).length)
         console.log("Credentials map:", userCredentials)
         console.log("Roles map:", userRoles)
+        console.log("Departments map:", userDepartments)
         
         // Debug - check admin roles specifically
         const adminUsers = Object.entries(userRoles)
           .filter(([_, role]) => role === 'admin')
           .map(([username]) => username);
         console.log("Admin users found:", adminUsers);
+        
+        // Debug - check access permissions
+        console.log("Access permissions:", Object.entries(userDepartments)
+          .filter(([_, access]) => access && access.trim() !== '')
+          .map(([username, access]) => `${username}: ${access}`));
       } catch (error) {
         console.error("Error Fetching Master Data:", error)
         showToast(`Network error: ${error.message}. Please try again later.`, "error")
@@ -148,16 +168,19 @@ const LoginPage = () => {
       console.log("Available Credentials Count:", Object.keys(masterData.userCredentials).length)
       console.log("Current userCredentials:", masterData.userCredentials)
       console.log("Current userRoles:", masterData.userRoles)
+      console.log("Current userDepartments:", masterData.userDepartments)
       
       // Check if the username exists in our credentials map
       if (trimmedUsername in masterData.userCredentials) {
         const correctPassword = masterData.userCredentials[trimmedUsername]
         const userRole = masterData.userRoles[trimmedUsername]
+        const userAccess = masterData.userDepartments[trimmedUsername] // This now contains Column F access data
         
         console.log("Found user in credentials map")
         console.log("Expected Password:", correctPassword)
         console.log("Password Match:", correctPassword === trimmedPassword)
         console.log("User Role:", userRole)
+        console.log("User Access:", userAccess)
         
         // Check if password matches
         if (correctPassword === trimmedPassword) {
@@ -171,15 +194,20 @@ const LoginPage = () => {
           // Set role based on the fetched role
           sessionStorage.setItem('role', isAdmin ? 'admin' : 'user')
           
-          // For admin users, we don't want to restrict by department
+          // FIXED: Proper department handling
           if (isAdmin) {
+            // For admin users, they can access all departments
             sessionStorage.setItem('department', 'all') // Admin sees all departments
             sessionStorage.setItem('isAdmin', 'true') // Additional flag to ensure admin permissions
+            sessionStorage.setItem('userDepartments', 'all') // Store allowed departments
             console.log("ADMIN LOGIN - Setting full access permissions");
           } else {
-            sessionStorage.setItem('department', trimmedUsername)
+            // For non-admin users, set their specific access from Column F
+            sessionStorage.setItem('department', userAccess || '') // Store actual access
             sessionStorage.setItem('isAdmin', 'false')
-            console.log("USER LOGIN - Setting restricted access");
+            // Store the user's allowed departments from Column F
+            sessionStorage.setItem('userDepartments', userAccess || '')
+            console.log("USER LOGIN - Setting restricted access to departments:", userAccess);
           }
           
           // Navigate to dashboard
@@ -199,7 +227,8 @@ const LoginPage = () => {
         usernameExists: trimmedUsername in masterData.userCredentials,
         passwordMatch: (trimmedUsername in masterData.userCredentials) ? 
           "Password did not match" : 'Username not found',
-        userRole: masterData.userRoles[trimmedUsername] || 'No role'
+        userRole: masterData.userRoles[trimmedUsername] || 'No role',
+        userAccess: masterData.userDepartments[trimmedUsername] || 'No access'
       })
     } catch (error) {
       console.error("Login Error:", error)
