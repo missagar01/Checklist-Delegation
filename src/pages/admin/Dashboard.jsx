@@ -147,6 +147,80 @@ const filterTasksByDateRange = () => {
     return `${day}/${month}/${year}`
   }
   
+  // Function to get accessible departments based on user permissions (same as AdminLayout)
+  const getAccessibleDepartments = () => {
+    const currentUserRole = sessionStorage.getItem('role') || 'user'
+    const currentUserDepartments = sessionStorage.getItem('userDepartments') || ''
+    
+    console.log("Current user role:", currentUserRole)
+    console.log("Current user departments:", currentUserDepartments)
+    
+    // All departments mapped to their sheet names
+    const allDepartments = [
+      { name: "ADMIN", sheetName: "ADMIN" },
+      { name: "IT", sheetName: "IT" },
+      { name: "MARKETING", sheetName: "MARKETING" },
+      { name: "HR", sheetName: "HR" },
+      { name: "CRM", sheetName: "CRM" },
+      { name: "PURCHASE", sheetName: "PURCHASE" },
+      { name: "MIS", sheetName: "MIS" },
+      { name: "EA", sheetName: "EA" },
+      { name: "WB", sheetName: "WB" },
+      { name: "DISPATCH", sheetName: "DISPATCH" },
+      { name: "INWARD", sheetName: "INWARD" },
+      { name: "STORE", sheetName: "STORE" },
+      { name: "LAB AND QUALITY CONTROL", sheetName: "LAB AND QUALITY CONTROL" },
+      { name: "SECURITY", sheetName: "SECURITY" },
+      { name: "TRANSPORT", sheetName: "TRANSPORT" },
+      { name: "FURNANCE PRODUCTION", sheetName: "FURNANCE PRODUCTION" },
+      { name: "STRIP MILL PRODUCTION", sheetName: "STRIP MILL PRODUCTION" },
+      { name: "PIPE MILL PRODUCTION", sheetName: "PIPE MILL PRODUCTION" },
+      { name: "WORKSHOP", sheetName: "WORKSHOP" },
+      { name: "SMS MAINTENANCE", sheetName: "SMS MAINTENANCE" },
+      { name: "CCM MAINTENANCE", sheetName: "CCM MAINTENANCE" },
+      { name: "STRIP MILL MAINTENANCE", sheetName: "STRIP MILL MAINTENANCE" },
+      { name: "PIPE MILL MAINTENANCE", sheetName: "PIPE MILL MAINTENANCE" },
+      { name: "SMS ELECTRICAL", sheetName: "SMS ELECTRICAL" },
+      { name: "CCM ELECTRICAL", sheetName: "CCM ELECTRICAL" },
+      { name: "STRIP MILL ELECTRICAL", sheetName: "STRIP MILL ELECTRICAL" },
+      { name: "PIPE MILL ELECTRICAL", sheetName: "PIPE MILL ELECTRICAL" },
+      { name: "HOUSEKEEPING", sheetName: "HOUSEKEEPING" },
+      { name: "CCM", sheetName: "CCM" },
+      { name: "CRUSHER", sheetName: "CRUSHER" },
+      { name: "ON LINE SECURITY", sheetName: "ON LINE SECURITY" }
+    ]
+    
+    // If user is admin, return all departments
+    if (currentUserRole === 'admin' || currentUserDepartments === 'all') {
+      console.log("Admin user - returning all departments")
+      return ["Select Department", ...allDepartments.map(dept => dept.name)]
+    }
+    
+    // For non-admin users, filter based on their department access
+    if (!currentUserDepartments || currentUserDepartments.trim() === '') {
+      console.log("No departments specified - returning empty array")
+      return ["Select Department"]
+    }
+    
+    // Split the departments by comma and normalize
+    const allowedDepartments = currentUserDepartments
+      .split(',')
+      .map(dept => dept.trim().toLowerCase())
+      .filter(dept => dept !== '')
+    
+    console.log("Allowed departments for user:", allowedDepartments)
+    
+    // Filter departments based on allowed departments
+    const accessibleDepartments = allDepartments.filter(dept => {
+      const deptName = dept.name.toLowerCase()
+      const hasAccess = allowedDepartments.includes(deptName)
+      console.log(`Checking ${dept.name} (${deptName}): ${hasAccess}`)
+      return hasAccess
+    })
+    
+    console.log("Accessible departments:", accessibleDepartments.map(dept => dept.name))
+    return ["Select Department", ...accessibleDepartments.map(dept => dept.name)]
+  }
   // Parse DD/MM/YYYY to Date object
   const parseDateFromDDMMYYYY = (dateStr) => {
     if (!dateStr || typeof dateStr !== 'string') return null
@@ -209,7 +283,6 @@ const filterTasksByDateRange = () => {
   const fetchMasterSheetColumnA = async () => {
     try {
       setIsFetchingMaster(true)
-      // const response = await fetch(`https://docs.google.com/spreadsheets/d/1hHdACIjGa_OC2iSmg5LrPHqpMvvWzD33X3U8lobUQ_A/gviz/tq?tqx=out:json&sheet=MASTER`)
       const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygIvQKoBIOy0xmUddkJw_L2KUO8475ldRIt8Si1ZuBingQaROb5zD__cmt8_rZYz4AWA/exec"
       const sheetName = 'MASTER';
       const response = await fetch(`${APPS_SCRIPT_URL}?sheet=${sheetName}`);
@@ -227,22 +300,47 @@ const filterTasksByDateRange = () => {
       // Extract column A values (first column)
       const columnAValues = data.table.rows
         .map(row => {
-          // Check if row has 'c' property and first cell exists
           if (row && row.c && row.c[0]) {
-            // Get value from first cell ('v' property)
             return row.c[0].v || null
           }
           return null
         })
-        .filter(value => value !== null && value !== '') // Remove empty values
+        .filter(value => value !== null && value !== '')
       
-      // Add default option
-      const options = ["Select Department", ...columnAValues]
-      setMasterSheetOptions(options)
+      // Get accessible departments based on user permissions
+      const accessibleOptions = getAccessibleDepartments()
+      setMasterSheetOptions(accessibleOptions)
       
-      // If no option is selected yet, set the default
-      if (!selectedMasterOption) {
-        setSelectedMasterOption(options[0])
+      // Get user role and username for access control
+      const userRole = sessionStorage.getItem('role') || 'user'
+      const username = sessionStorage.getItem('username') || ''
+      const userDepartments = sessionStorage.getItem('userDepartments') || ''
+      
+      // Set initial selection based on user role
+      if (userRole === 'admin') {
+        // Admin can select any department, default to first option
+        if (!selectedMasterOption) {
+          setSelectedMasterOption(accessibleOptions[0])
+        }
+      } else {
+        // Regular user should automatically select their department if they have access to only one
+        if (userDepartments && userDepartments !== 'all') {
+          const allowedDepts = userDepartments.split(',').map(d => d.trim())
+          if (allowedDepts.length === 1) {
+            // If user has access to only one department, auto-select it
+            const userDept = allowedDepts[0].toUpperCase()
+            if (accessibleOptions.includes(userDept)) {
+              setSelectedMasterOption(userDept)
+            } else {
+              setSelectedMasterOption(accessibleOptions[0])
+            }
+          } else {
+            // Multiple departments - let them choose
+            setSelectedMasterOption(accessibleOptions[0])
+          }
+        } else {
+          setSelectedMasterOption(accessibleOptions[0])
+        }
       }
       
       // Count active staff (column C)
@@ -261,7 +359,6 @@ const filterTasksByDateRange = () => {
       
     } catch (error) {
       console.error("Error fetching master sheet data:", error)
-      // Add fallback options in case of error
       setMasterSheetOptions(["Error loading master data"])
     } finally {
       setIsFetchingMaster(false)
@@ -872,7 +969,27 @@ const StaffTasksTable = () => {
         if (e.target.value === "delegation") {
           setSelectedMasterOption("DELEGATION");
         } else {
-          setSelectedMasterOption("Select Department");
+          // For checklist mode, set based on user role and access
+          const userRole = sessionStorage.getItem('role') || 'user'
+          const userDepartments = sessionStorage.getItem('userDepartments') || ''
+          
+          if (userRole === 'admin') {
+            setSelectedMasterOption("Select Department");
+          } else {
+            // Set to user's accessible department
+            const accessibleOptions = getAccessibleDepartments()
+            if (userDepartments && userDepartments !== 'all') {
+              const allowedDepts = userDepartments.split(',').map(d => d.trim())
+              if (allowedDepts.length === 1) {
+                const userDept = allowedDepts[0].toUpperCase()
+                setSelectedMasterOption(accessibleOptions.includes(userDept) ? userDept : accessibleOptions[0])
+              } else {
+                setSelectedMasterOption(accessibleOptions[0])
+              }
+            } else {
+              setSelectedMasterOption(accessibleOptions[0])
+            }
+          }
         }
       }}
       className="w-[140px] rounded-md border border-purple-200 p-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
@@ -881,10 +998,31 @@ const StaffTasksTable = () => {
       <option value="delegation">Delegation</option>
     </select>
     
-    {/* Master Sheet Column A dropdown - disabled for delegation */}
+    {/* Master Sheet Column A dropdown - disabled for delegation, filtered for users */}
     <select
       value={selectedMasterOption}
-      onChange={(e) => setSelectedMasterOption(e.target.value)}
+      onChange={(e) => {
+        const userRole = sessionStorage.getItem('role') || 'user'
+        const userDepartments = sessionStorage.getItem('userDepartments') || ''
+        
+        // Check if user has access to selected department
+        if (userRole === 'admin' || e.target.value === "Select Department" || e.target.value === "DELEGATION") {
+          setSelectedMasterOption(e.target.value)
+        } else {
+          // Check if user has access to this department
+          if (userDepartments === 'all') {
+            setSelectedMasterOption(e.target.value)
+          } else {
+            const allowedDepts = userDepartments.split(',').map(d => d.trim().toLowerCase())
+            if (allowedDepts.includes(e.target.value.toLowerCase())) {
+              setSelectedMasterOption(e.target.value)
+            } else {
+              // Prevent selection if user doesn't have access
+              alert("You don't have access to this department")
+            }
+          }
+        }
+      }}
       className="w-[180px] rounded-md border border-purple-200 p-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
       disabled={isFetchingMaster || dashboardType === "delegation"}
     >

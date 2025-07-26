@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { BellRing, FileCheck, Calendar } from "lucide-react"
+import { BellRing, FileCheck, Calendar, Clock } from "lucide-react"
 import AdminLayout from "../../components/layout/AdminLayout"
 
 // Calendar Component (defined outside)
@@ -117,6 +117,7 @@ const addYears = (date, years) => {
 
 export default function AssignTask() {
   const [date, setSelectedDate] = useState(null)
+  const [selectedTime, setSelectedTime] = useState("09:00") // Add time state
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [generatedTasks, setGeneratedTasks] = useState([])
   const [showCalendar, setShowCalendar] = useState(false)
@@ -283,6 +284,23 @@ const fetchMasterSheetOptions = async () => {
       day: 'numeric'
     })
   }
+
+  // Add function to format date and time together
+  const formatDateTimeToSubmit = (date, time) => {
+    if (!date || !time) return ""
+    
+    const d = new Date(date)
+    const day = d.getDate().toString().padStart(2, '0')
+    const month = (d.getMonth() + 1).toString().padStart(2, '0')
+    const year = d.getFullYear()
+    
+    // Convert time to seconds format
+    const [hours, minutes] = time.split(':')
+    const seconds = "00" // Default seconds to 00
+    
+    return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`
+  }
+
   useEffect(() => {
     fetchMasterSheetOptions()
   }, [])
@@ -543,7 +561,7 @@ const generateTasks = async () => {
         department: formData.department,
         givenBy: formData.givenBy,
         doer: formData.doer,
-        dueDate: formatDateToDDMMYYYY(taskDate),
+        dueDate: formatDateTimeToSubmit(taskDate, selectedTime), // Use new format with time
         status: "pending",
         frequency: formData.frequency,
         enableReminders: formData.enableReminders,
@@ -561,7 +579,7 @@ const generateTasks = async () => {
       // Only add if within working days range
       if (taskDate > endDate) break
 
-      const formattedTaskDate = formatDateToDDMMYYYY(taskDate)
+      const formattedTaskDate = formatDateTimeToSubmit(taskDate, selectedTime) // Use new format with time
       if (!tasks.some(task => task.dueDate === formattedTaskDate)) {
         tasks.push({
           title: formData.title,
@@ -633,21 +651,20 @@ const handleSubmit = async (e) => {
       getLastTaskId("CHECKLIST")
     ]);
 
-    // Prepare data for both sheets
-    const currentDate = formatDateToDDMMYYYY(new Date());
+    // Prepare data for both sheets - use current date with time for timestamp
+    const currentDateTime = formatDateTimeToSubmit(new Date(), new Date().toTimeString().slice(0, 5));
     const allTasksData = generatedTasks.map((task, index) => ({
-      timestamp: currentDate,
+      timestamp: currentDateTime,
       taskId: (deptLastId + 1 + index).toString(),
       department: task.department,
       givenBy: task.givenBy,
       doer: task.doer,
       title: task.title,
       description: task.description,
-      dueDate: task.dueDate,
+      dueDate: task.dueDate, // This already includes date and time
       frequency: task.frequency,
       enableReminders: task.enableReminders ? 'Yes' : 'No',
       requireAttachment: task.requireAttachment ? 'Yes' : 'No',
-      // currentDate: currentDate
     }));
 
     // Submit to department sheet
@@ -665,18 +682,17 @@ const handleSubmit = async (e) => {
     // Submit first task to CHECKLIST sheet
     const firstTask = generatedTasks[0];
     const checklistTaskData = {
-      timestamp: currentDate,
+      timestamp: currentDateTime,
       taskId: (checklistLastId + 1).toString(),
       department: firstTask.department,
       givenBy: firstTask.givenBy,
       doer: firstTask.doer,
       title: firstTask.title,
       description: firstTask.description,
-      dueDate: firstTask.dueDate,
+      dueDate: firstTask.dueDate, // This already includes date and time
       frequency: firstTask.frequency,
       enableReminders: firstTask.enableReminders ? 'Yes' : 'No',
       requireAttachment: firstTask.requireAttachment ? 'Yes' : 'No',
-      // currentDate: currentDate
     };
 
     const checklistPayload = new FormData();
@@ -707,6 +723,7 @@ const handleSubmit = async (e) => {
       requireAttachment: false,
     });
     setSelectedDate(null);
+    setSelectedTime("09:00"); // Reset time
     setGeneratedTasks([]);
     setAccordionOpen(false);
   } catch (error) {
@@ -826,8 +843,8 @@ const handleSubmit = async (e) => {
               />
             </div>
 
-            {/* Date and Frequency */}
-            <div className="grid gap-4 md:grid-cols-2">
+            {/* Date, Time and Frequency */}
+            <div className="grid gap-4 md:grid-cols-3">
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-purple-700">Task Start Date</label>
                 <div className="relative">
@@ -836,7 +853,7 @@ const handleSubmit = async (e) => {
                     onClick={() => setShowCalendar(!showCalendar)}
                     className="w-full flex justify-start items-center rounded-md border border-purple-200 p-2 text-left focus:outline-none focus:ring-1 focus:ring-purple-500"
                   >
-                                       <Calendar className="mr-2 h-4 w-4 text-purple-500" />
+                    <Calendar className="mr-2 h-4 w-4 text-purple-500" />
                     {date ? getFormattedDate(date) : "Select a date"}
                   </button>
                   {showCalendar && (
@@ -848,6 +865,22 @@ const handleSubmit = async (e) => {
                       />
                     </div>
                   )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="time" className="block text-sm font-medium text-purple-700">
+                  Start Time
+                </label>
+                <div className="relative">
+                  <input
+                    type="time"
+                    id="time"
+                    value={selectedTime}
+                    onChange={(e) => setSelectedTime(e.target.value)}
+                    className="w-full rounded-md border border-purple-200 p-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  />
+                  <Clock className="absolute right-2 top-2 h-4 w-4 text-purple-500 pointer-events-none" />
                 </div>
               </div>
 
@@ -999,6 +1032,7 @@ const handleSubmit = async (e) => {
                   requireAttachment: false,
                 })
                 setSelectedDate(null)
+                setSelectedTime("09:00")
                 setGeneratedTasks([])
                 setAccordionOpen(false)
               }}
