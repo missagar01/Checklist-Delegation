@@ -33,6 +33,8 @@ import HousekeppingDataPage from "./housekepping-data-page.jsx"
 import CcmDataPage from "./ccm-data-page.jsx"
 import CrusherDataPage from "./crusher-data-page.jsx"
 import OneLineSecurityDataPage from "./on-line-security-data-page.jsx"
+import ProjectDataPage from "./project-data-page.jsx"
+import AccountsDataPage from "./accounts-data-page.jsx"
 
 export default function DataPage() {
   const { category } = useParams()
@@ -50,6 +52,8 @@ export default function DataPage() {
   switch (category) {
     case "main":
       return <AdminDataPage/>
+    case "accounts":
+      return <AccountsDataPage/>
     case "sales":
       return <SalesDataPage />
     case "service":
@@ -110,6 +114,8 @@ export default function DataPage() {
       return <CrusherDataPage/>
     case "onLineSecurity":
       return <OneLineSecurityDataPage/>
+    case "project":
+      return <ProjectDataPage/>
     default:
       return (
         <AdminLayout>

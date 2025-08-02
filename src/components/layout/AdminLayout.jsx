@@ -201,6 +201,7 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
   const fetchAllPendingCounts = async () => {
     const departmentSheetMapping = {
       'main': 'ADMIN',
+      'accounts': 'ACCOUNTS',
       'sales': 'IT',
       'service': 'MARKETING',
       'account': 'HR',
@@ -230,7 +231,8 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
       'housekeeping': 'HOUSEKEEPING',
       'ccm': 'CCM',
       'crusher': 'CRUSHER',
-      'oneLineSecurity': 'ONE LINE SECURITY'
+      'oneLineSecurity': 'ONE LINE SECURITY',
+      'project': 'PROJECT'
     };
     
     // Get accessible departments for the current user
@@ -301,6 +303,7 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
   // All data categories
   const allDataCategories = [
     { id: "main", name: "Admin", link: "/dashboard/data/main", department: "admin" },
+    { id: "accounts", name: "Accounts", link: "/dashboard/data/accounts", department: "accounts" },
     { id: "sales", name: "It", link: "/dashboard/data/sales", department: "it" },
     { id: "service", name: "Marketing", link: "/dashboard/data/service", department: "marketing" },
     { id: "account", name: "Hr", link: "/dashboard/data/account", department: "hr" },
@@ -331,6 +334,7 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
     { id: "ccm", name: "Ccm", link: "/dashboard/data/ccm", department: "ccm" },
     { id: "crusher", name: "Crusher", link: "/dashboard/data/crusher", department: "crusher" },
     { id: "oneLineSecurity", name: "One Line Security", link: "/dashboard/data/onLineSecurity", department: "one line security" },
+    { id: "project", name: "Project", link: "/dashboard/data/project", department: "project" },
   ]
 
   // Update the routes array based on user role

@@ -158,6 +158,7 @@ const filterTasksByDateRange = () => {
     // All departments mapped to their sheet names
     const allDepartments = [
       { name: "ADMIN", sheetName: "ADMIN" },
+      {name: "ACCOUNTS", sheetName: "ACCOUNTS"},
       { name: "IT", sheetName: "IT" },
       { name: "MARKETING", sheetName: "MARKETING" },
       { name: "HR", sheetName: "HR" },
