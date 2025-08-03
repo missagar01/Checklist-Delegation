@@ -311,7 +311,7 @@ const confirmMarkDone = async () => {
     }));
     
     const formData = new FormData();
-    formData.append('sheetName', 'PIPE MILL MAINTENANCE');
+    formData.append('sheetName', 'PIPE MILL MAINTENANACE');
     formData.append('action', 'updateSalesData');
     formData.append('rowData', JSON.stringify(submissionData));
     
@@ -688,7 +688,7 @@ const confirmMarkDone = async () => {
       }))
       
       const formData = new FormData()
-      formData.append('sheetName', 'PIPE MILL MAINTENANCE')
+      formData.append('sheetName', 'PIPE MILL MAINTENANACE')
       formData.append('action', 'updateSalesData')
       formData.append('rowData', JSON.stringify(submissionData))
       
