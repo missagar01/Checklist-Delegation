@@ -231,7 +231,7 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
       'housekeeping': 'HOUSEKEEPING',
       'ccm': 'CCM',
       'crusher': 'CRUSHER',
-      'oneLineSecurity': 'ONE LINE SECURITY',
+      'oneLineSecurity': 'ON LINE SECURITY',
       'project': 'PROJECT'
     };
     
@@ -333,7 +333,7 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
     { id: "housekeeping", name: "Housekeeping", link: "/dashboard/data/housekeeping", department: "housekeeping" },
     { id: "ccm", name: "Ccm", link: "/dashboard/data/ccm", department: "ccm" },
     { id: "crusher", name: "Crusher", link: "/dashboard/data/crusher", department: "crusher" },
-    { id: "oneLineSecurity", name: "One Line Security", link: "/dashboard/data/onLineSecurity", department: "one line security" },
+    { id: "onLineSecurity", name: "On Line Security", link: "/dashboard/data/onLineSecurity", department: "on line security" },
     { id: "project", name: "Project", link: "/dashboard/data/project", department: "project" },
   ]
 
