@@ -349,100 +349,34 @@ const confirmMarkDone = async () => {
 }
 
   // Fetch sheet data function
-  const shouldShowTaskBasedOnFrequency = (taskDate, frequency) => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    
-    const tomorrow = new Date(today)
-    tomorrow.setDate(today.getDate() + 1)
-    
-    console.log('Processing task:', { taskDate, frequency })
-    
-    const taskDateObj = parseDateFromDDMMYYYY(taskDate)
-    if (!taskDateObj) {
-      console.log('❌ Invalid date parsing for:', taskDate)
-      return false
-    }
-    
-    taskDateObj.setHours(0, 0, 0, 0)
-    
-    // For past due tasks, always show regardless of frequency
-    if (taskDateObj < today) {
-      console.log('✅ Past due task shown:', taskDate)
-      return true
-    }
-    
-    // Handle different frequencies
-    switch (frequency?.toLowerCase()) {
-      case 'weekly':
-        // Today is Friday, July 25, 2025
-        // Current week: Sunday July 20 - Saturday July 26
-        // Next week: Sunday July 27 - Saturday August 2
-        
-        // Find the most recent Sunday (start of current week)
-        const currentWeekStart = new Date(today)
-        const daysSinceSunday = today.getDay() // 0=Sunday, 1=Monday, ..., 6=Saturday
-        currentWeekStart.setDate(today.getDate() - daysSinceSunday)
-        currentWeekStart.setHours(0, 0, 0, 0)
-        
-        // End of next week (Saturday of next week)
-        const nextWeekEnd = new Date(currentWeekStart)
-        nextWeekEnd.setDate(currentWeekStart.getDate() + 13) // 13 days later = end of next week
-        nextWeekEnd.setHours(23, 59, 59, 999)
-        
-        const isWeeklyMatch = taskDateObj >= currentWeekStart && taskDateObj <= nextWeekEnd
-        
-        console.log('🗓️ Weekly filter debug for', taskDate, ':', {
-          today: today.toDateString(),
-          todayDayOfWeek: today.getDay(),
-          taskDateObj: taskDateObj.toDateString(),
-          taskDayOfWeek: taskDateObj.getDay(),
-          frequency: frequency,
-          currentWeekStart: currentWeekStart.toDateString(),
-          nextWeekEnd: nextWeekEnd.toDateString(),
-          daysSinceSunday: daysSinceSunday,
-          isInRange: isWeeklyMatch,
-          taskTime: taskDateObj.getTime(),
-          startTime: currentWeekStart.getTime(),
-          endTime: nextWeekEnd.getTime(),
-          taskAfterStart: taskDateObj >= currentWeekStart,
-          taskBeforeEnd: taskDateObj <= nextWeekEnd
-        })
-        
-        if (isWeeklyMatch) {
-          console.log('✅ Weekly task SHOWN:', taskDate)
-        } else {
-          console.log('❌ Weekly task HIDDEN:', taskDate)
-        }
-        
-        return isWeeklyMatch
-      
-      case 'monthly':
-        // Monthly: show current month AND next month
-        const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1)
-        const nextMonthEnd = new Date(today.getFullYear(), today.getMonth() + 2, 0) // Last day of next month
-        
-        const isMonthlyMatch = taskDateObj >= currentMonthStart && taskDateObj <= nextMonthEnd
-        console.log('📅 Monthly task:', taskDate, isMonthlyMatch ? 'SHOWN' : 'HIDDEN')
-        return isMonthlyMatch
-      
-      case 'yearly':
-        // Yearly: show current year AND next year
-        const currentYearStart = new Date(today.getFullYear(), 0, 1)
-        const nextYearEnd = new Date(today.getFullYear() + 2, 0, 0) // Last day of next year
-        
-        const isYearlyMatch = taskDateObj >= currentYearStart && taskDateObj <= nextYearEnd
-        console.log('📆 Yearly task:', taskDate, isYearlyMatch ? 'SHOWN' : 'HIDDEN')
-        return isYearlyMatch
-      
-      default:
-        // For daily or no frequency specified, use existing logic (today and tomorrow)
-        const isDailyMatch = taskDateObj.getTime() === today.getTime() || 
-                            taskDateObj.getTime() === tomorrow.getTime()
-        console.log('📋 Daily task:', taskDate, isDailyMatch ? 'SHOWN' : 'HIDDEN')
-        return isDailyMatch
-    }
+ // Updated helper function - replace the existing shouldShowTaskBasedOnFrequency function
+const shouldShowTaskBasedOnFrequency = (taskDate, frequency) => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  
+  console.log('Processing task:', { taskDate, frequency })
+  
+  const taskDateObj = parseDateFromDDMMYYYY(taskDate)
+  if (!taskDateObj) {
+    console.log('❌ Invalid date parsing for:', taskDate)
+    return false
   }
+  
+  taskDateObj.setHours(0, 0, 0, 0)
+  
+  // Only show tasks that are overdue (past) or today - NO FUTURE TASKS
+  if (taskDateObj <= today) {
+    if (taskDateObj < today) {
+      console.log('✅ Overdue task shown:', taskDate)
+    } else {
+      console.log('✅ Today task shown:', taskDate)
+    }
+    return true
+  } else {
+    console.log('❌ Future task hidden:', taskDate)
+    return false
+  }
+}
   const fetchSheetData = async () => {
     try {
       setLoading(true);
