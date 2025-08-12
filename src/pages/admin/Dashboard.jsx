@@ -187,6 +187,7 @@ const filterTasksByDateRange = () => {
       { name: "PIPE MILL ELECTRICAL", sheetName: "PIPE MILL ELECTRICAL" },
       { name: "HOUSEKEEPING", sheetName: "HOUSEKEEPING" },
       { name: "CCM", sheetName: "CCM" },
+      { name: "PROJECT", sheetName: "PROJECT" },
       { name: "CRUSHER", sheetName: "CRUSHER" },
       { name: "ON LINE SECURITY", sheetName: "ON LINE SECURITY" }
     ]
@@ -281,90 +282,64 @@ const filterTasksByDateRange = () => {
   }
   
   // Function to fetch column A from master sheet
-  const fetchMasterSheetColumnA = async () => {
-    try {
-      setIsFetchingMaster(true)
-      const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygIvQKoBIOy0xmUddkJw_L2KUO8475ldRIt8Si1ZuBingQaROb5zD__cmt8_rZYz4AWA/exec"
-      const sheetName = 'MASTER';
-      const response = await fetch(`${APPS_SCRIPT_URL}?sheet=${sheetName}`);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch master sheet data: ${response.status}`)
-      }
-      
-      const text = await response.text()
-      const jsonStart = text.indexOf('{')
-      const jsonEnd = text.lastIndexOf('}')
-      const jsonString = text.substring(jsonStart, jsonEnd + 1)
-      const data = JSON.parse(jsonString)
-      
-      // Extract column A values (first column)
-      const columnAValues = data.table.rows
-        .map(row => {
-          if (row && row.c && row.c[0]) {
-            return row.c[0].v || null
-          }
-          return null
-        })
-        .filter(value => value !== null && value !== '')
-      
-      // Get accessible departments based on user permissions
-      const accessibleOptions = getAccessibleDepartments()
-      setMasterSheetOptions(accessibleOptions)
-      
-      // Get user role and username for access control
-      const userRole = sessionStorage.getItem('role') || 'user'
-      const username = sessionStorage.getItem('username') || ''
-      const userDepartments = sessionStorage.getItem('userDepartments') || ''
-      
-      // Set initial selection based on user role
-      if (userRole === 'admin') {
-        // Admin can select any department, default to first option
-        if (!selectedMasterOption) {
-          setSelectedMasterOption(accessibleOptions[0])
-        }
-      } else {
-        // Regular user should automatically select their department if they have access to only one
-        if (userDepartments && userDepartments !== 'all') {
-          const allowedDepts = userDepartments.split(',').map(d => d.trim())
-          if (allowedDepts.length === 1) {
-            // If user has access to only one department, auto-select it
-            const userDept = allowedDepts[0].toUpperCase()
-            if (accessibleOptions.includes(userDept)) {
-              setSelectedMasterOption(userDept)
-            } else {
-              setSelectedMasterOption(accessibleOptions[0])
-            }
-          } else {
-            // Multiple departments - let them choose
-            setSelectedMasterOption(accessibleOptions[0])
-          }
-        } else {
-          setSelectedMasterOption(accessibleOptions[0])
-        }
-      }
-      
-      // Count active staff (column C)
-      let activeStaffCount = 0
-      data.table.rows.forEach(row => {
-        const cellValue = getCellValue(row, 2) // Column C (index 2)
-        if (cellValue !== null && cellValue !== '') {
-          activeStaffCount++
-        }
-      })
-      
-      setDepartmentData(prev => ({
-        ...prev,
-        activeStaff: activeStaffCount
-      }))
-      
-    } catch (error) {
-      console.error("Error fetching master sheet data:", error)
-      setMasterSheetOptions(["Error loading master data"])
-    } finally {
-      setIsFetchingMaster(false)
+ // Function to fetch column A from master sheet
+const fetchMasterSheetColumnA = async () => {
+  try {
+    setIsFetchingMaster(true)
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygIvQKoBIOy0xmUddkJw_L2KUO8475ldRIt8Si1ZuBingQaROb5zD__cmt8_rZYz4AWA/exec"
+    const sheetName = 'MASTER';
+    const response = await fetch(`${APPS_SCRIPT_URL}?sheet=${sheetName}`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch master sheet data: ${response.status}`)
     }
+    
+    const text = await response.text()
+    const jsonStart = text.indexOf('{')
+    const jsonEnd = text.lastIndexOf('}')
+    const jsonString = text.substring(jsonStart, jsonEnd + 1)
+    const data = JSON.parse(jsonString)
+    
+    // Extract column A values (first column)
+    const columnAValues = data.table.rows
+      .map(row => {
+        if (row && row.c && row.c[0]) {
+          return row.c[0].v || null
+        }
+        return null
+      })
+      .filter(value => value !== null && value !== '')
+    
+    // Get accessible departments based on user permissions
+    const accessibleOptions = getAccessibleDepartments()
+    setMasterSheetOptions(accessibleOptions)
+    
+    // REMOVE THE AUTO-SELECTION LOGIC - Always default to "Select Department"
+    if (!selectedMasterOption) {
+      setSelectedMasterOption("Select Department")
+    }
+    
+    // Count active staff (column C)
+    let activeStaffCount = 0
+    data.table.rows.forEach(row => {
+      const cellValue = getCellValue(row, 2) // Column C (index 2)
+      if (cellValue !== null && cellValue !== '') {
+        activeStaffCount++
+      }
+    })
+    
+    setDepartmentData(prev => ({
+      ...prev,
+      activeStaff: activeStaffCount
+    }))
+    
+  } catch (error) {
+    console.error("Error fetching master sheet data:", error)
+    setMasterSheetOptions(["Error loading master data"])
+  } finally {
+    setIsFetchingMaster(false)
   }
+}
   
   // Modified fetch function to support both checklist and delegation
 // Modified fetch function to properly handle delegation mode
