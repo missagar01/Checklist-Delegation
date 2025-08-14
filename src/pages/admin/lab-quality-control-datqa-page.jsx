@@ -622,7 +622,7 @@ const shouldShowTaskBasedOnFrequency = (taskDate, frequency) => {
       }))
       
       const formData = new FormData()
-      formData.append('sheetName', 'LAB QUALITY CONTROL')
+      formData.append('sheetName', 'LAB AND QUALITY CONTROL')
       formData.append('action', 'updateSalesData')
       formData.append('rowData', JSON.stringify(submissionData))
       
