@@ -338,59 +338,60 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
   ]
 
   // Update the routes array based on user role
-  const routes = [
-    {
-      href: "/dashboard/admin",
-      label: "Dashboard",
-      icon: Database,
-      active: location.pathname === "/dashboard/admin",
-      showFor: ["admin", "user"] // Show for both roles
-    },
-    {
-      href: "/dashboard/quick-task",
-      label: "Quick Task",
-      icon: Zap,
-      active: location.pathname === "/dashboard/quick-task",
-      showFor: ["admin", "user"] // Only show for admin
-    },
-    {
-      href: "/dashboard/assign-task",
-      label: "Assign Task",
-      icon: CheckSquare,
-      active: location.pathname === "/dashboard/assign-task",
-      showFor: ["admin"] // Only show for admin
-    },
-    {
-      href: "/dashboard/delegation",
-      label: "Delegation",
-      icon: ClipboardList,
-      active: location.pathname === "/dashboard/delegation",
-      showFor: ["admin", "user"] // Only show for admin
-    },
-    {
-      href: "#",
-      label: "Data",
-      icon: Database,
-      active: location.pathname.includes("/dashboard/data"),
-      submenu: true,
-      showFor: ["admin", "user"] // Show for both roles
-    },
-    {
-      href: "/dashboard/license",
-      label: "License",
-      icon: KeyRound,
-      active: location.pathname === "/dashboard/license",
-      showFor: ["admin", "user"] // show both
-    },
+// In AdminLayout.js, find this section in the routes array:
 
-    {
-      href: "/dashboard/traning-video",
-      label: "Training Video",
-      icon: Video,
-      active: location.pathname === "/dashboard/traning-video",
-      showFor: ["admin", "user"] //  show both
-    },
-  ]
+const routes = [
+  {
+    href: "/dashboard/admin",
+    label: "Dashboard",
+    icon: Database,
+    active: location.pathname === "/dashboard/admin",
+    showFor: ["admin", "user"] // Show for both roles
+  },
+  {
+    href: "/dashboard/quick-task",
+    label: "Quick Task",
+    icon: Zap,
+    active: location.pathname === "/dashboard/quick-task",
+    showFor: ["admin"] // CHANGED: Only show for admin (removed "user")
+  },
+  {
+    href: "/dashboard/assign-task",
+    label: "Assign Task",
+    icon: CheckSquare,
+    active: location.pathname === "/dashboard/assign-task",
+    showFor: ["admin"] // Only show for admin
+  },
+  {
+    href: "/dashboard/delegation",
+    label: "Delegation",
+    icon: ClipboardList,
+    active: location.pathname === "/dashboard/delegation",
+    showFor: ["admin", "user"] // Show for both roles
+  },
+  {
+    href: "#",
+    label: "Data",
+    icon: Database,
+    active: location.pathname.includes("/dashboard/data"),
+    submenu: true,
+    showFor: ["admin", "user"] // Show for both roles
+  },
+  {
+    href: "/dashboard/license",
+    label: "License",
+    icon: KeyRound,
+    active: location.pathname === "/dashboard/license",
+    showFor: ["admin", "user"] // show both
+  },
+  {
+    href: "/dashboard/traning-video",
+    label: "Training Video",
+    icon: Video,
+    active: location.pathname === "/dashboard/traning-video",
+    showFor: ["admin", "user"] //  show both
+  },
+]
 
   // Function to get accessible departments based on user permissions
   const getAccessibleDepartments = () => {

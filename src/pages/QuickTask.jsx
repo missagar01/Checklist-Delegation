@@ -24,85 +24,105 @@ export default function QuickTask() {
         frequency: false
     });
 
-    const CONFIG = {
-        SHEET_ID: "1hHdACIjGa_OC2iSmg5LrPHqpMvvWzD33X3U8lobUQ_A",
-        WHATSAPP_SHEET: "master", // For login credentials and user roles
-        CHECKLIST_SHEET: "Checklist", // For unique checklist tasks
-        DELEGATION_SHEET: "Delegation", // For delegation tasks
-        PAGE_CONFIG: {
-            title: "Task Management",
-            description: "Showing your tasks"
-        }
-    };
+   const CONFIG = {
+    SHEET_ID: "1hHdACIjGa_OC2iSmg5LrPHqpMvvWzD33X3U8lobUQ_A",
+    WHATSAPP_SHEET: "MASTER", // Change from "master" to "MASTER" to match your actual sheet
+    CHECKLIST_SHEET: "Checklist",
+    DELEGATION_SHEET: "Delegation",
+    PAGE_CONFIG: {
+        title: "Task Management",
+        description: "Showing your tasks"
+    }
+};
 
     // Auto-detect current user from login session and get role from Whatsapp sheet
-    const fetchCurrentUser = useCallback(async () => {
-        try {
-            setUserLoading(true);
-            setError(null);
+const fetchCurrentUser = useCallback(async () => {
+    try {
+        setUserLoading(true);
+        setError(null);
 
-            // Get user data from your login system (sessionStorage)
-            const loggedInUsername = sessionStorage.getItem('username');
+        // Get user data from your login system (sessionStorage)
+        const loggedInUsername = sessionStorage.getItem('username');
+        const sessionRole = sessionStorage.getItem('role');
+        const isAdminFlag = sessionStorage.getItem('isAdmin');
 
-            console.log("Session data found:");
-            console.log("Username from session:", loggedInUsername);
+        console.log("Session data found:");
+        console.log("Username from session:", loggedInUsername);
+        console.log("Role from session:", sessionRole);
+        console.log("IsAdmin flag:", isAdminFlag);
 
-            if (!loggedInUsername) {
-                throw new Error("No user logged in. Please log in to access tasks.");
-            }
-
-            // Fetch user role from Whatsapp sheet
-            // const whatsappSheetUrl = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:json&sheet=${CONFIG.WHATSAPP_SHEET}`;
-            // const response = await fetch(whatsappSheetUrl);
-            const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygIvQKoBIOy0xmUddkJw_L2KUO8475ldRIt8Si1ZuBingQaROb5zD__cmt8_rZYz4AWA/exec"
-      const sheetName = 'master';
-      const response = await fetch(`${APPS_SCRIPT_URL}?sheet=${sheetName}`);
-            const text = await response.text();
-
-            const jsonStart = text.indexOf('{');
-            const jsonEnd = text.lastIndexOf('}') + 1;
-            const jsonData = text.substring(jsonStart, jsonEnd);
-            const data = JSON.parse(jsonData);
-
-            if (data?.table?.rows) {
-                let foundUser = null;
-
-                // Skip header row and search for user
-                data.table.rows.slice(1).forEach((row) => {
-                    if (row.c) {
-                        const doerName = row.c[2]?.v || ""; // Column C - Doer's Name
-                        const role = row.c[4]?.v || "user"; // Column E - Role
-
-                        // Match by username (case-insensitive)
-                        if (doerName.toLowerCase().trim() === loggedInUsername.toLowerCase().trim()) {
-                            foundUser = {
-                                name: doerName,
-                                role: role.toLowerCase().trim(),
-                                department: row.c[0]?.v || "", // Column A - Department
-                                givenBy: row.c[1]?.v || "", // Column B - Given By
-                                email: row.c[5]?.v || "" // Column F - ID/Email
-                            };
-                        }
-                    }
-                });
-
-                if (foundUser) {
-                    setCurrentUser(foundUser.name);
-                    setUserRole(foundUser.role);
-                    console.log("User found in Whatsapp sheet:", foundUser);
-                } else {
-                    throw new Error(`User "${loggedInUsername}" not found in Whatsapp sheet. Please contact administrator.`);
-                }
-            } else {
-                throw new Error("Could not fetch user data from Whatsapp sheet");
-            }
-        } catch (err) {
-            console.error("Error fetching user:", err);
-            setError(err.message);
-        } finally {
-            setUserLoading(false);
+        if (!loggedInUsername) {
+            throw new Error("No user logged in. Please log in to access tasks.");
         }
-    }, []);
+
+        // OPTION 1: Use session data directly (Recommended)
+        // Since your login system already validates against the master sheet,
+        // we can trust the session data
+        if (sessionRole && (sessionRole === 'admin' || isAdminFlag === 'true')) {
+            setCurrentUser(loggedInUsername);
+            setUserRole('admin');
+            console.log("Using session data - Admin user confirmed:", loggedInUsername);
+            return;
+        } else {
+            setCurrentUser(loggedInUsername);
+            setUserRole('user');
+            console.log("Using session data - Regular user confirmed:", loggedInUsername);
+            return;
+        }
+
+        // OPTION 2: If you still want to fetch from sheet, fix the sheet name and URL
+        /*
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygIvQKoBIOy0xmUddkJw_L2KUO8475ldRIt8Si1ZuBingQaROb5zD__cmt8_rZYz4AWA/exec"
+        // Use 'MASTER' (uppercase) to match your login system
+        const sheetName = 'MASTER';
+        const response = await fetch(`${APPS_SCRIPT_URL}?sheet=${sheetName}`);
+        const text = await response.text();
+
+        const jsonStart = text.indexOf('{');
+        const jsonEnd = text.lastIndexOf('}') + 1;
+        const jsonData = text.substring(jsonStart, jsonEnd);
+        const data = JSON.parse(jsonData);
+
+        if (data?.table?.rows) {
+            let foundUser = null;
+
+            // Skip header row and search for user
+            data.table.rows.slice(1).forEach((row) => {
+                if (row.c) {
+                    const doerName = row.c[2]?.v || ""; // Column C - Doer's Name
+                    const role = row.c[4]?.v || "user"; // Column E - Role
+
+                    // Match by username (case-insensitive)
+                    if (doerName.toLowerCase().trim() === loggedInUsername.toLowerCase().trim()) {
+                        foundUser = {
+                            name: doerName,
+                            role: role.toLowerCase().trim(),
+                            department: row.c[0]?.v || "", // Column A - Department
+                            givenBy: row.c[1]?.v || "", // Column B - Given By
+                            access: row.c[5]?.v || "" // Column F - Access
+                        };
+                    }
+                }
+            });
+
+            if (foundUser) {
+                setCurrentUser(foundUser.name);
+                setUserRole(foundUser.role);
+                console.log("User found in MASTER sheet:", foundUser);
+            } else {
+                throw new Error(`User "${loggedInUsername}" not found in MASTER sheet. Please contact administrator.`);
+            }
+        } else {
+            throw new Error("Could not fetch user data from MASTER sheet");
+        }
+        */
+    } catch (err) {
+        console.error("Error fetching user:", err);
+        setError(err.message);
+    } finally {
+        setUserLoading(false);
+    }
+}, []);
 
     const fetchChecklistData = useCallback(async () => {
         if (!currentUser || userLoading) return;
