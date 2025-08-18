@@ -13,6 +13,7 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
   const [userRole, setUserRole] = useState("")
   const [userDepartments, setUserDepartments] = useState("")
   const [pendingCounts, setPendingCounts] = useState({})
+  const [accessibleDepartments, setAccessibleDepartments] = useState([])
 
   // Check authentication on component mount
   useEffect(() => {
@@ -30,6 +31,14 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
     setUserRole(storedRole || "user")
     setUserDepartments(storedDepartments || "")
   }, [navigate])
+
+  // Format date as DD/MM/YYYY
+  const formatDateToDDMMYYYY = (date) => {
+    const day = date.getDate().toString().padStart(2, '0')
+    const month = (date.getMonth() + 1).toString().padStart(2, '0')
+    const year = date.getFullYear()
+    return `${day}/${month}/${year}`
+  }
 
   const parseGoogleSheetsDate = (dateStr) => {
     if (!dateStr) return '';
@@ -88,6 +97,20 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
     return new Date(parts[2], parts[1] - 1, parts[0])
   }
 
+  const shouldShowTask = (taskDate, frequency) => {
+    const taskDateObj = parseDateFromDDMMYYYY(taskDate);
+    if (!taskDateObj) return false;
+    
+    taskDateObj.setHours(0, 0, 0, 0);
+    
+    // Get today's date at midnight for comparison
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // ONLY show tasks that are exactly today - NO PAST OR FUTURE TASKS
+    return taskDateObj.getTime() === today.getTime();
+  };
+
   // Function to fetch pending tasks for a specific department
   const fetchPendingTasksForDepartment = async (sheetName) => {
     try {
@@ -115,52 +138,9 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
       const currentUsername = sessionStorage.getItem('username');
       const currentUserRole = sessionStorage.getItem('role');
       
-      // Get today's date at midnight for comparison
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
       let pendingCount = 0;
       
-      // Helper function to check if task should be shown based on frequency
-      const shouldShowTask = (taskDate, frequency) => {
-        const taskDateObj = parseDateFromDDMMYYYY(taskDate);
-        if (!taskDateObj) return false;
-        
-        taskDateObj.setHours(0, 0, 0, 0);
-        
-        // Always show past due tasks
-        if (taskDateObj < today) return true;
-        
-        const tomorrow = new Date(today);
-        tomorrow.setDate(today.getDate() + 1);
-        
-        switch (frequency?.toLowerCase()) {
-          case 'weekly':
-            const currentDay = today.getDay();
-            const currentWeekStart = new Date(today);
-            currentWeekStart.setDate(today.getDate() - currentDay);
-            
-            const nextWeekEnd = new Date(currentWeekStart);
-            nextWeekEnd.setDate(currentWeekStart.getDate() + 13);
-            return taskDateObj >= currentWeekStart && taskDateObj <= nextWeekEnd;
-          
-          case 'monthly':
-            const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-            const nextMonthEnd = new Date(today.getFullYear(), today.getMonth() + 2, 0);
-            return taskDateObj >= currentMonthStart && taskDateObj <= nextMonthEnd;
-          
-          case 'yearly':
-            const currentYearStart = new Date(today.getFullYear(), 0, 1);
-            const nextYearEnd = new Date(today.getFullYear() + 1, 11, 31);
-            return taskDateObj >= currentYearStart && taskDateObj <= nextYearEnd;
-          
-          default:
-            return taskDateObj.getTime() === today.getTime() || 
-                   taskDateObj.getTime() === tomorrow.getTime();
-        }
-      };
-  
-      // Process rows to count pending tasks
+      // Process rows to count pending tasks - ONLY TODAY
       for (const row of data.table.rows) {
         if (!row?.c) continue;
         
@@ -183,7 +163,7 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
           const taskDate = parseGoogleSheetsDate(columnLValue);
           if (!taskDate) continue;
           
-          // Check if task should be shown based on frequency
+          // Check if task should be shown - ONLY TODAY
           if (shouldShowTask(taskDate, frequency)) {
             pendingCount++;
           }
@@ -199,6 +179,8 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
 
   // Function to fetch all pending counts
   const fetchAllPendingCounts = async () => {
+    console.log("Starting to fetch all pending counts...");
+    
     const departmentSheetMapping = {
       'main': 'ADMIN',
       'accounts': 'ACCOUNTS',
@@ -235,9 +217,11 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
       'project': 'PROJECT'
     };
     
-    // Get accessible departments for the current user
-    const accessibleDepts = getAccessibleDepartments();
+    // Use the state variable instead of calling the function
+    const accessibleDepts = accessibleDepartments;
     const accessibleDeptIds = accessibleDepts.map(dept => dept.id);
+    
+    console.log("Accessible department IDs:", accessibleDeptIds);
     
     // Only fetch counts for accessible departments
     const filteredDepartmentMapping = Object.fromEntries(
@@ -246,11 +230,14 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
       )
     );
     
+    console.log("Filtered department mapping:", filteredDepartmentMapping);
+    
     // Fetch counts in parallel
     const countPromises = Object.entries(filteredDepartmentMapping).map(
       async ([categoryId, sheetName]) => {
         try {
           const count = await fetchPendingTasksForDepartment(sheetName);
+          console.log(`Count for ${categoryId} (${sheetName}): ${count}`);
           return { categoryId, count };
         } catch (error) {
           console.error(`Error fetching count for ${categoryId}:`, error);
@@ -265,6 +252,8 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
       results.forEach(({ categoryId, count }) => {
         counts[categoryId] = count;
       });
+      
+      console.log("Final pending counts:", counts);
       setPendingCounts(counts);
     } catch (error) {
       console.error("Error fetching pending counts:", error);
@@ -277,18 +266,46 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
     }
   };
 
-  // Fetch pending counts when component mounts and user is authenticated
+  // Calculate accessible departments only once when username/role changes
   useEffect(() => {
     if (!username) return;
-  
-    // Initial fetch
-    fetchAllPendingCounts();
     
-    // Auto-refresh counts every 5 minutes
-    const interval = setInterval(fetchAllPendingCounts, 5 * 60 * 1000);
+    const currentUserRole = sessionStorage.getItem('role') || 'user'
+    const currentUserDepartments = sessionStorage.getItem('userDepartments') || ''
     
-    return () => clearInterval(interval);
-  }, [username, userDepartments]);
+    console.log("Calculating accessible departments once...")
+    
+    let departments = [];
+    
+    // If user is admin, return all departments
+    if (currentUserRole === 'admin' || currentUserDepartments === 'all') {
+      departments = allDataCategories;
+    } else if (currentUserDepartments && currentUserDepartments.trim() !== '') {
+      // For non-admin users, filter based on their department access
+      const allowedDepartments = currentUserDepartments
+        .split(',')
+        .map(dept => dept.trim().toLowerCase())
+        .filter(dept => dept !== '')
+      
+      departments = allDataCategories.filter(category => {
+        const categoryDepartment = category.department.toLowerCase()
+        return allowedDepartments.includes(categoryDepartment)
+      })
+    }
+    
+    setAccessibleDepartments(departments);
+  }, [username, userRole, userDepartments]);
+
+  // Fetch pending counts when component mounts and user is authenticated
+  useEffect(() => {
+    if (!username || accessibleDepartments.length === 0) return;
+
+    // Only fetch if pendingCounts is empty (first load)
+    if (Object.keys(pendingCounts).length === 0) {
+      console.log("Fetching pending counts - first load only");
+      fetchAllPendingCounts();
+    }
+  }, [username, accessibleDepartments]);
 
   // Handle logout
   const handleLogout = () => {
@@ -337,101 +354,58 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
     { id: "project", name: "Project", link: "/dashboard/data/project", department: "project" },
   ]
 
-  // Update the routes array based on user role
-// In AdminLayout.js, find this section in the routes array:
-
-const routes = [
-  {
-    href: "/dashboard/admin",
-    label: "Dashboard",
-    icon: Database,
-    active: location.pathname === "/dashboard/admin",
-    showFor: ["admin", "user"] // Show for both roles
-  },
-  {
-    href: "/dashboard/quick-task",
-    label: "Quick Task",
-    icon: Zap,
-    active: location.pathname === "/dashboard/quick-task",
-    showFor: ["admin"] // CHANGED: Only show for admin (removed "user")
-  },
-  {
-    href: "/dashboard/assign-task",
-    label: "Assign Task",
-    icon: CheckSquare,
-    active: location.pathname === "/dashboard/assign-task",
-    showFor: ["admin"] // Only show for admin
-  },
-  {
-    href: "/dashboard/delegation",
-    label: "Delegation",
-    icon: ClipboardList,
-    active: location.pathname === "/dashboard/delegation",
-    showFor: ["admin", "user"] // Show for both roles
-  },
-  {
-    href: "#",
-    label: "Data",
-    icon: Database,
-    active: location.pathname.includes("/dashboard/data"),
-    submenu: true,
-    showFor: ["admin", "user"] // Show for both roles
-  },
-  {
-    href: "/dashboard/license",
-    label: "License",
-    icon: KeyRound,
-    active: location.pathname === "/dashboard/license",
-    showFor: ["admin", "user"] // show both
-  },
-  {
-    href: "/dashboard/traning-video",
-    label: "Training Video",
-    icon: Video,
-    active: location.pathname === "/dashboard/traning-video",
-    showFor: ["admin", "user"] //  show both
-  },
-]
-
-  // Function to get accessible departments based on user permissions
-  const getAccessibleDepartments = () => {
-    const currentUserRole = sessionStorage.getItem('role') || 'user'
-    const currentUserDepartments = sessionStorage.getItem('userDepartments') || ''
-    
-    console.log("Current user role:", currentUserRole)
-    console.log("Current user departments:", currentUserDepartments)
-    
-    // If user is admin, return all departments
-    if (currentUserRole === 'admin' || currentUserDepartments === 'all') {
-      console.log("Admin user - returning all departments")
-      return allDataCategories
-    }
-    
-    // For non-admin users, filter based on their department access
-    if (!currentUserDepartments || currentUserDepartments.trim() === '') {
-      console.log("No departments specified - returning empty array")
-      return []
-    }
-    
-    // Split the departments by comma and normalize
-    const allowedDepartments = currentUserDepartments
-      .split(',')
-      .map(dept => dept.trim().toLowerCase())
-      .filter(dept => dept !== '')
-    
-    console.log("Allowed departments for user:", allowedDepartments)
-    
-    // Filter categories based on allowed departments
-    const accessibleCategories = allDataCategories.filter(category => {
-      const categoryDepartment = category.department.toLowerCase()
-      const hasAccess = allowedDepartments.includes(categoryDepartment)
-      console.log(`Checking ${category.name} (${categoryDepartment}): ${hasAccess}`)
-      return hasAccess
-    })
-    
-    console.log("Accessible categories:", accessibleCategories.map(cat => cat.name))
-    return accessibleCategories
-  }
+  const routes = [
+    {
+      href: "/dashboard/admin",
+      label: "Dashboard",
+      icon: Database,
+      active: location.pathname === "/dashboard/admin",
+      showFor: ["admin", "user"] // Show for both roles
+    },
+    {
+      href: "/dashboard/quick-task",
+      label: "Quick Task",
+      icon: Zap,
+      active: location.pathname === "/dashboard/quick-task",
+      showFor: ["admin"] // CHANGED: Only show for admin (removed "user")
+    },
+    {
+      href: "/dashboard/assign-task",
+      label: "Assign Task",
+      icon: CheckSquare,
+      active: location.pathname === "/dashboard/assign-task",
+      showFor: ["admin"] // Only show for admin
+    },
+    {
+      href: "/dashboard/delegation",
+      label: "Delegation",
+      icon: ClipboardList,
+      active: location.pathname === "/dashboard/delegation",
+      showFor: ["admin", "user"] // Show for both roles
+    },
+    {
+      href: "#",
+      label: "Data",
+      icon: Database,
+      active: location.pathname.includes("/dashboard/data"),
+      submenu: true,
+      showFor: ["admin", "user"] // Show for both roles
+    },
+    {
+      href: "/dashboard/license",
+      label: "License",
+      icon: KeyRound,
+      active: location.pathname === "/dashboard/license",
+      showFor: ["admin", "user"] // show both
+    },
+    {
+      href: "/dashboard/traning-video",
+      label: "Training Video",
+      icon: Video,
+      active: location.pathname === "/dashboard/traning-video",
+      showFor: ["admin", "user"] //  show both
+    },
+  ]
 
   // Filter routes based on user role
   const getAccessibleRoutes = () => {
@@ -451,9 +425,8 @@ const routes = [
     }
   }, [isDataPage, isDataSubmenuOpen])
 
-  // Get accessible routes and departments
+  // Get accessible routes
   const accessibleRoutes = getAccessibleRoutes()
-  const accessibleDepartments = getAccessibleDepartments()
 
   // Notification Badge Component
   const NotificationBadge = ({ count }) => {
@@ -713,7 +686,6 @@ const routes = [
         </div>
       )}
 
-
       {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="flex h-14 items-center justify-between border-b border-blue-200 bg-white px-4 md:px-6">
@@ -724,18 +696,17 @@ const routes = [
         <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-gradient-to-br from-blue-50 to-purple-50">
           {children}
           <div className="fixed md:left-64 left-0 right-0 bottom-0 py-1 px-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-center text-sm shadow-md z-10">
-          <a
-    href="https://www.botivate.in/" // Replace with actual URL
-    target="_blank"
-    rel="noopener noreferrer"
-    className="hover:underline"
-  >
-    Powered by-<span className="font-semibold">Botivate</span>
-  </a>
-    </div>
+            <a
+              href="https://www.botivate.in/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:underline"
+            >
+              Powered by-<span className="font-semibold">Botivate</span>
+            </a>
+          </div>
         </main>
       </div>
-      
     </div>
   )
 }
