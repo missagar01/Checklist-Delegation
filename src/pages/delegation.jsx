@@ -433,144 +433,142 @@ const filteredSalesData = salesData
   }
 
   // Handle submit selected items  
-  const handleSubmit = async () => {
-    if (selectedItems.length === 0) {
-      alert("Please select at least one item to submit") 
-      return
-    }
+// Handle submit selected items  
+const handleSubmit = async () => {
+  if (selectedItems.length === 0) {
+    alert("Please select at least one item to submit") 
+    return
+  }
 
-    // Check if any selected item requires an image but doesn't have one
-    const missingRequiredImages = selectedItems.filter(id => {
-      const item = salesData.find(sale => sale._id === id)
-      // Check if column K (index 10) has "YES" value and no image is uploaded
-      const requiresAttachment = item['col10'] && item['col10'].toString().toUpperCase() === "YES"
-      return requiresAttachment && !item.image
-    })
+  // Check if any selected item requires an image but doesn't have one
+  const missingRequiredImages = selectedItems.filter(id => {
+    const item = salesData.find(sale => sale._id === id)
+    // Check if column K (index 10) has "YES" value and no image is uploaded
+    const requiresAttachment = item['col10'] && item['col10'].toString().toUpperCase() === "YES"
+    return requiresAttachment && !item.image
+  })
 
-    if (missingRequiredImages.length > 0) {
-      alert(`Please upload images for all required attachments. ${missingRequiredImages.length} item(s) are missing required images.`)
-      return
-    }
+  if (missingRequiredImages.length > 0) {
+    alert(`Please upload images for all required attachments. ${missingRequiredImages.length} item(s) are missing required images.`)
+    return
+  }
 
-    // Check if status is selected for all items
-    const missingStatus = selectedItems.filter(id => !statusData[id])
-    if (missingStatus.length > 0) {
-      alert(`Please select a status for all selected items. ${missingStatus.length} item(s) are missing status.`)
-      return
-    }
+  // Check if status is selected for all items
+  const missingStatus = selectedItems.filter(id => !statusData[id])
+  if (missingStatus.length > 0) {
+    alert(`Please select a status for all selected items. ${missingStatus.length} item(s) are missing status.`)
+    return
+  }
 
-    // Check if next target date is provided for items with "Extend" status
-    const missingNextDate = selectedItems.filter(id => 
-      statusData[id] === "Extend" && !nextTargetDate[id]
-    )
-    if (missingNextDate.length > 0) {
-      alert(`Please select a next target date for all items with "Extend" status. ${missingNextDate.length} item(s) are missing target date.`)
-      return
-    }
+  // Check if next target date is provided for items with "Extend" status
+  const missingNextDate = selectedItems.filter(id => 
+    statusData[id] === "Extend" && !nextTargetDate[id]
+  )
+  if (missingNextDate.length > 0) {
+    alert(`Please select a next target date for all items with "Extend" status. ${missingNextDate.length} item(s) are missing target date.`)
+    return
+  }
 
-    setIsSubmitting(true)
-    
-    try {
-      // Process each selected item by inserting a new row in DELEGATION DONE
-      for (const id of selectedItems) {
-        const item = salesData.find(sale => sale._id === id);
-        let imageData = null;
-        
-        // If there's an image and it's a file (not a URL), convert to base64
-        if (item.image instanceof File) {
-          imageData = await fileToBase64(item.image);
-        }
-        
-        // Get today's date in DD/MM/YYYY format
-        const todayDate = formatDateToDDMMYYYY(new Date());
-        
-        // Since we can't directly modify columns L, M, N, O, P (using existing methods)
-        // we'll insert a new row with all the correct data instead
-        const newRowData = [
-          '', // A - blank
-          '', // B - blank
-          '', // C - blank
-          '', // D - blank
-          '', // E - blank
-          '', // F - blank
-          '', // G - blank
-          '', // H - blank
-          '', // I - blank
-          '', // J - blank
-          todayDate, // K - Today's date in DD/MM/YYYY format
-          item['col1'] || id, // L - Task ID
-          statusData[id] || "Done", // M - Status
-          nextTargetDate[id] || "", // N - Next Target Date
-          additionalData[id] || "", // O - Remarks
-          '' // P - Image URL (will be updated by the image upload)
-        ];
-        
-        // Insert the new row into DELEGATION DONE
-        const insertFormData = new FormData();
-        insertFormData.append('sheetName', 'DELEGATION DONE');
-        insertFormData.append('action', 'insert');
-        insertFormData.append('rowData', JSON.stringify(newRowData));
-        
-        const insertResponse = await fetch(APPS_SCRIPT_URL, {
-          method: 'POST',
-          body: insertFormData
-        });
-        
-        const insertResult = await insertResponse.json();
-        
-        // If we have an image, upload it to the newly inserted row
-        if (imageData && insertResult.success) {
-          const imageFormData = new FormData();
-          imageFormData.append('sheetName', 'DELEGATION DONE');
-          imageFormData.append('action', 'uploadImage');
-          imageFormData.append('imageData', imageData);
-          imageFormData.append('fileName', `Task_${item['col1'] || id}_${new Date().getTime()}.jpg`);
-          imageFormData.append('folderId', DRIVE_FOLDER_ID);
-          imageFormData.append('rowIndex', insertResult.rowIndex || ""); // Use the row index of the newly inserted row
-          
-          await fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            body: imageFormData
-          });
-        }
-        
-        // Also mark the original task as completed
-        // For the original DELEGATION sheet task
-        const updateOriginalFormData = new FormData();
-        // updateOriginalFormData.append('sheetName', 'DELEGATION');
-        updateOriginalFormData.append('action', 'updateSalesData');
-        updateOriginalFormData.append('rowData', JSON.stringify([{
-          rowIndex: item._rowIndex,
-          todayDate: formatDateToDDMMYYYY(new Date()), // Update column M with completion date
-          additionalInfo: `Completed: ${statusData[id]}`, // Update column O with status
-        }]));
+  setIsSubmitting(true)
+  
+  try {
+    // Process each selected item by inserting a new row in DELEGATION DONE
+    for (const id of selectedItems) {
+      const item = salesData.find(sale => sale._id === id);
+      let imageData = null;
+      
+      // If there's an image and it's a file (not a URL), convert to base64
+      if (item.image instanceof File) {
+        imageData = await fileToBase64(item.image);
+      }
+      
+      // Get today's date in DD/MM/YYYY format
+      const todayDate = formatDateToDDMMYYYY(new Date());
+      
+      // Insert data in correct columns K-O, leaving I-J empty
+      const newRowData = [
+        '', // A - blank
+        '', // B - blank
+        '', // C - blank
+        '', // D - blank
+        '', // E - blank
+        '', // F - blank
+        '', // G - blank
+        '', // H - blank
+        '', // I - blank (not "No")
+        '', // J - blank (not "No") 
+        todayDate, // K - Today's date in DD/MM/YYYY format (Timestamp)
+        item['col1'] || id, // L - Task ID
+        statusData[id] || "Done", // M - Status
+        nextTargetDate[id] || "", // N - Next extend date
+        additionalData[id] || "" // O - Reason/Remarks
+      ];
+      
+      // Insert the new row into DELEGATION DONE
+      const insertFormData = new FormData();
+      insertFormData.append('sheetName', 'DELEGATION DONE');
+      insertFormData.append('action', 'insert');
+      insertFormData.append('rowData', JSON.stringify(newRowData));
+      
+      const insertResponse = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        body: insertFormData
+      });
+      
+      const insertResult = await insertResponse.json();
+      
+      // If we have an image, upload it to the newly inserted row
+      if (imageData && insertResult.success) {
+        const imageFormData = new FormData();
+        imageFormData.append('sheetName', 'DELEGATION DONE');
+        imageFormData.append('action', 'uploadImage');
+        imageFormData.append('imageData', imageData);
+        imageFormData.append('fileName', `Task_${item['col1'] || id}_${new Date().getTime()}.jpg`);
+        imageFormData.append('folderId', DRIVE_FOLDER_ID);
+        imageFormData.append('rowIndex', insertResult.rowIndex || ""); // Use the row index of the newly inserted row
         
         await fetch(APPS_SCRIPT_URL, {
           method: 'POST',
-          body: updateOriginalFormData
+          body: imageFormData
         });
       }
       
-      // Update local state
-      setSalesData(prev => prev.filter(item => !selectedItems.includes(item._id)));
+      // Also mark the original task as completed
+      // For the original DELEGATION sheet task
+      const updateOriginalFormData = new FormData();
+      updateOriginalFormData.append('action', 'updateSalesData');
+      updateOriginalFormData.append('rowData', JSON.stringify([{
+        rowIndex: item._rowIndex,
+        todayDate: formatDateToDDMMYYYY(new Date()), // Update column M with completion date
+        additionalInfo: `Completed: ${statusData[id]}`, // Update column O with status
+      }]));
       
-      setSuccessMessage(`Successfully processed ${selectedItems.length} sales records! Data submitted to DELEGATION DONE sheet.`);
-      setSelectedItems([]);
-      setAdditionalData({});
-      setStatusData({});
-      setNextTargetDate({});
-      
-      // Refresh data to see updated records
-      setTimeout(() => {
-        fetchSheetData();
-      }, 2000);
-    } catch (error) {
-      console.error("Submission error:", error);
-      alert("Failed to submit sales records: " + error.message);
-    } finally {
-      setIsSubmitting(false);
+      await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        body: updateOriginalFormData
+      });
     }
+    
+    // Update local state
+    setSalesData(prev => prev.filter(item => !selectedItems.includes(item._id)));
+    
+    setSuccessMessage(`Successfully processed ${selectedItems.length} sales records! Data submitted to DELEGATION DONE sheet.`);
+    setSelectedItems([]);
+    setAdditionalData({});
+    setStatusData({});
+    setNextTargetDate({});
+    
+    // Refresh data to see updated records
+    setTimeout(() => {
+      fetchSheetData();
+    }, 2000);
+  } catch (error) {
+    console.error("Submission error:", error);
+    alert("Failed to submit sales records: " + error.message);
+  } finally {
+    setIsSubmitting(false);
   }
+}
   
   return (
     <AdminLayout>
