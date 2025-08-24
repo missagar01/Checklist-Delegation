@@ -478,24 +478,30 @@ if (dashboardType === "delegation") {
   // Count every row as a total task in delegation mode
   totalTasks++;
   
-  // Check Column O (index 14) for "done" status - Make case-insensitive
-  const columnOValue = getCellValue(row, 14); // Column O
+  // Check Column O (index 14) for "Done" status AND Column M (index 12) for completion date
+  const columnOValue = getCellValue(row, 14); // Column O (Status)
+  const columnMValue = getCellValue(row, 12); // Column M (Actual completion date)
   
-  // Check Column R (index 17) for rating
-  const columnRValue = getCellValue(row, 17); // Column R
+  // Check Column R (index 17) for rating/extend count
+  const columnRValue = getCellValue(row, 17); // Column R (Total Extend)
   
   // Update staff member totals
   const staffData = staffTrackingMap.get(assignedTo);
   staffData.totalTasks++;
   
-  // Make a case-insensitive comparison for "done"
-  if (columnOValue && typeof columnOValue === 'string' && columnOValue.toLowerCase() === "done") {
+  // Task is completed if Column O says "Done" AND Column M has a completion date
+  const isCompleted = (columnOValue && String(columnOValue).toLowerCase() === 'done') && 
+                     (columnMValue && columnMValue !== '');
+  
+  if (isCompleted) {
     // Count based on Column R value for the special cards
-    if (columnRValue === 1) {
+    const ratingValue = Number(columnRValue) || 0;
+    
+    if (ratingValue === 1) {
       completedRatingOne++;
-    } else if (columnRValue === 2) {
+    } else if (ratingValue === 2) {
       completedRatingTwo++;
-    } else if (columnRValue > 2) {
+    } else if (ratingValue > 2) {
       completedRatingThreePlus++;
     }
     
