@@ -17,7 +17,7 @@ import {
   Cell
 } from "recharts"
 import { useDispatch, useSelector } from "react-redux"
-import {  completeTaskInTable, dashboardData, overdueTaskInTable, pendingTaskInTable, totalTaskInTable, } from "../../redux/slice/dashboardSlice.js"
+import { completeTaskInTable, dashboardData, overdueTaskInTable, pendingTaskInTable, totalTaskInTable, } from "../../redux/slice/dashboardSlice.js"
 import { countTotalTaskApi, fetchDashboardDataApi } from "../../redux/api/dashboardApi.js"
 
 export default function AdminDashboard() {
@@ -28,8 +28,10 @@ export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState("")
   const [activeTab, setActiveTab] = useState("overview")
   // New state for dashboard-wide staff filter
-const [dashboardStaffFilter, setDashboardStaffFilter] = useState("all")
-const [availableStaff, setAvailableStaff] = useState([])
+  const [dashboardStaffFilter, setDashboardStaffFilter] = useState("all")
+  const [availableStaff, setAvailableStaff] = useState([])
+  const userRole = localStorage.getItem('role');
+  const username = localStorage.getItem('user-name');
 
   // State for department data
   const [departmentData, setDepartmentData] = useState({
@@ -66,29 +68,29 @@ const [availableStaff, setAvailableStaff] = useState([])
     completionRate: 0
   });
 
-  const {dashboard,totalTask,completeTask,pendingTask,overdueTask}=useSelector((state)=>state.dashBoard)
-  const dispatch =useDispatch();
+  const { dashboard, totalTask, completeTask, pendingTask, overdueTask } = useSelector((state) => state.dashBoard)
+  const dispatch = useDispatch();
 
   // Updated date parsing function to handle both formats
   const parseTaskStartDate = (dateStr) => {
     if (!dateStr || typeof dateStr !== 'string') return null;
-    
+
     // Handle DD/MM/YYYY format (with or without time)
     if (dateStr.includes('/')) {
       // Split by space first to separate date and time
       const parts = dateStr.split(' ');
       const datePart = parts[0]; // "25/08/2025"
-      
+
       const dateComponents = datePart.split('/');
       if (dateComponents.length !== 3) return null;
-      
+
       const [day, month, year] = dateComponents.map(Number);
-      
+
       if (!day || !month || !year) return null;
-      
+
       // Create date object (month is 0-indexed)
       const date = new Date(year, month - 1, day);
-      
+
       // If there's time component, parse it
       if (parts.length > 1) {
         const timePart = parts[1]; // "09:00:00"
@@ -98,10 +100,10 @@ const [availableStaff, setAvailableStaff] = useState([])
           date.setHours(hours || 0, minutes || 0, seconds || 0);
         }
       }
-      
+
       return isNaN(date) ? null : date;
     }
-    
+
     // Fallback: Try ISO format
     const parsed = new Date(dateStr);
     return isNaN(parsed) ? null : parsed;
@@ -222,221 +224,221 @@ const [availableStaff, setAvailableStaff] = useState([])
   };
 
   // Updated fetch function to support both checklist and delegation with proper date filtering
- // The main issue is in the fetchDepartmentData function. Here are the key fixes:
+  // The main issue is in the fetchDepartmentData function. Here are the key fixes:
 
-// 1. Move the dashboard staff filter application to the right place
-// Replace the existing fetchDepartmentData function with this corrected version:
+  // 1. Move the dashboard staff filter application to the right place
+  // Replace the existing fetchDepartmentData function with this corrected version:
 
-// Replace the existing fetchDepartmentData function with this corrected version:
+  // Replace the existing fetchDepartmentData function with this corrected version:
 
-const fetchDepartmentData = async () => {
-  try {
-    // Get all data first
-    const data = await fetchDashboardDataApi(dashboardType);
-    const username = localStorage.getItem('user-name');
-    const userRole = localStorage.getItem('role');
-    const today = new Date();
-    today.setHours(23, 59, 59, 999); // End of today
+  const fetchDepartmentData = async () => {
+    try {
+      // Get all data first
+      const data = await fetchDashboardDataApi(dashboardType);
+      const username = localStorage.getItem('user-name');
+      const userRole = localStorage.getItem('role');
+      const today = new Date();
+      today.setHours(23, 59, 59, 999); // End of today
 
-    let totalTasks = 0;
-    let completedTasks = 0;
-    let pendingTasks = 0;
-    let overdueTasks = 0;
-    let completedRatingOne = 0;
-    let completedRatingTwo = 0;
-    let completedRatingThreePlus = 0;
+      let totalTasks = 0;
+      let completedTasks = 0;
+      let pendingTasks = 0;
+      let overdueTasks = 0;
+      let completedRatingOne = 0;
+      let completedRatingTwo = 0;
+      let completedRatingThreePlus = 0;
 
-    const monthlyData = {
-      Jan: { completed: 0, pending: 0 },
-      Feb: { completed: 0, pending: 0 },
-      Mar: { completed: 0, pending: 0 },
-      Apr: { completed: 0, pending: 0 },
-      May: { completed: 0, pending: 0 },
-      Jun: { completed: 0, pending: 0 },
-      Jul: { completed: 0, pending: 0 },
-      Aug: { completed: 0, pending: 0 },
-      Sep: { completed: 0, pending: 0 },
-      Oct: { completed: 0, pending: 0 },
-      Nov: { completed: 0, pending: 0 },
-      Dec: { completed: 0, pending: 0 }
-    };
+      const monthlyData = {
+        Jan: { completed: 0, pending: 0 },
+        Feb: { completed: 0, pending: 0 },
+        Mar: { completed: 0, pending: 0 },
+        Apr: { completed: 0, pending: 0 },
+        May: { completed: 0, pending: 0 },
+        Jun: { completed: 0, pending: 0 },
+        Jul: { completed: 0, pending: 0 },
+        Aug: { completed: 0, pending: 0 },
+        Sep: { completed: 0, pending: 0 },
+        Oct: { completed: 0, pending: 0 },
+        Nov: { completed: 0, pending: 0 },
+        Dec: { completed: 0, pending: 0 }
+      };
 
-    // FIRST: Filter data by dashboard type - for checklist, only include tasks up to today
-    let filteredData = data;
-    if (dashboardType === "checklist") {
-      filteredData = data.filter(task => {
-        const taskDate = parseTaskStartDate(task.task_start_date);
-        return taskDate && taskDate <= today;
-      });
-    }
-
-    // Extract unique staff names for the dropdown BEFORE staff filtering
-    const uniqueStaff = [...new Set(data.map(task => task.name).filter(name => name && name.trim() !== ""))];
-    setAvailableStaff(uniqueStaff);
-
-    // SECOND: Apply dashboard staff filter ONLY if not "all"
-    if (dashboardStaffFilter !== "all") {
-      filteredData = filteredData.filter(task => 
-        task.name && task.name.toLowerCase() === dashboardStaffFilter.toLowerCase()
-      );
-    }
-
-    // Process tasks with your field names
-    const processedTasks = filteredData.map(task => {
-      // Skip if not assigned to current user (for non-admin)
-      if (userRole !== "admin" && task.name?.toLowerCase() !== username?.toLowerCase()) {
-        return null;
+      // FIRST: Filter data by dashboard type - for checklist, only include tasks up to today
+      let filteredData = data;
+      if (dashboardType === "checklist") {
+        filteredData = data.filter(task => {
+          const taskDate = parseTaskStartDate(task.task_start_date);
+          return taskDate && taskDate <= today;
+        });
       }
 
-      const taskStartDate = parseTaskStartDate(task.task_start_date);
-      const completionDate = task.submission_date ? parseTaskStartDate(task.submission_date) : null;
-      
-      let status = "pending";
-      if (completionDate) {
-        status = "completed";
-      } else if (taskStartDate && isDateInPast(taskStartDate)) {
-        status = "overdue";
+      // Extract unique staff names for the dropdown BEFORE staff filtering
+      const uniqueStaff = [...new Set(data.map(task => task.name).filter(name => name && name.trim() !== ""))];
+      setAvailableStaff(uniqueStaff);
+
+      // SECOND: Apply dashboard staff filter ONLY if not "all"
+      if (dashboardStaffFilter !== "all") {
+        filteredData = filteredData.filter(task =>
+          task.name && task.name.toLowerCase() === dashboardStaffFilter.toLowerCase()
+        );
       }
 
-      // Count based on status
-      if (status === "completed") {
-        completedTasks++;
-        if (dashboardType === "delegation") {
-          if (task.color_code_for === 1) completedRatingOne++;
-          else if (task.color_code_for === 2) completedRatingTwo++;
-          else if (task.color_code_for >= 3) completedRatingThreePlus++;
+      // Process tasks with your field names
+      const processedTasks = filteredData.map(task => {
+        // Skip if not assigned to current user (for non-admin)
+        if (userRole !== "admin" && task.name?.toLowerCase() !== username?.toLowerCase()) {
+          return null;
         }
-      } else {
-        pendingTasks++;
-        if (status === "overdue") overdueTasks++;
-      }
 
-      totalTasks++;
+        const taskStartDate = parseTaskStartDate(task.task_start_date);
+        const completionDate = task.submission_date ? parseTaskStartDate(task.submission_date) : null;
 
-      // Update monthly data
-      if (taskStartDate) {
-        const monthName = taskStartDate.toLocaleString("default", { month: "short" });
-        if (monthlyData[monthName]) {
-          if (status === "completed") {
-            monthlyData[monthName].completed++;
-          } else {
-            monthlyData[monthName].pending++;
+        let status = "pending";
+        if (completionDate) {
+          status = "completed";
+        } else if (taskStartDate && isDateInPast(taskStartDate)) {
+          status = "overdue";
+        }
+
+        // Count based on status
+        if (status === "completed") {
+          completedTasks++;
+          if (dashboardType === "delegation") {
+            if (task.color_code_for === 1) completedRatingOne++;
+            else if (task.color_code_for === 2) completedRatingTwo++;
+            else if (task.color_code_for >= 3) completedRatingThreePlus++;
+          }
+        } else {
+          pendingTasks++;
+          if (status === "overdue") overdueTasks++;
+        }
+
+        totalTasks++;
+
+        // Update monthly data
+        if (taskStartDate) {
+          const monthName = taskStartDate.toLocaleString("default", { month: "short" });
+          if (monthlyData[monthName]) {
+            if (status === "completed") {
+              monthlyData[monthName].completed++;
+            } else {
+              monthlyData[monthName].pending++;
+            }
           }
         }
+
+        return {
+          id: task.task_id,
+          title: task.task_description,
+          assignedTo: task.name || "Unassigned",
+          taskStartDate: formatDateToDDMMYYYY(taskStartDate),
+          originalTaskStartDate: task.task_start_date, // Keep original for filtering
+          status,
+          frequency: task.frequency || "one-time",
+          rating: task.color_code_for || 0
+        };
+      }).filter(Boolean);
+
+      const completionRate = totalTasks > 0 ? ((completedTasks / totalTasks) * 100).toFixed(1) : 0;
+
+      const barChartData = Object.entries(monthlyData).map(([name, data]) => ({
+        name,
+        completed: data.completed,
+        pending: data.pending
+      }));
+
+      const pieChartData = [
+        { name: "Completed", value: completedTasks, color: "#22c55e" },
+        { name: "Pending", value: pendingTasks, color: "#facc15" },
+        { name: "Overdue", value: overdueTasks, color: "#ef4444" }
+      ];
+
+      const staffMap = new Map();
+
+      if (processedTasks.length > 0) {
+        processedTasks.forEach(task => {
+          const assignedTo = task.assignedTo || "Unassigned";
+          if (!staffMap.has(assignedTo)) {
+            staffMap.set(assignedTo, {
+              name: assignedTo,
+              totalTasks: 0,
+              completedTasks: 0,
+              pendingTasks: 0
+            });
+          }
+          const staff = staffMap.get(assignedTo);
+          staff.totalTasks++;
+          if (task.status === "completed") {
+            staff.completedTasks++;
+          } else {
+            staff.pendingTasks++;
+          }
+        });
       }
 
-      return {
-        id: task.task_id,
-        title: task.task_description,
-        assignedTo: task.name || "Unassigned",
-        taskStartDate: formatDateToDDMMYYYY(taskStartDate),
-        originalTaskStartDate: task.task_start_date, // Keep original for filtering
-        status,
-        frequency: task.frequency || "one-time",
-        rating: task.color_code_for || 0
-      };
-    }).filter(Boolean);
+      const staffMembers = Array.from(staffMap.values()).map(staff => ({
+        ...staff,
+        id: (staff.name || "unassigned").replace(/\s+/g, "-").toLowerCase(),
+        email: `${(staff.name || "unassigned").toLowerCase().replace(/\s+/g, ".")}@example.com`,
+        progress: staff.totalTasks > 0 ? Math.round((staff.completedTasks / staff.totalTasks) * 100) : 0
+      }));
 
-    const completionRate = totalTasks > 0 ? ((completedTasks / totalTasks) * 100).toFixed(1) : 0;
-
-    const barChartData = Object.entries(monthlyData).map(([name, data]) => ({
-      name,
-      completed: data.completed,
-      pending: data.pending
-    }));
-
-    const pieChartData = [
-      { name: "Completed", value: completedTasks, color: "#22c55e" },
-      { name: "Pending", value: pendingTasks, color: "#facc15" },
-      { name: "Overdue", value: overdueTasks, color: "#ef4444" }
-    ];
-
-    const staffMap = new Map();
-    
-    if (processedTasks.length > 0) {
-      processedTasks.forEach(task => {
-        const assignedTo = task.assignedTo || "Unassigned";
-        if (!staffMap.has(assignedTo)) {
-          staffMap.set(assignedTo, {
-            name: assignedTo,
-            totalTasks: 0,
-            completedTasks: 0,
-            pendingTasks: 0
-          });
-        }
-        const staff = staffMap.get(assignedTo);
-        staff.totalTasks++;
-        if (task.status === "completed") {
-          staff.completedTasks++;
-        } else {
-          staff.pendingTasks++;
-        }
+      setDepartmentData({
+        allTasks: processedTasks,
+        staffMembers,
+        totalTasks,
+        completedTasks,
+        pendingTasks,
+        overdueTasks,
+        completionRate,
+        barChartData,
+        pieChartData,
+        completedRatingOne,
+        completedRatingTwo,
+        completedRatingThreePlus
       });
+
+    } catch (error) {
+      console.error(`Error fetching ${dashboardType} data:`, error);
     }
+  };
 
-    const staffMembers = Array.from(staffMap.values()).map(staff => ({
-      ...staff,
-      id: (staff.name || "unassigned").replace(/\s+/g, "-").toLowerCase(),
-      email: `${(staff.name || "unassigned").toLowerCase().replace(/\s+/g, ".")}@example.com`,
-      progress: staff.totalTasks > 0 ? Math.round((staff.completedTasks / staff.totalTasks) * 100) : 0
+  // 2. Also update the Redux dispatch calls to pass the staff filter:
+  // Replace the useEffect with:
+
+  // Replace your existing useEffect with this updated version:
+
+  useEffect(() => {
+    // Fetch detailed data for charts and tables
+    fetchDepartmentData();
+
+    // Update Redux state counts with staff filter
+    dispatch(totalTaskInTable({
+      dashboardType,
+      staffFilter: dashboardStaffFilter
     }));
+    dispatch(completeTaskInTable({
+      dashboardType,
+      staffFilter: dashboardStaffFilter
+    }));
+    dispatch(pendingTaskInTable({
+      dashboardType,
+      staffFilter: dashboardStaffFilter
+    }));
+    dispatch(overdueTaskInTable({
+      dashboardType,
+      staffFilter: dashboardStaffFilter
+    }));
+  }, [dashboardType, dashboardStaffFilter, dispatch]);
 
-    setDepartmentData({
-      allTasks: processedTasks,
-      staffMembers,
-      totalTasks,
-      completedTasks,
-      pendingTasks,
-      overdueTasks,
-      completionRate,
-      barChartData,
-      pieChartData,
-      completedRatingOne,
-      completedRatingTwo,
-      completedRatingThreePlus
-    });
+  // 3. Make sure your Redux API functions also handle the staff filter:
+  // You'll need to update your Redux slice and API functions to accept and use the staff filter parameter
 
-  } catch (error) {
-    console.error(`Error fetching ${dashboardType} data:`, error);
-  }
-};
-
-// 2. Also update the Redux dispatch calls to pass the staff filter:
-// Replace the useEffect with:
-
-// Replace your existing useEffect with this updated version:
-
-useEffect(() => {
-  // Fetch detailed data for charts and tables
-  fetchDepartmentData();
-  
-  // Update Redux state counts with staff filter
-  dispatch(totalTaskInTable({ 
-    dashboardType, 
-    staffFilter: dashboardStaffFilter 
-  }));
-  dispatch(completeTaskInTable({ 
-    dashboardType, 
-    staffFilter: dashboardStaffFilter 
-  }));
-  dispatch(pendingTaskInTable({ 
-    dashboardType, 
-    staffFilter: dashboardStaffFilter 
-  }));
-  dispatch(overdueTaskInTable({ 
-    dashboardType, 
-    staffFilter: dashboardStaffFilter 
-  }));
-}, [dashboardType, dashboardStaffFilter, dispatch]);
-
-// 3. Make sure your Redux API functions also handle the staff filter:
-// You'll need to update your Redux slice and API functions to accept and use the staff filter parameter
-
-// The key changes:
-// 1. Apply dashboardStaffFilter BEFORE other filtering
-// 2. Move staff filtering to the top of the function
-// 3. Remove the redundant staff filtering that was happening after processing
-// 4. Make sure the filtered data is used for all calculations
+  // The key changes:
+  // 1. Apply dashboardStaffFilter BEFORE other filtering
+  // 2. Move staff filtering to the top of the function
+  // 3. Remove the redundant staff filtering that was happening after processing
+  // 4. Make sure the filtered data is used for all calculations
 
   // Filter tasks based on criteria
   const filteredTasks = departmentData.allTasks.filter((task) => {
@@ -456,9 +458,9 @@ useEffect(() => {
   });
 
   // Reset dashboard staff filter when dashboard type changes
-useEffect(() => {
-  setDashboardStaffFilter("all");
-}, [dashboardType]);
+  useEffect(() => {
+    setDashboardStaffFilter("all");
+  }, [dashboardType]);
 
   // Get tasks by view
   const getTasksByView = (view) => {
@@ -468,13 +470,22 @@ useEffect(() => {
 
       switch (view) {
         case "recent":
-          return isDateToday(taskDate);
+          // Show today's tasks but exclude completed ones for consistency with cards
+          return isDateToday(taskDate) && task.status !== 'completed';
         case "upcoming":
-          return dashboardType === "delegation" 
+          return dashboardType === "delegation"
             ? isDateFuture(taskDate)
             : isDateTomorrow(task.originalTaskStartDate);
         case "overdue":
-          return isDateInPast(taskDate);
+          // CHANGE: Apply same filtering as cards - exclude upcoming tasks
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          // Only show tasks that are due today or before (same as cards logic)
+          if (taskDate > today) return false;
+
+          // Then check if it's actually overdue (past date, not completed)
+          return isDateInPast(taskDate) && task.status !== 'completed';
         default:
           return true;
       }
@@ -562,7 +573,7 @@ useEffect(() => {
         const taskDate = parseTaskStartDate(task.originalTaskStartDate);
         return task.assignedTo === staff.name && taskDate && taskDate <= today;
       });
-      
+
       const completedTasks = staffTasks.filter(task => task.status === 'completed').length;
       const totalTasks = staffTasks.length;
       const pendingTasks = totalTasks - completedTasks;
@@ -645,114 +656,149 @@ useEffect(() => {
     );
   };
 
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Calculate filtered stats for cards - same logic as table
+  const cardStats = (() => {
+    // Filter tasks that are not upcoming (due today or before)
+    const filteredTasks = departmentData.allTasks.filter(task => {
+      const taskDate = parseTaskStartDate(task.originalTaskStartDate);
+      return taskDate && taskDate <= today;
+    });
+
+    const totalTasks = filteredTasks.length;
+    const completedTasks = filteredTasks.filter(task => task.status === 'completed').length;
+    const pendingTasks = totalTasks - completedTasks;
+    const overdueTasks = filteredTasks.filter(task => task.status === 'overdue').length;
+
+    return {
+      totalTasks,
+      completedTasks,
+      pendingTasks,
+      overdueTasks
+    };
+  })();
+
   return (
     <AdminLayout>
       <div className="space-y-6">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <h1 className="text-2xl font-bold tracking-tight text-purple-500">Dashboard </h1>
           <div className="flex items-center gap-2">
-  {/* Dashboard Type Selection */}
-  <select
-    value={dashboardType}
-    onChange={(e) => setDashboardType(e.target.value)}
-    className="w-[140px] rounded-md border border-purple-200 p-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-  >
-    <option value="checklist">Checklist</option>
-    <option value="delegation">Delegation</option>
-  </select>
-  
-  {/* Dashboard Staff Filter */}
-  <select
-    value={dashboardStaffFilter}
-    onChange={(e) => setDashboardStaffFilter(e.target.value)}
-    className="w-[180px] rounded-md border border-purple-200 p-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-  >
-    <option value="all">All Staff Members</option>
-    {availableStaff.map((staffName) => (
-      <option key={staffName} value={staffName}>
-        {staffName}
-      </option>
-    ))}
-  </select>
-</div>
+            {/* Dashboard Type Selection */}
+            <select
+              value={dashboardType}
+              onChange={(e) => setDashboardType(e.target.value)}
+              className="w-[140px] rounded-md border border-purple-200 p-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+            >
+              <option value="checklist">Checklist</option>
+              <option value="delegation">Delegation</option>
+            </select>
+
+            {/* Dashboard Staff Filter */}
+            {userRole === "admin" ? (
+              <select
+                value={dashboardStaffFilter}
+                onChange={(e) => setDashboardStaffFilter(e.target.value)}
+                className="w-[180px] rounded-md border border-purple-200 p-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+              >
+                <option value="all">All Staff Members</option>
+                {availableStaff.map((staffName) => (
+                  <option key={staffName} value={staffName}>
+                    {staffName}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <select
+                value={username || ""}
+                disabled={true}
+                className="w-[180px] rounded-md border border-gray-300 p-2 bg-gray-100 text-gray-600 cursor-not-allowed"
+              >
+                <option value={username || ""}>{username || "Current User"}</option>
+              </select>
+            )}
+          </div>
         </div>
 
 
 
-<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-  <div className="rounded-lg border border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-all bg-white">
-    <div className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-blue-50 to-blue-100 rounded-tr-lg p-4">
-      <h3 className="text-sm font-medium text-blue-700">Total Tasks</h3>
-      <ListTodo className="h-4 w-4 text-blue-500" />
-    </div>
-    <div className="p-4">
-      <div className="text-3xl font-bold text-blue-700">{totalTask}</div>
-      <p className="text-xs text-blue-600">
-        {dashboardType === "delegation"
-          ? "All tasks in delegation sheet"
-          : "Total tasks in checklist (up to today)"
-        }
-        {dashboardStaffFilter !== "all" && ` for ${dashboardStaffFilter}`}
-      </p>
-    </div>
-  </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-lg border border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-all bg-white">
+            <div className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-blue-50 to-blue-100 rounded-tr-lg p-4">
+              <h3 className="text-sm font-medium text-blue-700">Total Tasks</h3>
+              <ListTodo className="h-4 w-4 text-blue-500" />
+            </div>
+            <div className="p-4">
+              <div className="text-3xl font-bold text-blue-700">{cardStats.totalTasks}</div>
+              <p className="text-xs text-blue-600">
+                {dashboardType === "delegation"
+                  ? "All tasks in delegation sheet"
+                  : "Total tasks in checklist (up to today)"
+                }
+                {dashboardStaffFilter !== "all" && ` for ${dashboardStaffFilter}`}
+              </p>
+            </div>
+          </div>
 
-  <div className="rounded-lg border border-l-4 border-l-green-500 shadow-md hover:shadow-lg transition-all bg-white">
-    <div className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-green-50 to-green-100 rounded-tr-lg p-4">
-      <h3 className="text-sm font-medium text-green-700">
-        {dashboardType === "delegation" ? "Completed Once" : "Completed Tasks"}
-      </h3>
-      <CheckCircle2 className="h-4 w-4 text-green-500" />
-    </div>
-    <div className="p-4">
-      <div className="text-3xl font-bold text-green-700">{completeTask}</div>
-      <p className="text-xs text-green-600">
-        {dashboardType === "delegation" ? "Tasks completed once" : "Total completed till date"}
-        {dashboardStaffFilter !== "all" && ` for ${dashboardStaffFilter}`}
-      </p>
-    </div>
-  </div>
+          <div className="rounded-lg border border-l-4 border-l-green-500 shadow-md hover:shadow-lg transition-all bg-white">
+            <div className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-green-50 to-green-100 rounded-tr-lg p-4">
+              <h3 className="text-sm font-medium text-green-700">
+                {dashboardType === "delegation" ? "Completed Once" : "Completed Tasks"}
+              </h3>
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+            </div>
+            <div className="p-4">
+              <div className="text-3xl font-bold text-green-700">{cardStats.completedTasks}</div>
+              <p className="text-xs text-green-600">
+                {dashboardType === "delegation" ? "Tasks completed once" : "Total completed till date"}
+                {dashboardStaffFilter !== "all" && ` for ${dashboardStaffFilter}`}
+              </p>
+            </div>
+          </div>
 
-  <div className="rounded-lg border border-l-4 border-l-amber-500 shadow-md hover:shadow-lg transition-all bg-white">
-    <div className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-amber-50 to-amber-100 rounded-tr-lg p-4">
-      <h3 className="text-sm font-medium text-amber-700">
-        {dashboardType === "delegation" ? "Completed Twice" : "Pending Tasks"}
-      </h3>
-      {dashboardType === "delegation" ? (
-        <CheckCircle2 className="h-4 w-4 text-amber-500" />
-      ) : (
-        <Clock className="h-4 w-4 text-amber-500" />
-      )}
-    </div>
-    <div className="p-4">
-      <div className="text-3xl font-bold text-amber-700">{pendingTask}</div>
-      <p className="text-xs text-amber-600">
-        {dashboardType === "delegation" ? "Tasks completed twice" : "Including today + overdue"}
-        {dashboardStaffFilter !== "all" && ` for ${dashboardStaffFilter}`}
-      </p>
-    </div>
-  </div>
+          <div className="rounded-lg border border-l-4 border-l-amber-500 shadow-md hover:shadow-lg transition-all bg-white">
+            <div className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-amber-50 to-amber-100 rounded-tr-lg p-4">
+              <h3 className="text-sm font-medium text-amber-700">
+                {dashboardType === "delegation" ? "Completed Twice" : "Pending Tasks"}
+              </h3>
+              {dashboardType === "delegation" ? (
+                <CheckCircle2 className="h-4 w-4 text-amber-500" />
+              ) : (
+                <Clock className="h-4 w-4 text-amber-500" />
+              )}
+            </div>
+            <div className="p-4">
+              <div className="text-3xl font-bold text-amber-700">{cardStats.pendingTasks}</div>
+              <p className="text-xs text-amber-600">
+                {dashboardType === "delegation" ? "Tasks completed twice" : "Including today + overdue"}
+                {dashboardStaffFilter !== "all" && ` for ${dashboardStaffFilter}`}
+              </p>
+            </div>
+          </div>
 
-  <div className="rounded-lg border border-l-4 border-l-red-500 shadow-md hover:shadow-lg transition-all bg-white">
-    <div className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-red-50 to-red-100 rounded-tr-lg p-4">
-      <h3 className="text-sm font-medium text-red-700">
-        {dashboardType === "delegation" ? "Completed 3+ Times" : "Overdue Tasks"}
-      </h3>
-      {dashboardType === "delegation" ? (
-        <CheckCircle2 className="h-4 w-4 text-red-500" />
-      ) : (
-        <AlertTriangle className="h-4 w-4 text-red-500" />
-      )}
-    </div>
-    <div className="p-4">
-      <div className="text-3xl font-bold text-red-700">{overdueTask}</div>
-      <p className="text-xs text-red-600">
-        {dashboardType === "delegation" ? "Tasks completed 3+ times" : "Past due (excluding today)"}
-        {dashboardStaffFilter !== "all" && ` for ${dashboardStaffFilter}`}
-      </p>
-    </div>
-  </div>
-</div>
+          <div className="rounded-lg border border-l-4 border-l-red-500 shadow-md hover:shadow-lg transition-all bg-white">
+            <div className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-red-50 to-red-100 rounded-tr-lg p-4">
+              <h3 className="text-sm font-medium text-red-700">
+                {dashboardType === "delegation" ? "Completed 3+ Times" : "Overdue Tasks"}
+              </h3>
+              {dashboardType === "delegation" ? (
+                <CheckCircle2 className="h-4 w-4 text-red-500" />
+              ) : (
+                <AlertTriangle className="h-4 w-4 text-red-500" />
+              )}
+            </div>
+            <div className="p-4">
+              <div className="text-3xl font-bold text-red-700">{cardStats.overdueTasks}</div>
+              <p className="text-xs text-red-600">
+                {dashboardType === "delegation" ? "Tasks completed 3+ times" : "Past due (excluding today)"}
+                {dashboardStaffFilter !== "all" && ` for ${dashboardStaffFilter}`}
+              </p>
+            </div>
+          </div>
+        </div>
 
         {/* Task Navigation Tabs */}
         <div className="w-full overflow-hidden rounded-lg border border-gray-200 bg-white">
@@ -958,7 +1004,7 @@ useEffect(() => {
               <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple-100 p-4">
                 <h3 className="text-purple-700 font-medium">MIS Report</h3>
                 <p className="text-purple-600 text-sm">
-                  {dashboardType === "delegation" 
+                  {dashboardType === "delegation"
                     ? "Detailed delegation analytics - all tasks from sheet data"
                     : "Detailed task analytics and performance metrics"
                   }
@@ -1007,8 +1053,8 @@ useEffect(() => {
                     <div className="space-y-2">
                       <div className="text-sm font-medium text-purple-600">Total Tasks Assigned</div>
                       <div className="text-3xl font-bold text-purple-700">
-                        {dashboardType === "delegation" 
-                          ? departmentData.totalTasks 
+                        {dashboardType === "delegation"
+                          ? departmentData.totalTasks
                           : (dateRange.filtered ? filteredDateStats.totalTasks : departmentData.totalTasks)
                         }
                       </div>
@@ -1025,8 +1071,8 @@ useEffect(() => {
                     <div className="space-y-2">
                       <div className="text-sm font-medium text-purple-600">Tasks Completed</div>
                       <div className="text-3xl font-bold text-purple-700">
-                        {dashboardType === "delegation" 
-                          ? departmentData.completedTasks 
+                        {dashboardType === "delegation"
+                          ? departmentData.completedTasks
                           : (dateRange.filtered ? filteredDateStats.completedTasks : departmentData.completedTasks)
                         }
                       </div>
@@ -1036,17 +1082,17 @@ useEffect(() => {
                         {dashboardType === "delegation" ? "Tasks Pending" : "Tasks Pending/Overdue"}
                       </div>
                       <div className="text-3xl font-bold text-purple-700">
-                        {dashboardType === "delegation" 
-                          ? departmentData.pendingTasks 
-                          : (dateRange.filtered 
-                              ? `${filteredDateStats.pendingTasks} / ${filteredDateStats.overdueTasks}` 
-                              : `${departmentData.pendingTasks} / ${departmentData.overdueTasks}`
-                            )
+                        {dashboardType === "delegation"
+                          ? departmentData.pendingTasks
+                          : (dateRange.filtered
+                            ? `${filteredDateStats.pendingTasks} / ${filteredDateStats.overdueTasks}`
+                            : `${departmentData.pendingTasks} / ${departmentData.overdueTasks}`
+                          )
                         }
                       </div>
                       <div className="text-xs text-purple-600">
-                        {dashboardType === "delegation" 
-                          ? "All incomplete tasks" 
+                        {dashboardType === "delegation"
+                          ? "All incomplete tasks"
                           : "Pending (all incomplete) / Overdue (past dates only)"
                         }
                       </div>
@@ -1093,8 +1139,8 @@ useEffect(() => {
                         <h4 className="text-sm font-medium text-purple-700 mb-2">Completion Rate</h4>
                         <div className="flex items-center gap-4">
                           <div className="text-2xl font-bold text-purple-700">
-                            {dashboardType === "delegation" 
-                              ? departmentData.completionRate 
+                            {dashboardType === "delegation"
+                              ? departmentData.completionRate
                               : (dateRange.filtered ? filteredDateStats.completionRate : departmentData.completionRate)
                             }%
                           </div>
@@ -1103,21 +1149,21 @@ useEffect(() => {
                               <div
                                 className="h-full rounded-full flex items-center justify-end px-3 text-xs font-medium text-white"
                                 style={{
-                                  width: `${dashboardType === "delegation" 
-                                    ? departmentData.completionRate 
+                                  width: `${dashboardType === "delegation"
+                                    ? departmentData.completionRate
                                     : (dateRange.filtered ? filteredDateStats.completionRate : departmentData.completionRate)
-                                  }%`,
-                                  background: `linear-gradient(to right, #10b981 ${(dashboardType === "delegation" 
-                                    ? departmentData.completionRate 
+                                    }%`,
+                                  background: `linear-gradient(to right, #10b981 ${(dashboardType === "delegation"
+                                    ? departmentData.completionRate
                                     : (dateRange.filtered ? filteredDateStats.completionRate : departmentData.completionRate)
-                                  ) * 0.8}%, #f59e0b ${(dashboardType === "delegation" 
-                                    ? departmentData.completionRate 
+                                  ) * 0.8}%, #f59e0b ${(dashboardType === "delegation"
+                                    ? departmentData.completionRate
                                     : (dateRange.filtered ? filteredDateStats.completionRate : departmentData.completionRate)
                                   ) * 0.8}%)`
                                 }}
                               >
-                                {dashboardType === "delegation" 
-                                  ? departmentData.completionRate 
+                                {dashboardType === "delegation"
+                                  ? departmentData.completionRate
                                   : (dateRange.filtered ? filteredDateStats.completionRate : departmentData.completionRate)
                                 }%
                               </div>
@@ -1143,7 +1189,7 @@ useEffect(() => {
               <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple-100 p-4">
                 <h3 className="text-purple-700 font-medium">Staff Performance</h3>
                 <p className="text-purple-600 text-sm">
-                  {dashboardType === "delegation" 
+                  {dashboardType === "delegation"
                     ? "Task completion rates by staff member (all delegation sheet data)"
                     : "Task completion rates by staff member (tasks up to today only)"
                   }
@@ -1166,7 +1212,7 @@ useEffect(() => {
                               <div className="p-4 bg-gradient-to-r from-green-50 to-green-100 border-b border-green-200">
                                 <h3 className="text-lg font-medium text-green-700">Top Performers</h3>
                                 <p className="text-sm text-green-600">
-                                  {dashboardType === "delegation" 
+                                  {dashboardType === "delegation"
                                     ? "Staff with high task completion rates (all delegation data)"
                                     : "Staff with high task completion rates (tasks up to today only)"
                                   }
@@ -1208,7 +1254,7 @@ useEffect(() => {
                               <div className="p-4 bg-gradient-to-r from-yellow-50 to-yellow-100 border-b border-yellow-200">
                                 <h3 className="text-lg font-medium text-yellow-700">Average Performers</h3>
                                 <p className="text-sm text-yellow-600">
-                                  {dashboardType === "delegation" 
+                                  {dashboardType === "delegation"
                                     ? "Staff with moderate task completion rates (all delegation data)"
                                     : "Staff with moderate task completion rates (tasks up to today only)"
                                   }
@@ -1250,7 +1296,7 @@ useEffect(() => {
                               <div className="p-4 bg-gradient-to-r from-red-50 to-red-100 border-b border-red-200">
                                 <h3 className="text-lg font-medium text-red-700">Needs Improvement</h3>
                                 <p className="text-sm text-red-600">
-                                  {dashboardType === "delegation" 
+                                  {dashboardType === "delegation"
                                     ? "Staff with lower task completion rates (all delegation data)"
                                     : "Staff with lower task completion rates (tasks up to today only)"
                                   }
@@ -1293,7 +1339,7 @@ useEffect(() => {
                                 <div className="p-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
                                   <h3 className="text-lg font-medium text-gray-700">No Tasks Assigned</h3>
                                   <p className="text-sm text-gray-600">
-                                    {dashboardType === "delegation" 
+                                    {dashboardType === "delegation"
                                       ? "Staff with no tasks in delegation sheet"
                                       : "Staff with no tasks assigned for current period"
                                     }
@@ -1315,7 +1361,7 @@ useEffect(() => {
                                             <div>
                                               <p className="font-medium text-gray-700">{staff.name}</p>
                                               <p className="text-xs text-gray-600">
-                                                {dashboardType === "delegation" 
+                                                {dashboardType === "delegation"
                                                   ? "No tasks in delegation sheet"
                                                   : "No tasks assigned up to today"
                                                 }
