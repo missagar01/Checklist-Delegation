@@ -427,7 +427,7 @@ useEffect(() => {
     dashboardType, 
     staffFilter: dashboardStaffFilter 
   }));
-}, [dashboardType, dashboardStaffFilter]);
+}, [dashboardType, dashboardStaffFilter, dispatch]);
 
 // 3. Make sure your Redux API functions also handle the staff filter:
 // You'll need to update your Redux slice and API functions to accept and use the staff filter parameter
