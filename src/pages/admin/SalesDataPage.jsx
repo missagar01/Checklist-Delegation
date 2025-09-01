@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { CheckCircle2, Upload, X, Search, History, ArrowLeft } from "lucide-react"
 import AdminLayout from "../../components/layout/AdminLayout"
 import { useDispatch, useSelector } from "react-redux"
@@ -44,6 +44,10 @@ function AccountDataPage() {
   const [endDate, setEndDate] = useState("")
   const [userRole, setUserRole] = useState("")
   const [username, setUsername] = useState("")
+  const [currentPagePending, setCurrentPagePending] = useState(1);
+const [currentPageHistory, setCurrentPageHistory] = useState(1);
+const [isLoadingMore, setIsLoadingMore] = useState(false);
+
 
   const {checklist,loading,history}=useSelector((state)=>state.checkList)
   const {doerName}=useSelector((state)=>state.assignTask)
@@ -58,7 +62,8 @@ dispatch(checklistHistoryData())
 
   },[dispatch])
 
-
+const tableContainerRef = useRef(null);
+const ITEMS_PER_PAGE = 100;
 
   // NEW: Admin history selection states
   const [selectedHistoryItems, setSelectedHistoryItems] = useState([])
@@ -151,15 +156,19 @@ dispatch(checklistHistoryData())
   
 
 
-  const sortDateWise = (a, b) => {
-    const dateStrA = a["col6"] || ""
-    const dateStrB = b["col6"] || ""
-    const dateA = parseDateFromDDMMYYYY(dateStrA)
-    const dateB = parseDateFromDDMMYYYY(dateStrB)
-    if (!dateA) return 1
-    if (!dateB) return -1
-    return dateA.getTime() - dateB.getTime()
-  }
+const sortDateWise = (a, b) => {
+  // For current data structure, use task_start_date instead of col6
+  const dateStrA = a.task_start_date || ""
+  const dateStrB = b.task_start_date || ""
+  
+  const dateA = new Date(dateStrA)
+  const dateB = new Date(dateStrB)
+  
+  if (!dateA || isNaN(dateA.getTime())) return 1
+  if (!dateB || isNaN(dateB.getTime())) return -1
+  
+  return dateA.getTime() - dateB.getTime()
+}
 
   const resetFilters = () => {
     setSearchTerm("")
@@ -293,13 +302,16 @@ const filteredAccountData = useMemo(() => {
       )
     : checklist;
 
-  return [...filtered].sort(sortDateWise);
-}, [checklist, searchTerm]);
+  const sorted = [...filtered].sort(sortDateWise);
+  
+  // Return only the items for current page (slice from 0 to currentPage * ITEMS_PER_PAGE)
+  return sorted.slice(0, currentPagePending * ITEMS_PER_PAGE);
+}, [checklist, searchTerm, currentPagePending]);
 
 const filteredHistoryData = useMemo(() => {
   if (!Array.isArray(history)) return [];
 
-  return history
+  const filtered = history
     .filter((item) => {
       // Search filter
       const matchesSearch = searchTerm
@@ -351,7 +363,94 @@ const filteredHistoryData = useMemo(() => {
       if (!dateB) return -1;
       return dateB - dateA; // Sort newest first
     });
-}, [history, searchTerm, selectedMembers, startDate, endDate]);
+
+  // Return only the items for current page
+  return filtered.slice(0, currentPageHistory * ITEMS_PER_PAGE);
+}, [history, searchTerm, selectedMembers, startDate, endDate, currentPageHistory]);
+
+const handleScroll = useCallback((e) => {
+  console.log('Scroll detected:', { 
+    isLoadingMore, 
+    showHistory, 
+    currentPagePending, 
+    currentPageHistory,
+    scrollTop: e.target.scrollTop,
+    scrollHeight: e.target.scrollHeight,
+    clientHeight: e.target.clientHeight
+  });
+  
+  if (isLoadingMore) return;
+  
+  const { scrollTop, scrollHeight, clientHeight } = e.target;
+  const isNearBottom = scrollTop + clientHeight >= scrollHeight - 100; // 100px threshold
+  
+  if (isNearBottom) {
+    setIsLoadingMore(true);
+    
+    // Simulate loading delay and load next page
+    setTimeout(() => {
+      if (showHistory) {
+        const totalFilteredItems = history.filter((item) => {
+          // Apply same filters as in filteredHistoryData
+          const matchesSearch = searchTerm
+            ? Object.entries(item).some(([key, value]) => {
+                if (['image', 'admin_done'].includes(key)) return false;
+                return value && value.toString().toLowerCase().includes(searchTerm.toLowerCase());
+              })
+            : true;
+
+          const matchesMember = selectedMembers.length > 0 
+            ? selectedMembers.includes(item.name)
+            : true;
+
+          let matchesDateRange = true;
+          if (startDate || endDate) {
+            const itemDate = parseSupabaseDate(item.task_start_date);
+            if (!itemDate || isNaN(itemDate.getTime())) return false;
+
+            const itemDateOnly = new Date(
+              itemDate.getFullYear(),
+              itemDate.getMonth(),
+              itemDate.getDate()
+            );
+
+            const start = startDate ? new Date(startDate) : null;
+            if (start) start.setHours(0, 0, 0, 0);
+            
+            const end = endDate ? new Date(endDate) : null;
+            if (end) end.setHours(23, 59, 59, 999);
+
+            if (start && itemDateOnly < start) matchesDateRange = false;
+            if (end && itemDateOnly > end) matchesDateRange = false;
+          }
+
+          return matchesSearch && matchesMember && matchesDateRange;
+        }).length;
+
+        if (currentPageHistory * ITEMS_PER_PAGE < totalFilteredItems) {
+          setCurrentPageHistory(prev => prev + 1);
+        }
+      } else {
+        const totalFilteredItems = checklist.filter((account) =>
+          searchTerm
+            ? Object.values(account).some(
+                (value) =>
+                  value &&
+                  value.toString().toLowerCase().includes(searchTerm.toLowerCase())
+              )
+            : true
+        ).length;
+
+        if (currentPagePending * ITEMS_PER_PAGE < totalFilteredItems) {
+          setCurrentPagePending(prev => prev + 1);
+        }
+      }
+      
+      setIsLoadingMore(false);
+    }, 300); // Small delay for better UX
+  }
+}, [isLoadingMore, showHistory, currentPageHistory, currentPagePending, history, checklist, searchTerm, selectedMembers, startDate, endDate]);
+
 
 
   const getTaskStatistics = () => {
@@ -651,6 +750,80 @@ const handleImageUpload = async (id, e) => {
     resetFilters()
   }
 
+  useEffect(() => {
+  setCurrentPagePending(1);
+  setCurrentPageHistory(1);
+}, [searchTerm, selectedMembers, startDate, endDate, showHistory]);
+
+const LoadingIndicator = () => (
+  <div className="text-center py-4 bg-gray-50">
+    {isLoadingMore ? (
+      <div className="flex items-center justify-center">
+        <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-purple-500 mr-2"></div>
+        <span className="text-purple-600 text-sm">Loading more items...</span>
+      </div>
+    ) : null}
+  </div>
+);
+
+
+const hasMoreItems = () => {
+  if (showHistory) {
+    const totalFilteredItems = history.filter((item) => {
+      // Apply same filters as in filteredHistoryData
+      const matchesSearch = searchTerm
+        ? Object.entries(item).some(([key, value]) => {
+            if (['image', 'admin_done'].includes(key)) return false;
+            return value && value.toString().toLowerCase().includes(searchTerm.toLowerCase());
+          })
+        : true;
+
+      const matchesMember = selectedMembers.length > 0 
+        ? selectedMembers.includes(item.name)
+        : true;
+
+      let matchesDateRange = true;
+      if (startDate || endDate) {
+        const itemDate = parseSupabaseDate(item.task_start_date);
+        if (!itemDate || isNaN(itemDate.getTime())) return false;
+
+        const itemDateOnly = new Date(
+          itemDate.getFullYear(),
+          itemDate.getMonth(),
+          itemDate.getDate()
+        );
+
+        const start = startDate ? new Date(startDate) : null;
+        if (start) start.setHours(0, 0, 0, 0);
+        
+        const end = endDate ? new Date(endDate) : null;
+        if (end) end.setHours(23, 59, 59, 999);
+
+        if (start && itemDateOnly < start) matchesDateRange = false;
+        if (end && itemDateOnly > end) matchesDateRange = false;
+      }
+
+      return matchesSearch && matchesMember && matchesDateRange;
+    }).length;
+
+    return currentPageHistory * ITEMS_PER_PAGE < totalFilteredItems;
+  } else {
+    const totalFilteredItems = checklist.filter((account) =>
+      searchTerm
+        ? Object.values(account).some(
+            (value) =>
+              value &&
+              value.toString().toLowerCase().includes(searchTerm.toLowerCase())
+          )
+        : true
+    ).length;
+
+    return currentPagePending * ITEMS_PER_PAGE < totalFilteredItems;
+  }
+};
+
+
+
   // UPDATED: MAIN SUBMIT FUNCTION with date-time formatting
 const handleSubmit = async () => {
   const selectedItemsArray = Array.from(selectedItems);
@@ -944,7 +1117,8 @@ const handleSubmit = async () => {
               </div>
 
               {/* History Table - Optimized for performance */}
-              <div className="h-[calc(100vh-300px)] overflow-auto">
+              {/* <div className="h-[calc(100vh-300px)] overflow-auto"> */}
+              <div ref={tableContainerRef} className="h-[calc(100vh-300px)] overflow-auto" onScroll={handleScroll}>
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50 sticky top-0 z-10">
                     <tr>
@@ -1209,11 +1383,24 @@ const handleSubmit = async () => {
                     )}
                   </tbody>
                 </table>
+                {isLoadingMore && (
+  <div className="text-center py-4 bg-gray-50">
+    <div className="flex items-center justify-center">
+      <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-purple-500 mr-2"></div>
+      <span className="text-purple-600 text-sm">Loading more items...</span>
+    </div>
+  </div>
+)}
               </div>
             </>
           ) : (
             /* Regular Tasks Table - Optimized for performance */
-            <div className="h-[calc(100vh-250px)] overflow-auto">
+            // <div className="h-[calc(100vh-250px)] overflow-auto">
+            <div 
+  ref={tableContainerRef} 
+  className="h-[calc(100vh-250px)] overflow-auto" 
+  onScroll={handleScroll}
+>
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50 sticky top-0 z-10">
                   <tr>
@@ -1221,7 +1408,8 @@ const handleSubmit = async () => {
                       <input
                         type="checkbox"
                         className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                       checked={Array.isArray(checklist) && checklist.length > 0 && selectedItems.size === checklist.length}
+                      //  checked={Array.isArray(checklist) && checklist.length > 0 && selectedItems.size === checklist.length}
+                      checked={filteredAccountData.length > 0 && selectedItems.size === filteredAccountData.length}
 
                         onChange={handleSelectAllItems}
                       />
@@ -1436,6 +1624,14 @@ const handleSubmit = async () => {
                   )}
                 </tbody>
               </table>
+              {isLoadingMore && (
+  <div className="text-center py-4 bg-gray-50">
+    <div className="flex items-center justify-center">
+      <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-purple-500 mr-2"></div>
+      <span className="text-purple-600 text-sm">Loading more items...</span>
+    </div>
+  </div>
+)}
             </div>
           )}
         </div>
