@@ -166,6 +166,15 @@ export default function AssignTask() {
   const {doerName}=useSelector((state)=>state.assignTask)
   const {givenBy}=useSelector((state)=>state.assignTask)
 
+  // Add this near the top of your AssignTask component, after getting the Redux state
+const userRole = localStorage.getItem('role');
+const username = localStorage.getItem('user-name');
+
+// Filter doer names based on role
+const filteredDoerNames = userRole === 'admin' 
+  ? doerName 
+  : doerName.filter(doer => doer?.toLowerCase() === username?.toLowerCase());
+
 const dispatch=useDispatch();
 
 useEffect(()=>{
@@ -1237,30 +1246,32 @@ useEffect(()=>{
                 </select>
               </div>
 
-              {/* Doer's Name Dropdown */}
-              <div className="space-y-2">
-                <label
-                  htmlFor="doer"
-                  className="block text-sm font-medium text-purple-700"
-                >
-                  Doer's Name
-                </label>
-                <select
-                  id="doer"
-                  name="doer"
-                  value={formData.doer}
-                  onChange={handleChange}
-                  required
-                  className="w-full rounded-md border border-purple-200 p-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                >
-                  <option value="">Select Doer</option>
-                  {doerName.map((doer, index) => (
-                    <option key={index} value={doer}>
-                      {doer}
-                    </option>
-                  ))}
-                </select>
-              </div>
+
+{/* Doer's Name Dropdown */}
+{/* Doer's Name Dropdown */}
+<div className="space-y-2">
+  <label
+    htmlFor="doer"
+    className="block text-sm font-medium text-purple-700"
+  >
+    Doer's Name
+  </label>
+  <select
+    id="doer"
+    name="doer"
+    value={formData.doer}
+    onChange={handleChange}
+    required
+    className="w-full rounded-md border border-purple-200 p-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+  >
+    <option value="">Select Doer</option>
+    {filteredDoerNames.map((doer, index) => (
+      <option key={index} value={doer}>
+        {doer}
+      </option>
+    ))}
+  </select>
+</div>
 
               {/* Description */}
               <div className="space-y-2">

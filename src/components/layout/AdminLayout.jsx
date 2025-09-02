@@ -28,11 +28,14 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
   }, [navigate])
 
   // Handle logout
-  const handleLogout = () => {
-    localStorage.removeItem('user-name')
-    localStorage.removeItem('role')
-    navigate("/login")
-  }
+  // Handle logout
+const handleLogout = () => {
+  localStorage.removeItem('user-name')
+  localStorage.removeItem('role')
+  localStorage.removeItem('token') // Add this if you're using token-based auth
+  // Force immediate navigation to login
+  window.location.href = "/login" // Use window.location.href instead of navigate
+}
 
   // Filter dataCategories based on user role
   const dataCategories = [
@@ -84,7 +87,7 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
       label: "Assign Task",
       icon: CheckSquare,
       active: location.pathname === "/dashboard/assign-task",
-      showFor: ["admin"] // Only show for admin
+      showFor: ["admin", "user"] // Only show for admin
     },
      
     {
