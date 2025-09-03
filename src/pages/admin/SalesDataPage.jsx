@@ -288,11 +288,34 @@ const sortDateWise = (a, b) => {
   };
 
   // Memoized filtered data to prevent unnecessary re-renders
+// const filteredAccountData = useMemo(() => {
+//   if (!Array.isArray(checklist)) return [];
+  
+//   // Apply search filter if searchTerm exists
+//   const filtered = searchTerm
+//     ? checklist.filter((account) =>
+//         Object.values(account).some(
+//           (value) =>
+//             value &&
+//             value.toString().toLowerCase().includes(searchTerm.toLowerCase())
+//         )
+//       )
+//     : checklist;
+
+//   const sorted = [...filtered].sort(sortDateWise);
+  
+//   // Return only the items for current page (slice from 0 to currentPage * ITEMS_PER_PAGE)
+//   return sorted.slice(0, currentPagePending * ITEMS_PER_PAGE);
+// }, [checklist, searchTerm, currentPagePending]);
+
 const filteredAccountData = useMemo(() => {
   if (!Array.isArray(checklist)) return [];
   
+  const today = new Date();
+  today.setHours(23, 59, 59, 999); // Set to end of today
+  
   // Apply search filter if searchTerm exists
-  const filtered = searchTerm
+  let filtered = searchTerm
     ? checklist.filter((account) =>
         Object.values(account).some(
           (value) =>
@@ -302,9 +325,20 @@ const filteredAccountData = useMemo(() => {
       )
     : checklist;
 
+  // Apply date filter - only show today and past dates
+  filtered = filtered.filter((account) => {
+    if (!account.task_start_date) return false;
+    
+    const taskDate = new Date(account.task_start_date);
+    if (isNaN(taskDate.getTime())) return false;
+    
+    // Only show tasks that are today or in the past
+    return taskDate <= today;
+  });
+
   const sorted = [...filtered].sort(sortDateWise);
   
-  // Return only the items for current page (slice from 0 to currentPage * ITEMS_PER_PAGE)
+  // Return only the items for current page
   return sorted.slice(0, currentPagePending * ITEMS_PER_PAGE);
 }, [checklist, searchTerm, currentPagePending]);
 
@@ -618,15 +652,24 @@ const handleScroll = useCallback((e) => {
         const isColumnKEmpty = isEmpty(columnKValue)
 
         // For pending tasks, exclude admin processed items (Column P not empty)
-        if (hasColumnG && isColumnKEmpty && isEmpty(columnPValue)) {
-          const rowDate = parseDateFromDDMMYYYY(formattedRowDate)
-          const isToday = formattedRowDate.startsWith(todayStr)
-          const isTomorrow = formattedRowDate.startsWith(tomorrowStr)
-          const isPastDate = rowDate && rowDate <= today
-          if (isToday || isTomorrow || isPastDate) {
-            pendingAccounts.push(rowData)
-          }
-        } 
+        // if (hasColumnG && isColumnKEmpty && isEmpty(columnPValue)) {
+        //   const rowDate = parseDateFromDDMMYYYY(formattedRowDate)
+        //   const isToday = formattedRowDate.startsWith(todayStr)
+        //   const isTomorrow = formattedRowDate.startsWith(tomorrowStr)
+        //   const isPastDate = rowDate && rowDate <= today
+        //   if (isToday || isTomorrow || isPastDate) {
+        //     pendingAccounts.push(rowData)
+        //   }
+        // } 
+        // For pending tasks, exclude admin processed items (Column P not empty)
+if (hasColumnG && isColumnKEmpty && isEmpty(columnPValue)) {
+  const rowDate = parseDateFromDDMMYYYY(formattedRowDate)
+  const isToday = formattedRowDate.startsWith(todayStr)
+  const isPastOrToday = rowDate && rowDate <= today
+  if (isToday || isPastOrToday) {
+    pendingAccounts.push(rowData)
+  }
+}
         // For history, include ALL completed tasks regardless of Column P status
         else if (hasColumnG && !isColumnKEmpty) {
           const isUserHistoryMatch =
