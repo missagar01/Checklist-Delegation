@@ -14,8 +14,8 @@ export const uniqueGivenByData = createAsyncThunk( 'fetch/given_by',async () => 
     return givenBy;
   }
 );
-export const uniqueDoerNameData = createAsyncThunk( 'fetch/doerName',async () => {
-    const doerName = await fetchUniqueDoerNameDataApi();
+export const uniqueDoerNameData = createAsyncThunk( 'fetch/doerName',async (department) => {
+    const doerName = await fetchUniqueDoerNameDataApi(department);
    
     return doerName;
   }

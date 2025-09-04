@@ -1496,8 +1496,8 @@ const handleSubmit = async () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredAccountData.length > 0 ? (
-                    filteredAccountData.map((account) => {
+                  {checklist.length > 0 ? (
+                    checklist.map((account) => {
                       const isSelected = selectedItems.has(account.task_id)
                       return (
                         <tr key={account.task_id} className={`${isSelected ? "bg-purple-50" : ""} hover:bg-gray-50`}>

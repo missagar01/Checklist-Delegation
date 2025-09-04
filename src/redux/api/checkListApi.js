@@ -13,12 +13,17 @@ const username=localStorage.getItem('user-name')
     endOfTomorrow.setHours(23, 59, 59, 999);
     const endOfTomorrowISO = endOfTomorrow.toISOString();
 
+    const endOfToday = new Date();
+endOfToday.setHours(23, 59, 59, 999);
+const endOfTodayISO = endOfToday.toISOString();
+
     let query = supabase
       .from('checklist')
       .select('*')
-      .lte('task_start_date', endOfTomorrowISO)
+      .lte('task_start_date', endOfTodayISO)
       .order('task_start_date', { ascending: true })
-      .or('submission_date.is.null,status.is.null');
+      .is("submission_date", null)
+      .is("status", null)
 
     // Apply role filter
     if (role === 'user' && username) {

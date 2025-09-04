@@ -1,5 +1,5 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { fetchChecklistData, fetchDelegationData } from "../api/quickTaskApi";
+import { deleteChecklistTasksApi, deleteDelegationTasksApi, fetchChecklistData, fetchDelegationData } from "../api/quickTaskApi";
 
 export const uniqueChecklistTaskData = createAsyncThunk( 'fetch/checklistTask',async () => {
     const Task = await fetchChecklistData();
@@ -15,6 +15,27 @@ export const uniqueDelegationTaskData = createAsyncThunk( 'fetch/delegationTask'
 );
 
 
+export const deleteChecklistTask = createAsyncThunk(
+  'delete/checklistTask',
+  async (taskIds, { rejectWithValue }) => {
+    try {
+      return await deleteChecklistTasksApi(taskIds);
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+export const deleteDelegationTask = createAsyncThunk(
+  'delete/delegationTask',
+  async (taskIds, { rejectWithValue }) => {
+    try {
+      return await deleteDelegationTasksApi(taskIds);
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
 
 
 const quickTaskSlice = createSlice({
@@ -54,8 +75,34 @@ const quickTaskSlice = createSlice({
       .addCase(uniqueDelegationTaskData.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+   .addCase(deleteChecklistTask.pending, (state) => {
+        state.loading = true;
+      })
+     .addCase(deleteChecklistTask.fulfilled, (state, action) => {
+  state.loading = false;
+  state.quickTask = state.quickTask.filter(
+    task => !action.payload.includes(task.task_id) // ✅ task_id
+  );
+})
+      .addCase(deleteChecklistTask.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Handle delete delegation tasks
+      .addCase(deleteDelegationTask.pending, (state) => {
+        state.loading = true;
+      })
+     .addCase(deleteDelegationTask.fulfilled, (state, action) => {
+  state.loading = false;
+  state.delegationTasks = state.delegationTasks.filter(
+    task => !action.payload.includes(task.task_id) // ✅ task_id
+  );
+})
+      .addCase(deleteDelegationTask.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       });
-
       
   },
 });

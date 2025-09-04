@@ -1,8 +1,8 @@
 "use client"
 import { useState, useEffect, useCallback, useMemo } from "react"
-import { CheckCircle2, X } from "lucide-react"
+import { CheckCircle2, Trash2, X } from "lucide-react"
 import { useDispatch, useSelector } from "react-redux"
-import { uniqueDelegationTaskData } from "../redux/slice/quickTaskSlice"
+import { deleteDelegationTask, uniqueDelegationTaskData } from "../redux/slice/quickTaskSlice"
 
 const CONFIG = {
   APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbzXzqnKmbeXw3i6kySQcBOwxHQA7y8WBFfEe69MPbCR-jux0Zte7-TeSKi8P4CIFkhE/exec",
@@ -18,19 +18,61 @@ const CONFIG = {
 
 
 function DelegationPage({ searchTerm, nameFilter, freqFilter, setNameFilter, setFreqFilter }) {
-  const [tasks, setTasks] = useState([])
-  const [successMessage, setSuccessMessage] = useState("")
- // const [loading, setLoading] = useState(true)
+ const [successMessage, setSuccessMessage] = useState("")
   const [error, setError] = useState(null)
   const [userRole, setUserRole] = useState("")
   const [username, setUsername] = useState("")
   const [isInitialized, setIsInitialized] = useState(false)
+  const [selectedTasks, setSelectedTasks] = useState([])
+  const [isDeleting, setIsDeleting] = useState(false)
 
-  const {quickTask,loading,delegationTasks}=useSelector((state)=>state.quickTask)
-  const dispatch =useDispatch();
+  const { delegationTasks, loading } = useSelector((state) => state.quickTask)
+  const dispatch = useDispatch()
 useEffect(()=>{
   dispatch(uniqueDelegationTaskData())
 },[dispatch])
+
+ // Handle checkbox selection
+  const handleCheckboxChange = (taskId) => {
+    if (selectedTasks.includes(taskId)) {
+      setSelectedTasks(selectedTasks.filter(task_id => task_id !== taskId))
+    } else {
+      setSelectedTasks([...selectedTasks, taskId])
+    }
+  }
+
+  // Select all checkboxes
+  const handleSelectAll = () => {
+    if (selectedTasks.length === filteredTasks.length) {
+      setSelectedTasks([])
+    } else {
+      setSelectedTasks(filteredTasks.map(task => task_id))
+    }
+  }
+
+  // Delete selected tasks
+  const handleDeleteSelected = async () => {
+    if (selectedTasks.length === 0) return
+    
+    setIsDeleting(true)
+    try {
+      console.log(selectedTasks);
+      
+      await dispatch(deleteDelegationTask(selectedTasks)).unwrap()
+      setSelectedTasks([])
+      setSuccessMessage("Tasks deleted successfully")
+      // Refresh the task list
+      dispatch(uniqueDelegationTaskData())
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccessMessage(""), 3000)
+    } catch (error) {
+      console.error("Failed to delete tasks:", error)
+      setError("Failed to delete tasks")
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   const formatDateTime = useCallback((dateStr) => {
     if (!dateStr) return "—"
@@ -119,6 +161,8 @@ useEffect(()=>{
     return filtered
   }, [delegationTasks, searchTerm, nameFilter, freqFilter])
 
+  
+
   return (
     <>
       {/* Success Message - Fixed position */}
@@ -157,18 +201,41 @@ useEffect(()=>{
 
       {/* Main Content */}
       {!error && isInitialized && !loading && (
-        <div className="mt-4 rounded-lg border border-purple-200 shadow-md bg-white overflow-hidden">
-          <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple-100 p-4">
-            <h2 className="text-purple-700 font-medium">Delegation Tasks</h2>
-            <p className="text-purple-600 text-sm">
-              {CONFIG.PAGE_CONFIG.description} ({filteredTasks.length} tasks)
-            </p>
+         <div className="mt-4 rounded-lg border border-purple-200 shadow-md bg-white overflow-hidden">
+          <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple-100 p-4 flex justify-between items-center">
+            <div>
+              <h2 className="text-purple-700 font-medium">Delegation Tasks</h2>
+              <p className="text-purple-600 text-sm">
+                {CONFIG.PAGE_CONFIG.description} ({filteredTasks.length} tasks)
+              </p>
+            </div>
+            
+            {/* Delete selected button */}
+            {selectedTasks.length > 0 && (
+              <button
+                onClick={handleDeleteSelected}
+                disabled={isDeleting}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+              >
+                <Trash2 size={16} />
+                {isDeleting ? 'Deleting...' : `Delete (${selectedTasks.length})`}
+              </button>
+            )}
           </div>
+
 
           <div className="overflow-x-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50 sticky top-0 z-20">
                 <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                    <input
+                      type="checkbox"
+                      checked={selectedTasks.length === filteredTasks.length && filteredTasks.length > 0}
+                      onChange={handleSelectAll}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     TIMESTAMP
                   </th>
@@ -190,6 +257,9 @@ useEffect(()=>{
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-yellow-50">
                     TASK START DATE
                   </th>
+                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-yellow-50">
+                    TASK END DATE
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     FREQ
                   </th>
@@ -205,7 +275,15 @@ useEffect(()=>{
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredTasks.length > 0 ? (
                   filteredTasks.map((task,index) => (
-                    <tr key={index} className="hover:bg-gray-50">
+                     <tr key={index} className="hover:bg-gray-50">
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={selectedTasks.includes(task.task_id)}
+                          onChange={() => handleCheckboxChange(task.task_id)}
+                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {formatDateTime(task.created_at) || "—"}
                       </td>
@@ -228,6 +306,9 @@ useEffect(()=>{
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 bg-yellow-50">
                         {formatDateTime(task.task_start_date) || "—"}
+                      </td>
+                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 bg-yellow-50">
+                        {formatDateTime(task.submission_date) || "—"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <span className={`px-2 py-1 rounded-full text-xs ${

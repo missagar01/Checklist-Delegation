@@ -48,29 +48,31 @@ const uniqueGivenBy = [...new Set(data.map(d => d.given_by))];
     }
 }
 
-export const fetchUniqueDoerNameDataApi = async () =>{
-    try {
-       const { data, error } = await supabase
-  .from('users')
-  .select('user_name')
-   .not('user_name', 'is', null)
-  .order('user_name', { ascending: true });
-  
+export const fetchUniqueDoerNameDataApi = async (department) => {
+  try {
+    console.log("Department passed:", department);
 
-const uniqueDoerName = [...new Set(data.map(d => d.user_name))];
+    const { data, error } = await supabase
+      .from("users")
+      .select("user_name, role, user_access")
+      .or(`user_access.ilike.%${department}%,role.eq.admin`) // ✅ match department OR admin role
+      .eq("status", "active") // only active users
+      .order("user_name", { ascending: true });
 
-        if (!error) {
-            console.log("fetch succefully",uniqueDoerName)
-            
-        } else {
-           console.log("error when fetching data",error) 
-        } 
-        return uniqueDoerName;
-    } catch (error) {
-       console.log("error from supabase",error);
-        
+    const uniqueDoerName = [...new Set(data?.map((d) => d.user_name))];
+
+    if (!error) {
+      console.log("Fetched successfully", uniqueDoerName);
+    } else {
+      console.log("Error when fetching data", error);
     }
-}
+    return uniqueDoerName;
+  } catch (error) {
+    console.log("Error from Supabase", error);
+  }
+};
+
+
 
 export const pushAssignTaskApi =async(generatedTasks)=>{
     const submitTable =
