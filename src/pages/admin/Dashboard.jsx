@@ -307,12 +307,12 @@ const fetchDepartmentData = async () => {
       const taskStartDate = parseTaskStartDate(task.task_start_date);
       const completionDate = task.submission_date ? parseTaskStartDate(task.submission_date) : null;
 
-      console.log('Processing task:', {
-        id: task.task_id,
-        originalDate: task.task_start_date,
-        parsedDate: taskStartDate,
-        today: today
-      }); // DEBUG LOG
+      // console.log('Processing task:', {
+      //   id: task.task_id,
+      //   originalDate: task.task_start_date,
+      //   parsedDate: taskStartDate,
+      //   today: today
+      // }); // DEBUG LOG
 
       let status = "pending";
       if (completionDate) {
@@ -770,14 +770,13 @@ const getTasksByView = (view) => {
               <h3 className="text-sm font-medium text-blue-700">Total Tasks</h3>
               <ListTodo className="h-4 w-4 text-blue-500" />
             </div>
-            <div className="p-4">
-              <div className="text-3xl font-bold text-blue-700">{cardStats.totalTasks}</div>
+           <div className="p-4">
+              <div className="text-3xl font-bold text-blue-700">{totalTask}</div>
               <p className="text-xs text-blue-600">
                 {dashboardType === "delegation"
                   ? "All tasks in delegation sheet"
                   : "Total tasks in checklist (up to today)"
                 }
-                {dashboardStaffFilter !== "all" && ` for ${dashboardStaffFilter}`}
               </p>
             </div>
           </div>
@@ -790,45 +789,35 @@ const getTasksByView = (view) => {
               <CheckCircle2 className="h-4 w-4 text-green-500" />
             </div>
             <div className="p-4">
-              <div className="text-3xl font-bold text-green-700">{cardStats.completedTasks}</div>
+              <div className="text-3xl font-bold text-green-700">
+                { completeTask}
+              </div>
               <p className="text-xs text-green-600">
                 {dashboardType === "delegation" ? "Tasks completed once" : "Total completed till date"}
-                {dashboardStaffFilter !== "all" && ` for ${dashboardStaffFilter}`}
               </p>
             </div>
           </div>
 
-<div className="rounded-lg border border-l-4 border-l-amber-500 shadow-md hover:shadow-lg transition-all bg-white">
-  <div className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-amber-50 to-amber-100 rounded-tr-lg p-4">
-    <h3 className="text-sm font-medium text-amber-700">
-      {dashboardType === "delegation" ? "Completed Twice" : "Today's Pending Tasks"}
-    </h3>
-    {dashboardType === "delegation" ? (
-      <CheckCircle2 className="h-4 w-4 text-amber-500" />
-    ) : (
-      <Clock className="h-4 w-4 text-amber-500" />
-    )}
-  </div>
-  <div className="p-4">
-    <div className="text-3xl font-bold text-amber-700">
-      {dashboardType === "delegation" 
-        ? cardStats.pendingTasks 
-        : // For checklist: Count only today's pending tasks
-          departmentData.allTasks.filter(task => {
-            const taskDate = parseTaskStartDate(task.originalTaskStartDate);
-            return taskDate && isDateToday(taskDate) && task.status === 'pending';
-          }).length
-      }
-    </div>
-    <p className="text-xs text-amber-600">
-      {dashboardType === "delegation" 
-        ? "Tasks completed twice" 
-        : "Only today's pending tasks (excluding overdue)"
-      }
-      {dashboardStaffFilter !== "all" && ` for ${dashboardStaffFilter}`}
-    </p>
-  </div>
-</div>
+          <div className="rounded-lg border border-l-4 border-l-amber-500 shadow-md hover:shadow-lg transition-all bg-white">
+            <div className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-amber-50 to-amber-100 rounded-tr-lg p-4">
+              <h3 className="text-sm font-medium text-amber-700">
+                {dashboardType === "delegation" ? "Completed Twice" : "Pending Tasks"}
+              </h3>
+              {dashboardType === "delegation" ? (
+                <CheckCircle2 className="h-4 w-4 text-amber-500" />
+              ) : (
+                <Clock className="h-4 w-4 text-amber-500" />
+              )}
+            </div>
+            <div className="p-4">
+              <div className="text-3xl font-bold text-amber-700">
+                {pendingTask}
+              </div>
+              <p className="text-xs text-amber-600">
+                {dashboardType === "delegation" ? "Tasks completed twice" : "Including today + overdue"}
+              </p>
+            </div>
+          </div>
 
           <div className="rounded-lg border border-l-4 border-l-red-500 shadow-md hover:shadow-lg transition-all bg-white">
             <div className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-red-50 to-red-100 rounded-tr-lg p-4">
@@ -842,10 +831,11 @@ const getTasksByView = (view) => {
               )}
             </div>
             <div className="p-4">
-              <div className="text-3xl font-bold text-red-700">{cardStats.overdueTasks}</div>
+              <div className="text-3xl font-bold text-red-700">
+                {overdueTask}
+              </div>
               <p className="text-xs text-red-600">
                 {dashboardType === "delegation" ? "Tasks completed 3+ times" : "Past due (excluding today)"}
-                {dashboardStaffFilter !== "all" && ` for ${dashboardStaffFilter}`}
               </p>
             </div>
           </div>

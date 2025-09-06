@@ -1,78 +1,71 @@
 import supabase from "../../SupabaseClient";
 
-export const fetchChechListDataSortByDate = async () => {
-const role=localStorage.getItem('role');
-const username=localStorage.getItem('user-name')
+// In your API file
+export const fetchChechListDataSortByDate = async (page = 1, limit = 50) => {
+  const role = localStorage.getItem('role');
+  const username = localStorage.getItem('user-name');
 
   try {
     const today = new Date();
-    const startOfToday = new Date(today.setHours(0, 0, 0, 0)).toISOString();
-    
-    const endOfTomorrow = new Date();
-    endOfTomorrow.setDate(endOfTomorrow.getDate() + 1);
-    endOfTomorrow.setHours(23, 59, 59, 999);
-    const endOfTomorrowISO = endOfTomorrow.toISOString();
-
     const endOfToday = new Date();
-endOfToday.setHours(23, 59, 59, 999);
-const endOfTodayISO = endOfToday.toISOString();
+    endOfToday.setHours(23, 59, 59, 999);
+    const endOfTodayISO = endOfToday.toISOString();
+
+    // Calculate range for pagination
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
 
     let query = supabase
       .from('checklist')
-      .select('*')
+      .select('*', { count: 'exact' }) // Get total count
       .lte('task_start_date', endOfTodayISO)
       .order('task_start_date', { ascending: true })
       .is("submission_date", null)
       .is("status", null)
+      .range(from, to); // Add range for pagination
 
     // Apply role filter
     if (role === 'user' && username) {
       query = query.eq('name', username);
     }
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
 
     if (error) {
       console.log("Error when fetching data", error);
-      return [];
+      return { data: [], totalCount: 0 };
     }
 
     console.log("Fetched successfully", data);
-    return data;
+    return { data, totalCount: count };
 
   } catch (error) {
     console.log("Error from Supabase", error);
-    return [];
+    return { data: [], totalCount: 0 };
   }
 };
 
-
-export const fetchChechListDataForHistory = async () => {
-const role=localStorage.getItem('role');
-const username=localStorage.getItem('user-name')
-
-  const today = new Date();
-  const startOfToday = new Date(today.setHours(0, 0, 0, 0)).toISOString(); // Today 00:00:00
-
-  const endOfTomorrow = new Date();
-  endOfTomorrow.setDate(endOfTomorrow.getDate() + 1);
-  endOfTomorrow.setHours(23, 59, 59, 999); // Tomorrow 23:59:59
-  const endOfTomorrowISO = endOfTomorrow.toISOString();
+export const fetchChechListDataForHistory = async (page = 1) => {
+  const itemsPerPage = 50;
+  const start = (page - 1) * itemsPerPage;
+  
+  const role = localStorage.getItem('role');
+  const username = localStorage.getItem('user-name');
 
   try {
     let query = supabase
       .from('checklist')
-      .select('*')
-      .order('task_start_date', { ascending: true })
-      .lte('task_start_date', endOfTomorrowISO)
+      .select('*', { count: 'exact' })
+      .order('task_start_date', { ascending: false })
       .not('submission_date', 'is', null)
-      .not('status', 'is', null);
+      .not('status', 'is', null)
+      .range(start, start + itemsPerPage - 1);
 
     if (role === 'user' && username) {
       query = query.eq('name', username);
     }
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
 
     if (error) {
       console.log("Error when fetching data", error);

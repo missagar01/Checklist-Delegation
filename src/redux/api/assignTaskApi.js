@@ -1,28 +1,64 @@
 import supabase from "../../SupabaseClient";
 
-export const fetchUniqueDepartmentDataApi = async () =>{
-    try {
-       const { data, error } = await supabase
-  .from('users')
-  .select('department','given_by','user_name')
-   .not('department', 'is', null)
-  .order('department', { ascending: true });
-  
+export const fetchUniqueDepartmentDataApi = async (user_name) => {
+  try {
+    // 1. Get the logged-in user's role + access
+    const { data: userData, error: userError } = await supabase
+      .from("users")
+      .select("role, user_access")
+      .eq("user_name", user_name)
+      .single();
 
-const uniqueDepartments = [...new Set(data.map(d => d.department))];
-
-        if (!error) {
-            console.log("fetch succefully",uniqueDepartments)
-            
-        } else {
-           console.log("error when fetching data",error) 
-        } 
-        return uniqueDepartments;
-    } catch (error) {
-       console.log("error from supabase",error);
-        
+    if (userError || !userData) {
+      console.error("Error fetching user role:", userError);
+      return [];
     }
-}
+
+    // 2. If admin → show all departments
+    if (userData.role === "admin") {
+      const { data, error } = await supabase
+        .from("users")
+        .select("department")
+        .not("department", "is", null)
+        .order("department", { ascending: true });
+
+      if (error) {
+        console.error("Error fetching departments:", error);
+        return [];
+      }
+
+      const uniqueDepartments = [...new Set(data.map((d) => d.department))];
+      console.log("Admin departments:", uniqueDepartments);
+      return uniqueDepartments;
+    }
+
+    // 3. If user → show only their own department
+    if (userData.role === "user") {
+      const { data, error } = await supabase
+        .from("users")
+        .select("department")
+        .ilike("department", userData.user_access) // ✅ match exact department
+        .not("department", "is", null);
+
+      if (error) {
+        console.error("Error fetching restricted department:", error);
+        return [];
+      }
+
+      const uniqueDepartments = [...new Set(data.map((d) => d.department))];
+      console.log("User restricted department:", uniqueDepartments);
+      return uniqueDepartments;
+    }
+
+    return [];
+  } catch (error) {
+    console.error("Error from Supabase:", error);
+    return [];
+  }
+};
+
+
+
 
 export const fetchUniqueGivenByDataApi = async () =>{
     try {

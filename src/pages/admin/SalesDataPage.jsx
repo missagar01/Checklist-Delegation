@@ -27,6 +27,8 @@ const CONFIG = {
 }
 
 function AccountDataPage() {
+
+  
   const [accountData, setAccountData] = useState([])
   const [selectedItems, setSelectedItems] = useState(new Set())
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -38,7 +40,7 @@ function AccountDataPage() {
   const [remarksData, setRemarksData] = useState({})
   const [historyData, setHistoryData] = useState([])
   const [showHistory, setShowHistory] = useState(false)
-  const [membersList, setMembersList] = useState([])
+  const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false)
   const [selectedMembers, setSelectedMembers] = useState([])
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
@@ -47,22 +49,79 @@ function AccountDataPage() {
   const [currentPagePending, setCurrentPagePending] = useState(1);
 const [currentPageHistory, setCurrentPageHistory] = useState(1);
 const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMoreHistory, setHasMoreHistory] = useState(true);
+  const [initialHistoryLoading, setInitialHistoryLoading] = useState(false)
 
+  const { checklist, loading, history, hasMore, currentPage } = useSelector((state) => state.checkList);
+  const dispatch = useDispatch();
+  
+const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const tableContainerRef = useRef(null);
+ const historyTableContainerRef = useRef(null);
 
-  const {checklist,loading,history}=useSelector((state)=>state.checkList)
   const {doerName}=useSelector((state)=>state.assignTask)
 
 console.log(doerName)
 
-  const dispatch =useDispatch();
   useEffect(()=>{
-dispatch(checklistData())
-dispatch(checklistHistoryData()) 
+dispatch(checklistData(1))
+dispatch(checklistHistoryData(1)) 
  dispatch(uniqueDoerNameData());
 
   },[dispatch])
 
-const tableContainerRef = useRef(null);
+    const handleScrollPending = useCallback(() => {
+    if (!tableContainerRef.current || loading || isFetchingMore || !hasMore || checklist.length === 0) return
+    
+    const { scrollTop, scrollHeight, clientHeight } = tableContainerRef.current
+    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 100
+    
+    if (isNearBottom) {
+      setIsFetchingMore(true)
+      dispatch(checklistData(currentPage + 1))
+        .finally(() => setIsFetchingMore(false))
+    }
+  }, [loading, isFetchingMore, hasMore, currentPage, dispatch, checklist.length])
+
+  // Handle scroll for history
+  const handleScrollHistory = useCallback(() => {
+    if (!historyTableContainerRef.current || isLoadingMoreHistory || !hasMoreHistory || history.length === 0) return
+    
+    const { scrollTop, scrollHeight, clientHeight } = historyTableContainerRef.current
+    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 100
+    
+    if (isNearBottom) {
+      setIsLoadingMoreHistory(true)
+      dispatch(checklistHistoryData(currentPageHistory + 1))
+        .then((result) => {
+          if (result.payload && result.payload.length < 50) {
+            setHasMoreHistory(false)
+          }
+          setCurrentPageHistory(prev => prev + 1)
+        })
+        .finally(() => setIsLoadingMoreHistory(false))
+    }
+  }, [isLoadingMoreHistory, hasMoreHistory, currentPageHistory, dispatch, history.length])
+
+  // Add scroll event listener
+  useEffect(() => {
+    const tableElement = tableContainerRef.current
+    if (tableElement && !showHistory) {
+      tableElement.addEventListener('scroll', handleScrollPending)
+      return () => tableElement.removeEventListener('scroll', handleScrollPending)
+    }
+  }, [handleScrollPending, showHistory])
+
+  useEffect(() => {
+    const historyTableElement = historyTableContainerRef.current
+    if (historyTableElement && showHistory) {
+      historyTableElement.addEventListener('scroll', handleScrollHistory)
+      return () => historyTableElement.removeEventListener('scroll', handleScrollHistory)
+    }
+  }, [handleScrollHistory, showHistory])
+
+
+// const tableContainerRef = useRef(null);
 const ITEMS_PER_PAGE = 100;
 
   // NEW: Admin history selection states
@@ -103,6 +162,20 @@ const ITEMS_PER_PAGE = 100;
     setUserRole(role || "")
     setUsername(user || "")
   }, [])
+
+    // Load initial history data when showing history
+  useEffect(() => {
+    if (showHistory && history.length === 0) {
+      setInitialHistoryLoading(true)
+      dispatch(checklistHistoryData(1))
+        .then((result) => {
+          if (result.payload && result.payload.length < 50) {
+            setHasMoreHistory(false)
+          }
+        })
+        .finally(() => setInitialHistoryLoading(false))
+    }
+  }, [showHistory, history.length, dispatch])
 
   // UPDATED: Parse Google Sheets date-time to handle DD/MM/YYYY HH:MM:SS format
   const parseGoogleSheetsDateTime = (dateTimeStr) => {
@@ -308,182 +381,187 @@ const sortDateWise = (a, b) => {
 //   return sorted.slice(0, currentPagePending * ITEMS_PER_PAGE);
 // }, [checklist, searchTerm, currentPagePending]);
 
-const filteredAccountData = useMemo(() => {
-  if (!Array.isArray(checklist)) return [];
-  
-  const today = new Date();
-  today.setHours(23, 59, 59, 999); // Set to end of today
-  
-  // Apply search filter if searchTerm exists
-  let filtered = searchTerm
-    ? checklist.filter((account) =>
-        Object.values(account).some(
-          (value) =>
-            value &&
-            value.toString().toLowerCase().includes(searchTerm.toLowerCase())
+ // Filtered data for pending tasks
+  const filteredAccountData = useMemo(() => {
+    if (!Array.isArray(checklist)) return [];
+    
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    
+    let filtered = searchTerm
+      ? checklist.filter((account) =>
+          Object.values(account).some(
+            (value) =>
+              value &&
+              value.toString().toLowerCase().includes(searchTerm.toLowerCase())
+          )
         )
-      )
-    : checklist;
+      : checklist;
 
-  // Apply date filter - only show today and past dates
-  filtered = filtered.filter((account) => {
-    if (!account.task_start_date) return false;
-    
-    const taskDate = new Date(account.task_start_date);
-    if (isNaN(taskDate.getTime())) return false;
-    
-    // Only show tasks that are today or in the past
-    return taskDate <= today;
-  });
-
-  const sorted = [...filtered].sort(sortDateWise);
-  
-  // Return only the items for current page
-  return sorted.slice(0, currentPagePending * ITEMS_PER_PAGE);
-}, [checklist, searchTerm, currentPagePending]);
-
-const filteredHistoryData = useMemo(() => {
-  if (!Array.isArray(history)) return [];
-
-  const filtered = history
-    .filter((item) => {
-      // Search filter
-      const matchesSearch = searchTerm
-        ? Object.entries(item).some(([key, value]) => {
-            if (['image', 'admin_done'].includes(key)) return false;
-            return value && value.toString().toLowerCase().includes(searchTerm.toLowerCase());
-          })
-        : true;
-
-      // Member filter
-      const matchesMember = selectedMembers.length > 0 
-        ? selectedMembers.includes(item.name)
-        : true;
-
-      // Date range filter
-      let matchesDateRange = true;
+    // Apply date filter - only show today and past dates
+    filtered = filtered.filter((account) => {
+      if (!account.task_start_date) return false;
       
-      if (startDate || endDate) {
-        const itemDate = parseSupabaseDate(item.task_start_date);
-        if (!itemDate || isNaN(itemDate.getTime())) return false;
-
-        // Normalize to start of day for comparison
-        const itemDateOnly = new Date(
-          itemDate.getFullYear(),
-          itemDate.getMonth(),
-          itemDate.getDate()
-        );
-
-        // Create comparison dates
-        const start = startDate ? new Date(startDate) : null;
-        if (start) start.setHours(0, 0, 0, 0);
-        
-        const end = endDate ? new Date(endDate) : null;
-        if (end) {
-          end.setHours(23, 59, 59, 999); // End of day
-        }
-
-        // Compare dates
-        if (start && itemDateOnly < start) matchesDateRange = false;
-        if (end && itemDateOnly > end) matchesDateRange = false;
-      }
-
-      return matchesSearch && matchesMember && matchesDateRange;
-    })
-    .sort((a, b) => {
-      const dateA = parseSupabaseDate(a.task_start_date);
-      const dateB = parseSupabaseDate(b.task_start_date);
-      if (!dateA) return 1;
-      if (!dateB) return -1;
-      return dateB - dateA; // Sort newest first
+      const taskDate = new Date(account.task_start_date);
+      if (isNaN(taskDate.getTime())) return false;
+      
+      return taskDate <= today;
     });
 
-  // Return only the items for current page
-  return filtered.slice(0, currentPageHistory * ITEMS_PER_PAGE);
-}, [history, searchTerm, selectedMembers, startDate, endDate, currentPageHistory]);
+    return filtered.sort((a, b) => {
+      const dateA = new Date(a.task_start_date || "");
+      const dateB = new Date(b.task_start_date || "");
+      
+      if (!dateA || isNaN(dateA.getTime())) return 1;
+      if (!dateB || isNaN(dateB.getTime())) return -1;
+      
+      return dateA.getTime() - dateB.getTime();
+    });
+  }, [checklist, searchTerm]);
 
-const handleScroll = useCallback((e) => {
-  console.log('Scroll detected:', { 
-    isLoadingMore, 
-    showHistory, 
-    currentPagePending, 
-    currentPageHistory,
-    scrollTop: e.target.scrollTop,
-    scrollHeight: e.target.scrollHeight,
-    clientHeight: e.target.clientHeight
-  });
-  
-  if (isLoadingMore) return;
-  
-  const { scrollTop, scrollHeight, clientHeight } = e.target;
-  const isNearBottom = scrollTop + clientHeight >= scrollHeight - 100; // 100px threshold
-  
-  if (isNearBottom) {
-    setIsLoadingMore(true);
-    
-    // Simulate loading delay and load next page
-    setTimeout(() => {
-      if (showHistory) {
-        const totalFilteredItems = history.filter((item) => {
-          // Apply same filters as in filteredHistoryData
-          const matchesSearch = searchTerm
-            ? Object.entries(item).some(([key, value]) => {
-                if (['image', 'admin_done'].includes(key)) return false;
-                return value && value.toString().toLowerCase().includes(searchTerm.toLowerCase());
-              })
-            : true;
+  const filteredHistoryData = useMemo(() => {
+    if (!Array.isArray(history)) return []
 
-          const matchesMember = selectedMembers.length > 0 
-            ? selectedMembers.includes(item.name)
-            : true;
+    const filtered = history
+      .filter((item) => {
+        // Search filter
+        const matchesSearch = searchTerm
+          ? Object.entries(item).some(([key, value]) => {
+              if (['image', 'admin_done'].includes(key)) return false
+              return value && value.toString().toLowerCase().includes(searchTerm.toLowerCase())
+            })
+          : true
 
-          let matchesDateRange = true;
-          if (startDate || endDate) {
-            const itemDate = parseSupabaseDate(item.task_start_date);
-            if (!itemDate || isNaN(itemDate.getTime())) return false;
+        // Member filter
+        const matchesMember = selectedMembers.length > 0 
+          ? selectedMembers.includes(item.name)
+          : true
 
-            const itemDateOnly = new Date(
-              itemDate.getFullYear(),
-              itemDate.getMonth(),
-              itemDate.getDate()
-            );
+        // Date range filter
+        let matchesDateRange = true
+        
+        if (startDate || endDate) {
+          const itemDate = parseSupabaseDate(item.task_start_date)
+          if (!itemDate || isNaN(itemDate.getTime())) return false
 
-            const start = startDate ? new Date(startDate) : null;
-            if (start) start.setHours(0, 0, 0, 0);
-            
-            const end = endDate ? new Date(endDate) : null;
-            if (end) end.setHours(23, 59, 59, 999);
+          // Normalize to start of day for comparison
+          const itemDateOnly = new Date(
+            itemDate.getFullYear(),
+            itemDate.getMonth(),
+            itemDate.getDate()
+          )
 
-            if (start && itemDateOnly < start) matchesDateRange = false;
-            if (end && itemDateOnly > end) matchesDateRange = false;
+          // Create comparison dates
+          const start = startDate ? new Date(startDate) : null
+          if (start) start.setHours(0, 0, 0, 0)
+          
+          const end = endDate ? new Date(endDate) : null
+          if (end) {
+            end.setHours(23, 59, 59, 999) // End of day
           }
 
-          return matchesSearch && matchesMember && matchesDateRange;
-        }).length;
-
-        if (currentPageHistory * ITEMS_PER_PAGE < totalFilteredItems) {
-          setCurrentPageHistory(prev => prev + 1);
+          // Compare dates
+          if (start && itemDateOnly < start) matchesDateRange = false
+          if (end && itemDateOnly > end) matchesDateRange = false
         }
-      } else {
-        const totalFilteredItems = checklist.filter((account) =>
-          searchTerm
-            ? Object.values(account).some(
-                (value) =>
-                  value &&
-                  value.toString().toLowerCase().includes(searchTerm.toLowerCase())
-              )
-            : true
-        ).length;
 
-        if (currentPagePending * ITEMS_PER_PAGE < totalFilteredItems) {
-          setCurrentPagePending(prev => prev + 1);
-        }
-      }
+        return matchesSearch && matchesMember && matchesDateRange
+      })
+      .sort((a, b) => {
+        const dateA = parseSupabaseDate(a.task_start_date)
+        const dateB = parseSupabaseDate(b.task_start_date)
+        if (!dateA) return 1
+        if (!dateB) return -1
+        return dateB - dateA // Sort newest first
+      })
+
+    // Return only the items for current page
+    return filtered.slice(0, currentPageHistory * 50) // 50 items per page
+  }, [history, searchTerm, selectedMembers, startDate, endDate, currentPageHistory])
+
+
+// const handleScroll = useCallback((e) => {
+//   console.log('Scroll detected:', { 
+//     isLoadingMore, 
+//     showHistory, 
+//     currentPagePending, 
+//     currentPageHistory,
+//     scrollTop: e.target.scrollTop,
+//     scrollHeight: e.target.scrollHeight,
+//     clientHeight: e.target.clientHeight
+//   });
+  
+//   if (isLoadingMore) return;
+  
+//   const { scrollTop, scrollHeight, clientHeight } = e.target;
+//   const isNearBottom = scrollTop + clientHeight >= scrollHeight - 100; // 100px threshold
+  
+//   if (isNearBottom) {
+//     setIsLoadingMore(true);
+    
+//     // Simulate loading delay and load next page
+//     setTimeout(() => {
+//       if (showHistory) {
+//         const totalFilteredItems = history.filter((item) => {
+//           // Apply same filters as in filteredHistoryData
+//           const matchesSearch = searchTerm
+//             ? Object.entries(item).some(([key, value]) => {
+//                 if (['image', 'admin_done'].includes(key)) return false;
+//                 return value && value.toString().toLowerCase().includes(searchTerm.toLowerCase());
+//               })
+//             : true;
+
+//           const matchesMember = selectedMembers.length > 0 
+//             ? selectedMembers.includes(item.name)
+//             : true;
+
+//           let matchesDateRange = true;
+//           if (startDate || endDate) {
+//             const itemDate = parseSupabaseDate(item.task_start_date);
+//             if (!itemDate || isNaN(itemDate.getTime())) return false;
+
+//             const itemDateOnly = new Date(
+//               itemDate.getFullYear(),
+//               itemDate.getMonth(),
+//               itemDate.getDate()
+//             );
+
+//             const start = startDate ? new Date(startDate) : null;
+//             if (start) start.setHours(0, 0, 0, 0);
+            
+//             const end = endDate ? new Date(endDate) : null;
+//             if (end) end.setHours(23, 59, 59, 999);
+
+//             if (start && itemDateOnly < start) matchesDateRange = false;
+//             if (end && itemDateOnly > end) matchesDateRange = false;
+//           }
+
+//           return matchesSearch && matchesMember && matchesDateRange;
+//         }).length;
+
+//         if (currentPageHistory * ITEMS_PER_PAGE < totalFilteredItems) {
+//           setCurrentPageHistory(prev => prev + 1);
+//         }
+//       } else {
+//         const totalFilteredItems = checklist.filter((account) =>
+//           searchTerm
+//             ? Object.values(account).some(
+//                 (value) =>
+//                   value &&
+//                   value.toString().toLowerCase().includes(searchTerm.toLowerCase())
+//               )
+//             : true
+//         ).length;
+
+//         if (currentPagePending * ITEMS_PER_PAGE < totalFilteredItems) {
+//           setCurrentPagePending(prev => prev + 1);
+//         }
+//       }
       
-      setIsLoadingMore(false);
-    }, 300); // Small delay for better UX
-  }
-}, [isLoadingMore, showHistory, currentPageHistory, currentPagePending, history, checklist, searchTerm, selectedMembers, startDate, endDate]);
+//       setIsLoadingMore(false);
+//     }, 300); // Small delay for better UX
+//   }
+// }, [isLoadingMore, showHistory, currentPageHistory, currentPagePending, history, checklist, searchTerm, selectedMembers, startDate, endDate]);
 
 
 
@@ -956,731 +1034,750 @@ const handleSubmit = async () => {
   // Convert Set to Array for display
   const selectedItemsCount = selectedItems.size
 
-  return (
-    <AdminLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-          <h1 className="text-2xl font-bold tracking-tight text-purple-700">
-            {showHistory ? CONFIG.PAGE_CONFIG.historyTitle : CONFIG.PAGE_CONFIG.title}
-          </h1>
-          <div className="flex space-x-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-              <input
-                type="text"
-                placeholder={showHistory ? "Search history..." : "Search tasks..."}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-purple-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
-            </div>
-            <button
-              onClick={toggleHistory}
-              className="rounded-md bg-gradient-to-r from-blue-500 to-indigo-600 py-2 px-4 text-white hover:from-blue-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              {showHistory ? (
-                <div className="flex items-center">
-                  <ArrowLeft className="h-4 w-4 mr-1" />
-                  <span>Back to Tasks</span>
-                </div>
-              ) : (
-                <div className="flex items-center">
-                  <History className="h-4 w-4 mr-1" />
-                  <span>View History</span>
-                </div>
-              )}
-            </button>
-            {!showHistory && (
-              <button
-                onClick={handleSubmit}
-                disabled={selectedItemsCount === 0 || isSubmitting}
-                className="rounded-md bg-gradient-to-r from-purple-600 to-pink-600 py-2 px-4 text-white hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? "Processing..." : `Submit Selected (${selectedItemsCount})`}
-              </button>
-            )}
-
-            {/* NEW: Admin Submit Button for History View */}
-            {showHistory && userRole === "admin" && selectedHistoryItems.length > 0 && (
-              <div className="fixed top-40 right-10 z-50">
-                <button
-                  onClick={handleMarkMultipleDone}
-                  disabled={markingAsDone}
-                  className="rounded-md bg-green-600 text-white px-4 py-2 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {markingAsDone ? "Processing..." : `Mark ${selectedHistoryItems.length} Items as Done`}
-                </button>
-              </div>
-            )}
+return (
+  <AdminLayout>
+    <div className="space-y-6">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+        <h1 className="text-2xl font-bold tracking-tight text-purple-700">
+          {showHistory ? CONFIG.PAGE_CONFIG.historyTitle : CONFIG.PAGE_CONFIG.title}
+        </h1>
+        <div className="flex space-x-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              type="text"
+              placeholder={showHistory ? "Search history..." : "Search tasks..."}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2 border border-purple-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
           </div>
-        </div>
-
-        {successMessage && (
-          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md flex items-center justify-between">
-            <div className="flex items-center">
-              <CheckCircle2 className="h-5 w-5 mr-2 text-green-500" />
-              {successMessage}
-            </div>
-            <button onClick={() => setSuccessMessage("")} className="text-green-500 hover:text-green-700">
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-        )}
-
-        <div className="rounded-lg border border-purple-200 shadow-md bg-white overflow-hidden">
-          <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple-100 p-4">
-            <h2 className="text-purple-700 font-medium">
-              {showHistory ? `Completed ${CONFIG.SHEET_NAME} Tasks` : `Pending ${CONFIG.SHEET_NAME} Tasks`}
-            </h2>
-            <p className="text-purple-600 text-sm">
-              {showHistory
-                ? `${CONFIG.PAGE_CONFIG.historyDescription} for ${userRole === "admin" ? "all" : "your"} tasks`
-                : CONFIG.PAGE_CONFIG.description}
-            </p>
-          </div>
-
-          {loading ? (
-            <div className="text-center py-10">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500 mb-4"></div>
-              <p className="text-purple-600">Loading task data...</p>
-            </div>
-          ) : error ? (
-            <div className="bg-red-50 p-4 rounded-md text-red-800 text-center">
-              {error}{" "}
-              <button className="underline ml-2" onClick={() => window.location.reload()}>
-                Try again
-              </button>
-            </div>
-          ) : showHistory ? (
-            <>
-              {/* History Filters */}
-              <div className="p-4 border-b border-purple-100 bg-gray-50">
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  {getFilteredMembersList().length > 0 && (
-                    <div className="flex flex-col">
-                      <div className="mb-2 flex items-center">
-                        <span className="text-sm font-medium text-purple-700">Filter by Member:</span>
-                      </div>
-                      <div className="flex flex-wrap gap-3 max-h-32 overflow-y-auto p-2 border border-gray-200 rounded-md bg-white">
-                        {getFilteredMembersList().map((member, idx) => (
-                          <div key={idx} className="flex items-center">
-                            <input
-                              id={`member-${idx}`}
-                              type="checkbox"
-                              className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                              checked={selectedMembers.includes(member)}
-                              onChange={() => handleMemberSelection(member)}
-                            />
-                            <label htmlFor={`member-${idx}`} className="ml-2 text-sm text-gray-700">
-                              {member}
-                            </label>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <div className="flex flex-col">
-                    <div className="mb-2 flex items-center">
-                      <span className="text-sm font-medium text-purple-700">Filter by Date Range:</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center">
-                        <label htmlFor="start-date" className="text-sm text-gray-700 mr-1">
-                          From
-                        </label>
-                       <input
-  type="date"
-  value={startDate}
-  onChange={(e) => {
-    // Convert to YYYY-MM-DD format if needed
-    setStartDate(e.target.value);
-  }}
-  className="text-sm border border-gray-200 rounded-md p-1"
-/>
-                      </div>
-                      <div className="flex items-center">
-                        <label htmlFor="end-date" className="text-sm text-gray-700 mr-1">
-                          To
-                        </label>
-                       <input
-  type="date"
-  value={endDate}
-  onChange={(e) => {
-    setEndDate(e.target.value);
-  }}
-  className="text-sm border border-gray-200 rounded-md p-1"
-/>
-                      </div>
-                    </div>
-                  </div>
-                  {(selectedMembers.length > 0 || startDate || endDate || searchTerm) && (
-                    <button
-                      onClick={resetFilters}
-                      className="px-3 py-1 bg-red-100 text-red-700 rounded-md hover:bg-red-200 text-sm"
-                    >
-                      Clear All Filters
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* NEW: Confirmation Modal */}
-              <ConfirmationModal
-                isOpen={confirmationModal.isOpen}
-                itemCount={confirmationModal.itemCount}
-                onConfirm={confirmMarkDone}
-                onCancel={() => setConfirmationModal({ isOpen: false, itemCount: 0 })}
-              />
-
-              {/* Task Statistics */}
-              <div className="p-4 border-b border-purple-100 bg-blue-50">
-                <div className="flex flex-col">
-                  <h3 className="text-sm font-medium text-blue-700 mb-2">Task Completion Statistics:</h3>
-                  <div className="flex flex-wrap gap-4">
-                    <div className="px-3 py-2 bg-white rounded-md shadow-sm">
-                      <span className="text-xs text-gray-500">Total Completed</span>
-                      <div className="text-lg font-semibold text-blue-600">{getTaskStatistics().totalCompleted}</div>
-                    </div>
-                    {(selectedMembers.length > 0 || startDate || endDate || searchTerm) && (
-                      <div className="px-3 py-2 bg-white rounded-md shadow-sm">
-                        <span className="text-xs text-gray-500">Filtered Results</span>
-                        <div className="text-lg font-semibold text-blue-600">{getTaskStatistics().filteredTotal}</div>
-                      </div>
-                    )}
-                    {selectedMembers.map((member) => (
-                      <div key={member} className="px-3 py-2 bg-white rounded-md shadow-sm">
-                        <span className="text-xs text-gray-500">{member}</span>
-                        <div className="text-lg font-semibold text-indigo-600">
-                          {getTaskStatistics().memberStats[member]}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* History Table - Optimized for performance */}
-              {/* <div className="h-[calc(100vh-300px)] overflow-auto"> */}
-              <div ref={tableContainerRef} className="h-[calc(100vh-300px)] overflow-auto" onScroll={handleScroll}>
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50 sticky top-0 z-10">
-                    <tr>
-                      {/* Admin Select Column Header */}
-                      {userRole === "admin" && (
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
-                          <div className="flex flex-col items-center">
-                          <input
-  type="checkbox"
-  className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-  checked={
-    filteredHistoryData.filter(item => isEmpty(item.admin_done)).length > 0 &&
-    selectedHistoryItems.length === filteredHistoryData.filter(item => isEmpty(item.admin_done)).length
-  }
-  onChange={(e) => {
-    const unprocessedItems = filteredHistoryData.filter(item => isEmpty(item.admin_done));
-    if (e.target.checked) {
-      // Store only task_id values
-      setSelectedHistoryItems(unprocessedItems.map(item => item.task_id));
-    } else {
-      setSelectedHistoryItems([]);
-    }
-  }}
-/>
-
-                            <span className="text-xs text-gray-400 mt-1">Select</span>
-                          </div>
-                        </th>
-                      )}
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
-                        Task ID
-                      </th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
-                        Department Name
-                      </th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
-                        Given By
-                      </th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
-                        Name
-                      </th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]">
-                        Task Description
-                      </th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-yellow-50 min-w-[140px]">
-                        Task Start Date & Time
-                      </th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px]">
-                        Freq
-                      </th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
-                        Enable Reminders
-                      </th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
-                        Require Attachment
-                      </th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50 min-w-[140px]">
-                        Actual Date & Time
-                      </th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-blue-50 min-w-[80px]">
-                        Status
-                      </th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-purple-50 min-w-[150px]">
-                        Remarks
-                      </th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
-                        Attachment
-                      </th>
-                      {/* NEW: Admin Processed Date Column */}
-                      {userRole === "admin" && (
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50 min-w-[140px]">
-                          Admin Processed Date
-                        </th>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredHistoryData.length > 0 ? (
-                      filteredHistoryData.map((history) => (
-                        <tr key={history.task_id} className="hover:bg-gray-50">
-                          {/* Admin Select Checkbox - Show different states based on Column P */}
-                          {userRole === "admin" && (
-                            <td className="px-3 py-4 w-12">
-                              {!isEmpty(history.admin_done) ? (
-                                // Already processed - show checked and disabled checkbox with date info
-                                <div className="flex flex-col items-center">
-                                  <input
-                                    type="checkbox"
-                                    className="h-4 w-4 rounded border-gray-300 text-green-600 bg-green-100"
-                                    checked={true}
-                                    disabled={true}
-                                    title={`Admin processed on: ${history.admin_done}`}
-                                  />
-                                  <span className="text-xs text-green-600 mt-1 text-center break-words">
-                                    Processed
-                                  </span>
-                                </div>
-                              ) : (
-                                // Not processed - normal selectable checkbox
-                                <input
-                                  type="checkbox"
-                                  className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                                  checked={selectedHistoryItems.some((item) => item.task_id === history.task_id)}
-                                  onChange={() => {
-                                    setSelectedHistoryItems((prev) =>
-                                      prev.some((item) => item.task_id === history.task_id)
-                                        ? prev.filter((item) => item.task_id !== history.task_id)
-                                        : [...prev, history],
-                                    )
-                                  }}
-                                />
-                              )}
-                            </td>
-                          )}
-                          <td className="px-3 py-4 min-w-[100px]">
-                            <div className="text-sm font-medium text-gray-900 break-words">
-                              {history.task_id || "—"}
-                            </div>
-                          </td>
-                          <td className="px-3 py-4 min-w-[120px]">
-                            <div className="text-sm text-gray-900 break-words">{history.department || "—"}</div>
-                          </td>
-                          <td className="px-3 py-4 min-w-[100px]">
-                            <div className="text-sm text-gray-900 break-words">{history.given_by || "—"}</div>
-                          </td>
-                          <td className="px-3 py-4 min-w-[100px]">
-                            <div className="text-sm text-gray-900 break-words">{history.name || "—"}</div>
-                          </td>
-                          <td className="px-3 py-4 min-w-[200px]">
-                            <div className="text-sm text-gray-900 break-words" title={history.task_description}>
-                              {history.task_description || "—"}
-                            </div>
-                          </td>
-                     <td className="px-3 py-4 bg-yellow-50 min-w-[140px]">
-  <div className="text-sm text-gray-900 break-words">
-    {history.task_start_date ? (() => {
-      const date = parseSupabaseDate(history.task_start_date);
-      if (!date || isNaN(date.getTime())) return "Invalid date";
-      
-      // Format as DD/MM/YYYY HH:MM:SS
-      const day = date.getDate().toString().padStart(2, '0');
-      const month = (date.getMonth() + 1).toString().padStart(2, '0');
-      const year = date.getFullYear();
-      const hours = date.getHours().toString().padStart(2, '0');
-      const minutes = date.getMinutes().toString().padStart(2, '0');
-      const seconds = date.getSeconds().toString().padStart(2, '0');
-
-      return (
-        <div>
-          <div className="font-medium break-words">
-            {`${day}/${month}/${year}`}
-          </div>
-          <div className="text-xs text-gray-500 break-words">
-            {`${hours}:${minutes}:${seconds}`}
-          </div>
-        </div>
-      );
-    })() : "—"}
-  </div>
-</td>
-                          <td className="px-3 py-4 min-w-[80px]">
-                            <div className="text-sm text-gray-900 break-words">{history.frequency || "—"}</div>
-                          </td>
-                          <td className="px-3 py-4 min-w-[120px]">
-                            <div className="text-sm text-gray-900 break-words">{history.enable_reminder || "—"}</div>
-                          </td>
-                          <td className="px-3 py-4 min-w-[120px]">
-                            <div className="text-sm text-gray-900 break-words">{history.require_attachment || "—"}</div>
-                          </td>
-                          <td className="px-3 py-4 bg-green-50 min-w-[140px]">
-  <div className="text-sm text-gray-900 break-words">
-    {history.submission_date ? (() => {
-      const dateObj = new Date(history.submission_date);
-      const day = ("0" + dateObj.getDate()).slice(-2);
-      const month = ("0" + (dateObj.getMonth() + 1)).slice(-2);
-      const year = dateObj.getFullYear();
-      const hours = ("0" + dateObj.getHours()).slice(-2);
-      const minutes = ("0" + dateObj.getMinutes()).slice(-2);
-      const seconds = ("0" + dateObj.getSeconds()).slice(-2);
-
-      return (
-        <div>
-          <div className="font-medium break-words">
-            {`${day}/${month}/${year}`}
-          </div>
-          <div className="text-xs text-gray-500 break-words">
-            {`${hours}:${minutes}:${seconds}`}
-          </div>
-        </div>
-      );
-    })() : "—"}
-  </div>
-</td>
-
-                          <td className="px-3 py-4 bg-blue-50 min-w-[80px]">
-                            <span
-                              className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full break-words ${
-                                history.status === "Yes"
-                                  ? "bg-green-100 text-green-800"
-                                  : history.status=== "No"
-                                    ? "bg-red-100 text-red-800"
-                                    : "bg-gray-100 text-gray-800"
-                              }`}
-                            >
-                              {history.status || "—"}
-                            </span>
-                          </td>
-                          <td className="px-3 py-4 bg-purple-50 min-w-[150px]">
-                            <div className="text-sm text-gray-900 break-words" title={history.remark}>
-                              {history.remark || "—"}
-                            </div>
-                          </td>
-                          <td className="px-3 py-4 min-w-[100px]">
-                            {history.image ? (
-                              <a
-                                href={history.image}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:text-blue-800 underline flex items-center break-words"
-                              >
-                                <img
-                                  src={history.image|| "/placeholder.svg?height=32&width=32"}
-                                  alt="Attachment"
-                                  className="h-8 w-8 object-cover rounded-md mr-2 flex-shrink-0"
-                                />
-                                <span className="break-words">View</span>
-                              </a>
-                            ) : (
-                              <span className="text-gray-400">No attachment</span>
-                            )}
-                          </td>
-                          {/* NEW: Admin Processed Date Column */}
-                          {userRole === "admin" && (
-                            <td className="px-3 py-4 bg-gray-50 min-w-[140px]">
-                              {!isEmpty(history.admin_done) ? (
-                                <div className="text-sm text-gray-900 break-words">
-                                  <div className="font-medium text-green-700">
-                                    {history.admin_done.includes(" ") ? history.admin_done.split(" ")[0] : history.admin_done}
-                                  </div>
-                                  {history.admin_done.includes(" ") && (
-                                    <div className="text-xs text-green-600">
-                                      {history.admin_done.split(" ")[1]}
-                                    </div>
-                                  )}
-                                  <div className="text-xs text-green-600 mt-1">✓ Processed</div>
-                                </div>
-                              ) : (
-                                <span className="text-gray-400 text-sm">Not processed</span>
-                              )}
-                            </td>
-                          )}
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={userRole === "admin" ? 15 : 13} className="px-6 py-4 text-center text-gray-500">
-                          {searchTerm || selectedMembers.length > 0 || startDate || endDate
-                            ? "No historical records matching your filters"
-                            : "No completed records found"}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-                {isLoadingMore && (
-  <div className="text-center py-4 bg-gray-50">
-    <div className="flex items-center justify-center">
-      <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-purple-500 mr-2"></div>
-      <span className="text-purple-600 text-sm">Loading more items...</span>
-    </div>
-  </div>
-)}
-              </div>
-            </>
-          ) : (
-            /* Regular Tasks Table - Optimized for performance */
-            // <div className="h-[calc(100vh-250px)] overflow-auto">
-            <div 
-  ref={tableContainerRef} 
-  className="h-[calc(100vh-250px)] overflow-auto" 
-  onScroll={handleScroll}
->
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50 sticky top-0 z-10">
-                  <tr>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                      //  checked={Array.isArray(checklist) && checklist.length > 0 && selectedItems.size === checklist.length}
-                      checked={filteredAccountData.length > 0 && selectedItems.size === filteredAccountData.length}
-
-                        onChange={handleSelectAllItems}
-                      />
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
-                      Task ID
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
-                      Department Name
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
-                      Given By
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
-                      Name
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]">
-                      Task Description
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-yellow-50 min-w-[140px]">
-                      Task Start Date & Time
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px]">
-                      Freq
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
-                      Enable Reminders
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
-                      Require Attachment
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
-                      Status
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[150px]">
-                      Remarks
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
-                      Upload Image
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {checklist.length > 0 ? (
-                    checklist.map((account) => {
-                      const isSelected = selectedItems.has(account.task_id)
-                      return (
-                        <tr key={account.task_id} className={`${isSelected ? "bg-purple-50" : ""} hover:bg-gray-50`}>
-                          <td className="px-3 py-4 w-12">
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                              checked={isSelected}
-                              onChange={(e) => handleCheckboxClick(e, account.task_id)}
-                            />
-                          </td>
-                          <td className="px-3 py-4 min-w-[100px]">
-                            <div className="text-sm text-gray-900 break-words">{account.task_id || "—"}</div>
-                          </td>
-                          <td className="px-3 py-4 min-w-[120px]">
-                            <div className="text-sm text-gray-900 break-words">{account.department || "—"}</div>
-                          </td>
-                          <td className="px-3 py-4 min-w-[100px]">
-                            <div className="text-sm text-gray-900 break-words">{account.given_by || "—"}</div>
-                          </td>
-                          <td className="px-3 py-4 min-w-[100px]">
-                            <div className="text-sm text-gray-900 break-words">{account.name || "—"}</div>
-                          </td>
-                          <td className="px-3 py-4 min-w-[200px]">
-                            <div className="text-sm text-gray-900 break-words" title={account.task_description}>
-                              {account.task_description || "—"}
-                            </div>
-                          </td>
-                          <td className="px-3 py-4 bg-yellow-50 min-w-[140px]">
-  <div className="text-sm text-gray-900 break-words">
-    {account.task_start_date ? (() => {
-      const dateObj = new Date(account.task_start_date);
-      const formattedDate = `${
-        ("0" + dateObj.getDate()).slice(-2)
-      }/${
-        ("0" + (dateObj.getMonth() + 1)).slice(-2)
-      }/${
-        dateObj.getFullYear()
-      } ${
-        ("0" + dateObj.getHours()).slice(-2)
-      }:${
-        ("0" + dateObj.getMinutes()).slice(-2)
-      }:${
-        ("0" + dateObj.getSeconds()).slice(-2)
-      }`;
-
-      return (
-        <div>
-          <div className="font-medium break-words">
-            {formattedDate.split(" ")[0]} {/* => DD/MM/YYYY */}
-          </div>
-          <div className="text-xs text-gray-500 break-words">
-            {formattedDate.split(" ")[1]} {/* => HH:MM:SS */}
-          </div>
-        </div>
-      );
-    })() : "—"}
-  </div>
-</td>
-
-                          <td className="px-3 py-4 min-w-[80px]">
-                            <div className="text-sm text-gray-900 break-words">{account.frequency || "—"}</div>
-                          </td>
-                          <td className="px-3 py-4 min-w-[120px]">
-                            <div className="text-sm text-gray-900 break-words">{account.enable_reminder || "—"}</div>
-                          </td>
-                          <td className="px-3 py-4 min-w-[120px]">
-                            <div className="text-sm text-gray-900 break-words">{account.require_attachment|| "—"}</div>
-                          </td>
-                          <td className="px-3 py-4 bg-yellow-50 min-w-[100px]">
-                            <select
-                              disabled={!isSelected}
-                              value={additionalData[account.task_id] || ""}
-                              onChange={(e) => {
-                                setAdditionalData((prev) => ({ ...prev, [account.task_id]: e.target.value }))
-                                if (e.target.value !== "No") {
-                                  setRemarksData((prev) => {
-                                    const newData = { ...prev }
-                                    delete newData[account.task_id]
-                                    return newData
-                                  })
-                                }
-                              }}
-                              className="border border-gray-300 rounded-md px-2 py-1 w-full disabled:bg-gray-100 disabled:cursor-not-allowed text-sm"
-                            >
-                              <option value="">Select...</option>
-                              <option value="Yes">Yes</option>
-                              <option value="No">No</option>
-                            </select>
-                          </td>
-                          <td className="px-3 py-4 bg-orange-50 min-w-[150px]">
-                            <input
-                              type="text"
-                              placeholder="Enter remarks"
-                              disabled={!isSelected || !additionalData[account.task_id]}
-                              value={remarksData[account.task_id] || ""}
-                              onChange={(e) => setRemarksData((prev) => ({ ...prev, [account.task_id]: e.target.value }))}
-                              className="border rounded-md px-2 py-1 w-full border-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed text-sm break-words"
-                            />
-                          </td>
-                        <td className="px-3 py-4 bg-green-50 min-w-[120px]">
-  {uploadedImages[account.task_id] || account.image ? (
-    <div className="flex items-center">
-      <img
-        src={
-          uploadedImages[account.task_id]?.previewUrl || 
-          (typeof account.image === 'string' ? account.image : '')
-        }
-        alt="Receipt"
-        className="h-10 w-10 object-cover rounded-md mr-2 flex-shrink-0"
-      />
-      <div className="flex flex-col min-w-0">
-        <span className="text-xs text-gray-500 break-words">
-          {uploadedImages[account.task_id]?.file.name || 
-           (account.image instanceof File ? account.image.name : "Uploaded Receipt")}
-        </span>
-        {uploadedImages[account.task_id] ? (
-          <span className="text-xs text-green-600">Ready to upload</span>
-        ) : (
           <button
-            className="text-xs text-purple-600 hover:text-purple-800 break-words"
-            onClick={() => window.open(account.image, "_blank")}
+            onClick={toggleHistory}
+            className="rounded-md bg-gradient-to-r from-blue-500 to-indigo-600 py-2 px-4 text-white hover:from-blue-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           >
-            View Full Image
+            {showHistory ? (
+              <div className="flex items-center">
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                <span>Back to Tasks</span>
+              </div>
+            ) : (
+              <div className="flex items-center">
+                <History className="h-4 w-4 mr-1" />
+                <span>View History</span>
+              </div>
+            )}
           </button>
-        )}
-      </div>
-    </div>
-  ) : (
-    <label
-      className={`flex items-center cursor-pointer ${
-        account.require_attachment?.toUpperCase() === "YES" 
-          ? "text-red-600 font-medium" 
-          : "text-purple-600"
-      } hover:text-purple-800`}
-    >
-      <Upload className="h-4 w-4 mr-1 flex-shrink-0" />
-      <span className="text-xs break-words">
-        {account.require_attachment?.toUpperCase() === "YES"
-          ? "Required Upload"
-          : "Upload Receipt Image"}
-        {account.require_attachment?.toUpperCase() === "YES" && (
-          <span className="text-red-500 ml-1">*</span>
-        )}
-      </span>
-      <input
-        type="file"
-        className="hidden"
-        accept="image/*"
-        onChange={(e) => handleImageUpload(account.task_id, e)}
-        disabled={!isSelected}
-      />
-    </label>
-  )}
-</td>
-                        </tr>
-                      )
-                    })
-                  ) : (
-                    <tr>
-      <td colSpan={13} className="px-6 py-4 text-center text-gray-500">
-        {searchTerm
-          ? "No tasks matching your search"
-          : "No pending tasks found for today, tomorrow, or past due dates"}
-      </td>
-    </tr>
-                  )}
-                </tbody>
-              </table>
-              {isLoadingMore && (
-  <div className="text-center py-4 bg-gray-50">
-    <div className="flex items-center justify-center">
-      <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-purple-500 mr-2"></div>
-      <span className="text-purple-600 text-sm">Loading more items...</span>
-    </div>
-  </div>
-)}
+          {!showHistory && (
+            <button
+              onClick={handleSubmit}
+              disabled={selectedItemsCount === 0 || isSubmitting}
+              className="rounded-md bg-gradient-to-r from-purple-600 to-pink-600 py-2 px-4 text-white hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? "Processing..." : `Submit Selected (${selectedItemsCount})`}
+            </button>
+          )}
+
+          {/* NEW: Admin Submit Button for History View */}
+          {showHistory && userRole === "admin" && selectedHistoryItems.length > 0 && (
+            <div className="fixed top-40 right-10 z-50">
+              <button
+                onClick={handleMarkMultipleDone}
+                disabled={markingAsDone}
+                className="rounded-md bg-green-600 text-white px-4 py-2 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {markingAsDone ? "Processing..." : `Mark ${selectedHistoryItems.length} Items as Done`}
+              </button>
             </div>
           )}
         </div>
       </div>
-    </AdminLayout>
-  )
+
+      {successMessage && (
+        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md flex items-center justify-between">
+          <div className="flex items-center">
+            <CheckCircle2 className="h-5 w-5 mr-2 text-green-500" />
+            {successMessage}
+          </div>
+          <button onClick={() => setSuccessMessage("")} className="text-green-500 hover:text-green-700">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      )}
+
+      <div className="rounded-lg border border-purple-200 shadow-md bg-white overflow-hidden">
+        <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple-100 p-4">
+          <h2 className="text-purple-700 font-medium">
+            {showHistory ? `Completed ${CONFIG.SHEET_NAME} Tasks` : `Pending ${CONFIG.SHEET_NAME} Tasks`}
+          </h2>
+          <p className="text-purple-600 text-sm">
+            {showHistory
+              ? `${CONFIG.PAGE_CONFIG.historyDescription} for ${userRole === "admin" ? "all" : "your"} tasks`
+              : CONFIG.PAGE_CONFIG.description}
+          </p>
+        </div>
+
+        {loading && currentPage === 1 ? (
+          // Full table loading for initial load
+          <div className="text-center py-10">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500 mb-4"></div>
+            <p className="text-purple-600">Loading task data...</p>
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 p-4 rounded-md text-red-800 text-center">
+            {error}{" "}
+            <button className="underline ml-2" onClick={() => window.location.reload()}>
+              Try again
+            </button>
+          </div>
+        ) : showHistory ? (
+          <>
+            {/* History Filters */}
+            <div className="p-4 border-b border-purple-100 bg-gray-50">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                {getFilteredMembersList().length > 0 && (
+                  <div className="flex flex-col">
+                    <div className="mb-2 flex items-center">
+                      <span className="text-sm font-medium text-purple-700">Filter by Member:</span>
+                    </div>
+                    <div className="flex flex-wrap gap-3 max-h-32 overflow-y-auto p-2 border border-gray-200 rounded-md bg-white">
+                      {getFilteredMembersList().map((member, idx) => (
+                        <div key={idx} className="flex items-center">
+                          <input
+                            id={`member-${idx}`}
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                            checked={selectedMembers.includes(member)}
+                            onChange={() => handleMemberSelection(member)}
+                          />
+                          <label htmlFor={`member-${idx}`} className="ml-2 text-sm text-gray-700">
+                            {member}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="flex flex-col">
+                  <div className="mb-2 flex items-center">
+                    <span className="text-sm font-medium text-purple-700">Filter by Date Range:</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center">
+                      <label htmlFor="start-date" className="text-sm text-gray-700 mr-1">
+                        From
+                      </label>
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => {
+                          // Convert to YYYY-MM-DD format if needed
+                          setStartDate(e.target.value);
+                        }}
+                        className="text-sm border border-gray-200 rounded-md p-1"
+                      />
+                    </div>
+                    <div className="flex items-center">
+                      <label htmlFor="end-date" className="text-sm text-gray-700 mr-1">
+                        To
+                      </label>
+                      <input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => {
+                          setEndDate(e.target.value);
+                        }}
+                        className="text-sm border border-gray-200 rounded-md p-1"
+                      />
+                    </div>
+                  </div>
+                </div>
+                {(selectedMembers.length > 0 || startDate || endDate || searchTerm) && (
+                  <button
+                    onClick={resetFilters}
+                    className="px-3 py-1 bg-red-100 text-red-700 rounded-md hover:bg-red-200 text-sm"
+                  >
+                    Clear All Filters
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* NEW: Confirmation Modal */}
+            <ConfirmationModal
+              isOpen={confirmationModal.isOpen}
+              itemCount={confirmationModal.itemCount}
+              onConfirm={confirmMarkDone}
+              onCancel={() => setConfirmationModal({ isOpen: false, itemCount: 0 })}
+            />
+
+            {/* Task Statistics */}
+            <div className="p-4 border-b border-purple-100 bg-blue-50">
+              <div className="flex flex-col">
+                <h3 className="text-sm font-medium text-blue-700 mb-2">Task Completion Statistics:</h3>
+                <div className="flex flex-wrap gap-4">
+                  <div className="px-3 py-2 bg-white rounded-md shadow-sm">
+                    <span className="text-xs text-gray-500">Total Completed</span>
+                    <div className="text-lg font-semibold text-blue-600">{getTaskStatistics().totalCompleted}</div>
+                  </div>
+                  {(selectedMembers.length > 0 || startDate || endDate || searchTerm) && (
+                    <div className="px-3 py-2 bg-white rounded-md shadow-sm">
+                      <span className="text-xs text-gray-500">Filtered Results</span>
+                      <div className="text-lg font-semibold text-blue-600">{getTaskStatistics().filteredTotal}</div>
+                    </div>
+                  )}
+                  {selectedMembers.map((member) => (
+                    <div key={member} className="px-3 py-2 bg-white rounded-md shadow-sm">
+                      <span className="text-xs text-gray-500">{member}</span>
+                      <div className="text-lg font-semibold text-indigo-600">
+                        {getTaskStatistics().memberStats[member]}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* History Table - Optimized for performance */}
+            <div ref={historyTableContainerRef} className="h-[calc(100vh-300px)] overflow-auto">
+              {initialHistoryLoading ? (
+                // Full table loading for initial load
+                <div className="text-center py-10">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500 mb-4"></div>
+                  <p className="text-purple-600">Loading history data...</p>
+                </div>
+              ) : (
+                <>
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50 sticky top-0 z-10">
+                      <tr>
+                        {/* Admin Select Column Header */}
+                        {userRole === "admin" && (
+                          <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                            <div className="flex flex-col items-center">
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                checked={
+                                  filteredHistoryData.filter(item => isEmpty(item.admin_done)).length > 0 &&
+                                  selectedHistoryItems.length === filteredHistoryData.filter(item => isEmpty(item.admin_done)).length
+                                }
+                                onChange={(e) => {
+                                  const unprocessedItems = filteredHistoryData.filter(item => isEmpty(item.admin_done));
+                                  if (e.target.checked) {
+                                    setSelectedHistoryItems(unprocessedItems.map(item => item.task_id));
+                                  } else {
+                                    setSelectedHistoryItems([]);
+                                  }
+                                }}
+                              />
+                              <span className="text-xs text-gray-400 mt-1">Select</span>
+                            </div>
+                          </th>
+                        )}
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
+                          Task ID
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
+                          Department Name
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
+                          Given By
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
+                          Name
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]">
+                          Task Description
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-yellow-50 min-w-[140px]">
+                          Task Start Date & Time
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px]">
+                          Freq
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
+                          Enable Reminders
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
+                          Require Attachment
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50 min-w-[140px]">
+                          Actual Date & Time
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-blue-50 min-w-[80px]">
+                          Status
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-purple-50 min-w-[150px]">
+                          Remarks
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
+                          Attachment
+                        </th>
+                        {/* NEW: Admin Processed Date Column */}
+                        {userRole === "admin" && (
+                          <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50 min-w-[140px]">
+                            Admin Processed Date
+                          </th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {filteredHistoryData.length > 0 ? (
+                        filteredHistoryData.map((history, index) => (
+                          <tr key={index} className="hover:bg-gray-50">
+                            {/* Admin Select Checkbox - Show different states based on Column P */}
+                            {userRole === "admin" && (
+                              <td className="px-3 py-4 w-12">
+                                {!isEmpty(history.admin_done) ? (
+                                  // Already processed - show checked and disabled checkbox with date info
+                                  <div className="flex flex-col items-center">
+                                    <input
+                                      type="checkbox"
+                                      className="h-4 w-4 rounded border-gray-300 text-green-600 bg-green-100"
+                                      checked={true}
+                                      disabled={true}
+                                      title={`Admin processed on: ${history.admin_done}`}
+                                    />
+                                    <span className="text-xs text-green-600 mt-1 text-center break-words">
+                                      Processed
+                                    </span>
+                                  </div>
+                                ) : (
+                                  // Not processed - normal selectable checkbox
+                                  <input
+                                    type="checkbox"
+                                    className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                    checked={selectedHistoryItems.some((item) => item.task_id === history.task_id)}
+                                    onChange={() => {
+                                      setSelectedHistoryItems((prev) =>
+                                        prev.some((item) => item.task_id === history.task_id)
+                                          ? prev.filter((item) => item.task_id !== history.task_id)
+                                          : [...prev, history]
+                                      );
+                                    }}
+                                  />
+                                )}
+                              </td>
+                            )}
+                            <td className="px-3 py-4 min-w-[100px]">
+                              <div className="text-sm font-medium text-gray-900 break-words">
+                                {history.task_id || "—"}
+                              </div>
+                            </td>
+                            <td className="px-3 py-4 min-w-[120px]">
+                              <div className="text-sm text-gray-900 break-words">{history.department || "—"}</div>
+                            </td>
+                            <td className="px-3 py-4 min-w-[100px]">
+                              <div className="text-sm text-gray-900 break-words">{history.given_by || "—"}</div>
+                            </td>
+                            <td className="px-3 py-4 min-w-[100px]">
+                              <div className="text-sm text-gray-900 break-words">{history.name || "—"}</div>
+                            </td>
+                            <td className="px-3 py-4 min-w-[200px]">
+                              <div className="text-sm text-gray-900 break-words" title={history.task_description}>
+                                {history.task_description || "—"}
+                              </div>
+                            </td>
+                            <td className="px-3 py-4 bg-yellow-50 min-w-[140px]">
+                              <div className="text-sm text-gray-900 break-words">
+                                {history.task_start_date ? (() => {
+                                  const date = parseSupabaseDate(history.task_start_date);
+                                  if (!date || isNaN(date.getTime())) return "Invalid date";
+                                  
+                                  // Format as DD/MM/YYYY HH:MM:SS
+                                  const day = date.getDate().toString().padStart(2, '0');
+                                  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                                  const year = date.getFullYear();
+                                  const hours = date.getHours().toString().padStart(2, '0');
+                                  const minutes = date.getMinutes().toString().padStart(2, '0');
+                                  const seconds = date.getSeconds().toString().padStart(2, '0');
+
+                                  return (
+                                    <div>
+                                      <div className="font-medium break-words">
+                                        {`${day}/${month}/${year}`}
+                                      </div>
+                                      <div className="text-xs text-gray-500 break-words">
+                                        {`${hours}:${minutes}:${seconds}`}
+                                      </div>
+                                    </div>
+                                  );
+                                })() : "—"}
+                              </div>
+                            </td>
+                            <td className="px-3 py-4 min-w-[80px]">
+                              <div className="text-sm text-gray-900 break-words">{history.frequency || "—"}</div>
+                            </td>
+                            <td className="px-3 py-4 min-w-[120px]">
+                              <div className="text-sm text-gray-900 break-words">{history.enable_reminder || "—"}</div>
+                            </td>
+                            <td className="px-3 py-4 min-w-[120px]">
+                              <div className="text-sm text-gray-900 break-words">{history.require_attachment || "—"}</div>
+                            </td>
+                            <td className="px-3 py-4 bg-green-50 min-w-[140px]">
+                              <div className="text-sm text-gray-900 break-words">
+                                {history.submission_date ? (() => {
+                                  const dateObj = new Date(history.submission_date);
+                                  const day = ("0" + dateObj.getDate()).slice(-2);
+                                  const month = ("0" + (dateObj.getMonth() + 1)).slice(-2);
+                                  const year = dateObj.getFullYear();
+                                  const hours = ("0" + dateObj.getHours()).slice(-2);
+                                  const minutes = ("0" + dateObj.getMinutes()).slice(-2);
+                                  const seconds = ("0" + dateObj.getSeconds()).slice(-2);
+
+                                  return (
+                                    <div>
+                                      <div className="font-medium break-words">
+                                        {`${day}/${month}/${year}`}
+                                      </div>
+                                      <div className="text-xs text-gray-500 break-words">
+                                        {`${hours}:${minutes}:${seconds}`}
+                                      </div>
+                                    </div>
+                                  );
+                                })() : "—"}
+                              </div>
+                            </td>
+                            <td className="px-3 py-4 bg-blue-50 min-w-[80px]">
+                              <span
+                                className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full break-words ${
+                                  history.status === "Yes"
+                                    ? "bg-green-100 text-green-800"
+                                    : history.status === "No"
+                                      ? "bg-red-100 text-red-800"
+                                      : "bg-gray-100 text-gray-800"
+                                }`}
+                              >
+                                {history.status || "—"}
+                              </span>
+                            </td>
+                            <td className="px-3 py-4 bg-purple-50 min-w-[150px]">
+                              <div className="text-sm text-gray-900 break-words" title={history.remark}>
+                                {history.remark || "—"}
+                              </div>
+                            </td>
+                            <td className="px-3 py-4 min-w-[100px]">
+                              {history.image ? (
+                                <a
+                                  href={history.image}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-800 underline flex items-center break-words"
+                                >
+                                  <img
+                                    src={history.image || "/placeholder.svg?height=32&width=32"}
+                                    alt="Attachment"
+                                    className="h-8 w-8 object-cover rounded-md mr-2 flex-shrink-0"
+                                  />
+                                  <span className="break-words">View</span>
+                                </a>
+                              ) : (
+                                <span className="text-gray-400">No attachment</span>
+                              )}
+                            </td>
+                            {/* NEW: Admin Processed Date Column */}
+                            {userRole === "admin" && (
+                              <td className="px-3 py-4 bg-gray-50 min-w-[140px]">
+                                {!isEmpty(history.admin_done) ? (
+                                  <div className="text-sm text-gray-900 break-words">
+                                    <div className="font-medium text-green-700">
+                                      {history.admin_done.includes(" ") ? history.admin_done.split(" ")[0] : history.admin_done}
+                                    </div>
+                                    {history.admin_done.includes(" ") && (
+                                      <div className="text-xs text-green-600">
+                                        {history.admin_done.split(" ")[1]}
+                                      </div>
+                                    )}
+                                    <div className="text-xs text-green-600 mt-1">✓ Processed</div>
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-400 text-sm">Not processed</span>
+                                )}
+                              </td>
+                            )}
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={userRole === "admin" ? 15 : 13} className="px-6 py-4 text-center text-gray-500">
+                            {searchTerm || selectedMembers.length > 0 || startDate || endDate
+                              ? "No historical records matching your filters"
+                              : "No completed records found"}
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                  
+                  {/* Loading indicator for additional history data */}
+                  {isLoadingMoreHistory && (
+                    <div className="sticky bottom-0 left-0 right-0 bg-gray-50 border-t border-gray-200">
+                      <div className="flex justify-center items-center py-3">
+                        <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-purple-500 mr-2"></div>
+                        <span className="text-purple-600 text-sm">Loading more history items...</span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {!hasMoreHistory && history.length > 0 && (
+                    <div className="text-center py-4 text-gray-500">
+                      No more history to load
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </>
+        ) : (
+          /* Regular Tasks Table - Optimized for performance */
+          <div 
+            ref={tableContainerRef} 
+            className="h-[calc(100vh-250px)] overflow-auto" 
+          >
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50 sticky top-0 z-10">
+                <tr>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                      checked={filteredAccountData.length > 0 && selectedItems.size === filteredAccountData.length}
+                      onChange={handleSelectAllItems}
+                    />
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
+                    Task ID
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
+                    Department Name
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
+                    Given By
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
+                    Name
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]">
+                    Task Description
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-yellow-50 min-w-[140px]">
+                    Task Start Date & Time
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px]">
+                    Freq
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
+                    Enable Reminders
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
+                    Require Attachment
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
+                    Status
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[150px]">
+                    Remarks
+                  </th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
+                    Upload Image
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredAccountData.length > 0 ? (
+                  filteredAccountData.map((account, index) => {
+                    const isSelected = selectedItems.has(account.task_id);
+                    return (
+                      <tr key={index} className={`${isSelected ? "bg-purple-50" : ""} hover:bg-gray-50`}>
+                        <td className="px-3 py-4 w-12">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                            checked={isSelected}
+                            onChange={(e) => handleCheckboxClick(e, account.task_id)}
+                          />
+                        </td>
+                        <td className="px-3 py-4 min-w-[100px]">
+                          <div className="text-sm text-gray-900 break-words">{account.task_id || "—"}</div>
+                        </td>
+                        <td className="px-3 py-4 min-w-[120px]">
+                          <div className="text-sm text-gray-900 break-words">{account.department || "—"}</div>
+                        </td>
+                        <td className="px-3 py-4 min-w-[100px]">
+                          <div className="text-sm text-gray-900 break-words">{account.given_by || "—"}</div>
+                        </td>
+                        <td className="px-3 py-4 min-w-[100px]">
+                          <div className="text-sm text-gray-900 break-words">{account.name || "—"}</div>
+                        </td>
+                        <td className="px-3 py-4 min-w-[200px]">
+                          <div className="text-sm text-gray-900 break-words" title={account.task_description}>
+                            {account.task_description || "—"}
+                          </div>
+                        </td>
+                        <td className="px-3 py-4 bg-yellow-50 min-w-[140px]">
+                          <div className="text-sm text-gray-900 break-words">
+                            {account.task_start_date ? (() => {
+                              const dateObj = new Date(account.task_start_date);
+                              const formattedDate = `${
+                                ("0" + dateObj.getDate()).slice(-2)
+                              }/${
+                                ("0" + (dateObj.getMonth() + 1)).slice(-2)
+                              }/${
+                                dateObj.getFullYear()
+                              } ${
+                                ("0" + dateObj.getHours()).slice(-2)
+                              }:${
+                                ("0" + dateObj.getMinutes()).slice(-2)
+                              }:${
+                                ("0" + dateObj.getSeconds()).slice(-2)
+                              }`;
+
+                              return (
+                                <div>
+                                  <div className="font-medium break-words">
+                                    {formattedDate.split(" ")[0]} {/* => DD/MM/YYYY */}
+                                  </div>
+                                  <div className="text-xs text-gray-500 break-words">
+                                    {formattedDate.split(" ")[1]} {/* => HH:MM:SS */}
+                                  </div>
+                                </div>
+                              );
+                            })() : "—"}
+                          </div>
+                        </td>
+                        <td className="px-3 py-4 min-w-[80px]">
+                          <div className="text-sm text-gray-900 break-words">{account.frequency || "—"}</div>
+                        </td>
+                        <td className="px-3 py-4 min-w-[120px]">
+                          <div className="text-sm text-gray-900 break-words">{account.enable_reminder || "—"}</div>
+                        </td>
+                        <td className="px-3 py-4 min-w-[120px]">
+                          <div className="text-sm text-gray-900 break-words">{account.require_attachment || "—"}</div>
+                        </td>
+                        <td className="px-3 py-4 bg-yellow-50 min-w-[100px]">
+                          <select
+                            disabled={!isSelected}
+                            value={additionalData[account.task_id] || ""}
+                            onChange={(e) => {
+                              setAdditionalData((prev) => ({ ...prev, [account.task_id]: e.target.value }));
+                              if (e.target.value !== "No") {
+                                setRemarksData((prev) => {
+                                  const newData = { ...prev };
+                                  delete newData[account.task_id];
+                                  return newData;
+                                });
+                              }
+                            }}
+                            className="border border-gray-300 rounded-md px-2 py-1 w-full disabled:bg-gray-100 disabled:cursor-not-allowed text-sm"
+                          >
+                            <option value="">Select...</option>
+                            <option value="Yes">Yes</option>
+                            <option value="No">No</option>
+                          </select>
+                        </td>
+                        <td className="px-3 py-4 bg-orange-50 min-w-[150px]">
+                          <input
+                            type="text"
+                            placeholder="Enter remarks"
+                            disabled={!isSelected || !additionalData[account.task_id]}
+                            value={remarksData[account.task_id] || ""}
+                            onChange={(e) => setRemarksData((prev) => ({ ...prev, [account.task_id]: e.target.value }))}
+                            className="border rounded-md px-2 py-1 w-full border-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed text-sm break-words"
+                          />
+                        </td>
+                        <td className="px-3 py-4 bg-green-50 min-w-[120px]">
+                          {uploadedImages[account.task_id] || account.image ? (
+                            <div className="flex items-center">
+                              <img
+                                src={
+                                  uploadedImages[account.task_id]?.previewUrl || 
+                                  (typeof account.image === 'string' ? account.image : '')
+                                }
+                                alt="Receipt"
+                                className="h-10 w-10 object-cover rounded-md mr-2 flex-shrink-0"
+                              />
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-xs text-gray-500 break-words">
+                                  {uploadedImages[account.task_id]?.file.name || 
+                                  (account.image instanceof File ? account.image.name : "Uploaded Receipt")}
+                                </span>
+                                {uploadedImages[account.task_id] ? (
+                                  <span className="text-xs text-green-600">Ready to upload</span>
+                                ) : (
+                                  <button
+                                    className="text-xs text-purple-600 hover:text-purple-800 break-words"
+                                    onClick={() => window.open(account.image, "_blank")}
+                                  >
+                                    View Full Image
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <label
+                              className={`flex items-center cursor-pointer ${
+                                account.require_attachment?.toUpperCase() === "YES" 
+                                  ? "text-red-600 font-medium" 
+                                  : "text-purple-600"
+                              } hover:text-purple-800`}
+                            >
+                              <Upload className="h-4 w-4 mr-1 flex-shrink-0" />
+                              <span className="text-xs break-words">
+                                {account.require_attachment?.toUpperCase() === "YES"
+                                  ? "Required Upload"
+                                  : "Upload Receipt Image"}
+                                {account.require_attachment?.toUpperCase() === "YES" && (
+                                  <span className="text-red-500 ml-1">*</span>
+                                )}
+                              </span>
+                              <input
+                                type="file"
+                                className="hidden"
+                                accept="image/*"
+                                onChange={(e) => handleImageUpload(account.task_id, e)}
+                                disabled={!isSelected}
+                              />
+                            </label>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={13} className="px-6 py-4 text-center text-gray-500">
+                      {searchTerm
+                        ? "No tasks matching your search"
+                        : "No pending tasks found for today, tomorrow, or past due dates"}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+            {/* Bottom loading indicator for additional pages */}
+            {isFetchingMore && (
+              <div className="sticky bottom-0 left-0 right-0 bg-gray-50 border-t border-gray-200">
+                <div className="flex justify-center items-center py-3">
+                  <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-purple-500 mr-2"></div>
+                  <span className="text-purple-600 text-sm">Loading more tasks...</span>
+                </div>
+              </div>
+            )}
+    
+            {/* No more data message */}
+            {!hasMore && checklist.length > 0 && (
+              <div className="text-center py-4 text-gray-500">
+                No more tasks to load
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  </AdminLayout>
+);
 }
 
 export default AccountDataPage

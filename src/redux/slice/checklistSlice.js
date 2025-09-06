@@ -2,21 +2,24 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { fetchChechListDataForHistory, fetchChechListDataSortByDate, postChecklistAdminDoneAPI, updateChecklistData } from "../api/checkListApi";
 
 
-
-
-export const checklistData=createAsyncThunk( 'fetch/checklist',async () => {
-    const checklist = await fetchChechListDataSortByDate();
-   
-    return checklist;
+export const checklistHistoryData = createAsyncThunk(
+  'fetch/history',
+  async (page = 1) => {
+    const histroydata = await fetchChechListDataForHistory(page);
+    return { data: histroydata, page };
   }
 );
 
-export const checklistHistoryData=createAsyncThunk( 'fetch/history',async () => {
-    const histroydata = await fetchChechListDataForHistory();
-   
-    return histroydata;
+
+export const checklistData = createAsyncThunk(
+  'fetch/checklist',
+  async (page = 1) => {
+    const { data, totalCount } = await fetchChechListDataSortByDate(page);
+    return { data, page, totalCount };
   }
 );
+
+
 
 export const checklistAdminDone=createAsyncThunk( 'insert/admin_done',async () => {
   const admin_done = await postChecklistAdminDoneAPI();
@@ -56,7 +59,20 @@ const checkListSlice = createSlice({
       })
       .addCase(checklistData.fulfilled, (state, action) => {
         state.loading = false;
-        state.checklist=action.payload;
+        
+        // If it's the first page, replace the data
+        if (action.payload.page === 1) {
+          state.checklist = action.payload.data;
+        } else {
+          // Otherwise, append to existing data
+          state.checklist = [...state.checklist, ...action.payload.data];
+        }
+        
+        state.currentPage = action.payload.page;
+        
+        // Calculate if there are more pages
+        const itemsPerPage = 50;
+        state.hasMore = state.checklist.length < action.payload.totalCount;
       })
       .addCase(checklistData.rejected, (state, action) => {
         state.loading = false;
@@ -78,10 +94,17 @@ const checkListSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(checklistHistoryData.fulfilled, (state, action) => {
-        state.loading = false;
-        state.history=action.payload;
-      })
+     .addCase(checklistHistoryData.fulfilled, (state, action) => {
+  state.loading = false;
+  
+  // If it's the first page, replace the data
+  if (action.payload.page === 1) {
+    state.history = action.payload.data;
+  } else {
+    // Otherwise, append to existing data
+    state.history = [...state.history, ...action.payload.data];
+  }
+})
       .addCase(checklistHistoryData.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;

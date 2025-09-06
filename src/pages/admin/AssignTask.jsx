@@ -178,7 +178,7 @@ const filteredDoerNames = userRole === 'admin'
 const dispatch=useDispatch();
 
 useEffect(()=>{
-  dispatch(uniqueDepartmentData());
+  dispatch(uniqueDepartmentData(username));
   dispatch(uniqueGivenByData());
 
 
