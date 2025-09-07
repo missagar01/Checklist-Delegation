@@ -517,9 +517,15 @@ const getTasksByView = (view) => {
         // Show today's tasks but exclude completed ones for consistency with cards
         return isDateToday(taskDate) && task.status !== 'completed';
       
+      // case "upcoming":
+      //   // FIXED: Show tasks that are in the future (after today)
+      //   return taskDateOnly > today;
+
       case "upcoming":
-        // FIXED: Show tasks that are in the future (after today)
-        return taskDateOnly > today;
+        // MODIFIED: Show only tomorrow's tasks instead of all future tasks
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        return taskDateOnly.getTime() === tomorrow.getTime();
       
       case "overdue":
         // Show tasks that are past due and not completed
