@@ -150,8 +150,9 @@ export const countPendingOrDelayTaskApi = async (dashboardType, staffFilter = nu
       query = supabase
         .from('checklist')
         .select('*', { count: 'exact', head: true })
-        .or('status.is.null,status.neq.Yes')
-        .lte('task_start_date', `${today}T23:59:59`);
+        .is('submission_date', null) // Only unsubmitted tasks
+        .gte('task_start_date', `${today}T00:00:00`) // From start of today
+        .lte('task_start_date', `${today}T23:59:59`); // To end of today
     }
 
     // Apply staff filter logic
