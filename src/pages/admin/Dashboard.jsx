@@ -688,8 +688,11 @@ export default function AdminDashboard() {
         />
 
         <CompletionRateCard departmentData={departmentData} />
-        {/* <TasksOverviewChart/>
-        <TasksCompletionChart/> */}
+        {/* <TasksCompletionChart data={departmentData.pieChartData}/>
+
+        <TasksOverviewChart data={departmentData.barChartData}/> */}
+
+        
 
         {/* Tabs */}
         <div className="space-y-4">
@@ -722,6 +725,16 @@ export default function AdminDashboard() {
 
           {activeTab === "overview" && (
   <div className="space-y-4">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white rounded-lg border border-purple-200 shadow-md p-4">
+          <h3 className="text-purple-700 font-medium mb-4">Tasks Overview</h3>
+          <TasksOverviewChart data={departmentData.barChartData}/>
+        </div>
+        <div className="bg-white rounded-lg border border-purple-200 shadow-md p-4">
+          <h3 className="text-purple-700 font-medium mb-4">Completion Status</h3>
+          <TasksCompletionChart data={departmentData.pieChartData}/>
+        </div>
+      </div>
     {/* Other overview components */}
     <div className="rounded-lg border border-purple-200 shadow-md bg-white">
       <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple-100 p-4">

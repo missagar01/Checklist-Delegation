@@ -50,15 +50,18 @@ export const fetchDashboardDataApi = async (dashboardType, staffFilter = null, p
                     .lte('task_start_date', `${tomorrowStr}T23:59:59`);
         break;
         
-      case 'overdue':
-        // Tasks before today that are not completed
-        query = query.lt('task_start_date', `${today}T00:00:00`);
-        if (dashboardType === 'checklist') {
-          query = query.or('status.is.null,status.neq.Yes');
-        } else if (dashboardType === 'delegation') {
-          query = query.neq('status', 'done');
-        }
-        break;
+      // Replace the 'overdue' case in your fetchDashboardDataApi function with this:
+case 'overdue':
+  // Tasks before today that are not completed AND have null submission_date
+  query = query.lt('task_start_date', `${today}T00:00:00`)
+              .is('submission_date', null); // Only show tasks with null submission_date
+  
+  if (dashboardType === 'checklist') {
+    query = query.or('status.is.null,status.neq.Yes');
+  } else if (dashboardType === 'delegation') {
+    query = query.neq('status', 'done');
+  }
+  break;
         
       default:
         // For 'all' or other views, don't add additional date filters
@@ -124,14 +127,18 @@ export const getDashboardDataCount = async (dashboardType, staffFilter = null, t
                     .lte('task_start_date', `${tomorrowStr}T23:59:59`);
         break;
         
-      case 'overdue':
-        query = query.lt('task_start_date', `${today}T00:00:00`);
-        if (dashboardType === 'checklist') {
-          query = query.or('status.is.null,status.neq.Yes');
-        } else if (dashboardType === 'delegation') {
-          query = query.neq('status', 'done');
-        }
-        break;
+     // Replace the 'overdue' case in your fetchDashboardDataApi function with this:
+case 'overdue':
+  // Tasks before today that are not completed AND have null submission_date
+  query = query.lt('task_start_date', `${today}T00:00:00`)
+              .is('submission_date', null); // Only show tasks with null submission_date
+  
+  if (dashboardType === 'checklist') {
+    query = query.or('status.is.null,status.neq.Yes');
+  } else if (dashboardType === 'delegation') {
+    query = query.neq('status', 'done');
+  }
+  break;
         
       default:
         query = query.lte('task_start_date', `${today}T23:59:59`);
@@ -291,12 +298,14 @@ export const countOverDueORExtendedTaskApi = async (dashboardType, staffFilter =
         .from('delegation')
         .select('*', { count: 'exact', head: true })
         .neq('status', 'done')
+        .is('submission_date', null) // Only tasks with null submission_date
         .lt('task_start_date', `${today}T00:00:00`);
     } else {
       query = supabase
         .from('checklist')
         .select('*', { count: 'exact', head: true })
         .or('status.is.null,status.neq.Yes')
+        .is('submission_date', null) // Only tasks with null submission_date
         .lt('task_start_date', `${today}T00:00:00`);
     }
 
