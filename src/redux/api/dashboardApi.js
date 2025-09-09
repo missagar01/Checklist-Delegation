@@ -203,13 +203,13 @@ export const countCompleteTaskApi = async (dashboardType, staffFilter = null) =>
     const today = new Date().toISOString().split('T')[0];
     let query;
 
-    if (dashboardType === 'delegation') {
-      query = supabase
-        .from('delegation')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'done')
-        .lte('task_start_date', `${today}T23:59:59`);
-    } else {
+   if (dashboardType === 'delegation') {
+  query = supabase
+    .from('delegation')
+    .select('*', { count: 'exact', head: true })
+    .not('submission_date', 'is', null) // Only tasks with submission date
+    .lte('task_start_date', `${today}T23:59:59`);
+} else {
       query = supabase
         .from('checklist')
         .select('*', { count: 'exact', head: true })
@@ -247,14 +247,14 @@ export const countPendingOrDelayTaskApi = async (dashboardType, staffFilter = nu
     const today = new Date().toISOString().split('T')[0];
     let query;
 
-    if (dashboardType === 'delegation') {
-      query = supabase
-        .from('delegation')
-        .select('*', { count: 'exact', head: true })
-        .neq('status', 'done')
-        .gte('task_start_date', `${today}T00:00:00`)
-        .lte('task_start_date', `${today}T23:59:59`);
-    } else {
+   if (dashboardType === 'delegation') {
+  query = supabase
+    .from('delegation')
+    .select('*', { count: 'exact', head: true })
+    .is('submission_date', null) // Only tasks without submission date
+    .gte('task_start_date', `${today}T00:00:00`)
+    .lte('task_start_date', `${today}T23:59:59`);
+} else {
       query = supabase
         .from('checklist')
         .select('*', { count: 'exact', head: true })
@@ -293,14 +293,13 @@ export const countOverDueORExtendedTaskApi = async (dashboardType, staffFilter =
     const today = new Date().toISOString().split('T')[0];
     let query;
 
-    if (dashboardType === 'delegation') {
-      query = supabase
-        .from('delegation')
-        .select('*', { count: 'exact', head: true })
-        .neq('status', 'done')
-        .is('submission_date', null) // Only tasks with null submission_date
-        .lt('task_start_date', `${today}T00:00:00`);
-    } else {
+   if (dashboardType === 'delegation') {
+  query = supabase
+    .from('delegation')
+    .select('*', { count: 'exact', head: true })
+    .is('submission_date', null) // Only tasks with null submission_date
+    .lt('task_start_date', `${today}T00:00:00`);
+} else {
       query = supabase
         .from('checklist')
         .select('*', { count: 'exact', head: true })
