@@ -1,14 +1,15 @@
 "use client"
 import { useEffect, useState, useCallback } from "react";
 import { format } from 'date-fns';
-import { Search, ChevronDown, Filter, Trash2 } from "lucide-react";
+import { Search, ChevronDown, Filter, Trash2, Edit, Save, X } from "lucide-react";
 import AdminLayout from "../components/layout/AdminLayout";
 import DelegationPage from "./delegation-data";
 import { useDispatch, useSelector } from "react-redux";
-import { deleteChecklistTask, uniqueChecklistTaskData, uniqueDelegationTaskData } from "../redux/slice/quickTaskSlice";
+import { deleteChecklistTask, uniqueChecklistTaskData, uniqueDelegationTaskData, updateChecklistTask } from "../redux/slice/quickTaskSlice";
+
 
 export default function QuickTask() {
- const [tasks, setTasks] = useState([]);
+  const [tasks, setTasks] = useState([]);
   const [delegationLoading, setDelegationLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -22,48 +23,112 @@ export default function QuickTask() {
   });
   const [selectedTasks, setSelectedTasks] = useState([]);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  const [editFormData, setEditFormData] = useState({});
+  const [isSaving, setIsSaving] = useState(false);
 
   const {quickTask, loading, delegationTasks} = useSelector((state) => state.quickTask);
   const dispatch = useDispatch();
-useEffect(()=>{
-  dispatch(uniqueChecklistTaskData())
-},[dispatch])
 
-// Change your checkbox to store whole row instead of only id
-const handleCheckboxChange = (task) => {
-  if (selectedTasks.find(t => t.task_id === task.task_id)) {
-    setSelectedTasks(selectedTasks.filter(t => t.task_id !== task.task_id));
-  } else {
-    setSelectedTasks([...selectedTasks, task]);
-  }
-};
+  useEffect(()=>{
+    dispatch(uniqueChecklistTaskData())
+  },[dispatch])
 
-// Select all
-const handleSelectAll = () => {
-  if (selectedTasks.length === filteredChecklistTasks.length) {
-    setSelectedTasks([]);
-  } else {
-    setSelectedTasks(filteredChecklistTasks); // store full rows
-  }
-};
+  // Edit functionality
+  const handleEditClick = (task) => {
+    setEditingTaskId(task.task_id);
+    setEditFormData({
+      task_id: task.task_id,
+      department: task.department || '',
+      given_by: task.given_by || '',
+      name: task.name || '',
+      task_description: task.task_description || '',
+      task_start_date: task.task_start_date || '',
+      frequency: task.frequency || '',
+      enable_reminder: task.enable_reminder || '',
+      require_attachment: task.require_attachment || '',
+      remark: task.remark || ''
+    });
+  };
 
-// Delete
-const handleDeleteSelected = async () => {
-  if (selectedTasks.length === 0) return;
+  const handleCancelEdit = () => {
+    setEditingTaskId(null);
+    setEditFormData({});
+  };
 
-  setIsDeleting(true);
-  try {
-    console.log("Deleting rows:", selectedTasks);
-    await dispatch(deleteChecklistTask(selectedTasks)).unwrap();
-    setSelectedTasks([]);
-  } catch (error) {
-    console.error("Failed to delete tasks:", error);
-    setError("Failed to delete tasks");
-  } finally {
-    setIsDeleting(false);
-  }
-};
+  const handleSaveEdit = async () => {
+    if (!editFormData.task_id) return;
+    
+    // Find the original task data for matching
+    const originalTask = quickTask.find(task => task.task_id === editFormData.task_id);
+    if (!originalTask) return;
+    
+    setIsSaving(true);
+    try {
+      await dispatch(updateChecklistTask({ 
+        updatedTask: editFormData, 
+        originalTask: {
+          department: originalTask.department,
+          name: originalTask.name,
+          task_description: originalTask.task_description
+        }
+      })).unwrap();
+      
+      setEditingTaskId(null);
+      setEditFormData({});
+      
+      // Refresh the data to show all updated rows
+      dispatch(uniqueChecklistTaskData());
+      
+    } catch (error) {
+      console.error("Failed to update task:", error);
+      setError("Failed to update task");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
+  const handleInputChange = (field, value) => {
+    setEditFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Change your checkbox to store whole row instead of only id
+  const handleCheckboxChange = (task) => {
+    if (selectedTasks.find(t => t.task_id === task.task_id)) {
+      setSelectedTasks(selectedTasks.filter(t => t.task_id !== task.task_id));
+    } else {
+      setSelectedTasks([...selectedTasks, task]);
+    }
+  };
+
+  // Select all
+  const handleSelectAll = () => {
+    if (selectedTasks.length === filteredChecklistTasks.length) {
+      setSelectedTasks([]);
+    } else {
+      setSelectedTasks(filteredChecklistTasks); // store full rows
+    }
+  };
+
+  // Delete
+  const handleDeleteSelected = async () => {
+    if (selectedTasks.length === 0) return;
+
+    setIsDeleting(true);
+    try {
+      console.log("Deleting rows:", selectedTasks);
+      await dispatch(deleteChecklistTask(selectedTasks)).unwrap();
+      setSelectedTasks([]);
+    } catch (error) {
+      console.error("Failed to delete tasks:", error);
+      setError("Failed to delete tasks");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const CONFIG = {
     APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbzXzqnKmbeXw3i6kySQcBOwxHQA7y8WBFfEe69MPbCR-jux0Zte7-TeSKi8P4CIFkhE/exec",
@@ -74,67 +139,6 @@ const handleDeleteSelected = async () => {
       description: "Showing all unique tasks"
     }
   };
-
-//   const fetchData = useCallback(async (sheetName, isDelegation = false) => {
-//     try {
-//       isDelegation ? setDelegationLoading(true) : setLoading(true);
-//       setError(null);
-
-//       const response = await fetch(
-//         `${CONFIG.APPS_SCRIPT_URL}?sheet=${sheetName}&action=fetch&cacheBuster=${Date.now()}`,
-//         { redirect: 'follow' }
-//       );
-
-//       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-//       const data = await response.json();
-
-//       if (data?.table?.rows) {
-//         const rows = data.table.rows.slice(1);
-//         const transformedData = rows.map((row, rowIndex) => {
-//           const baseData = {
-//             _id: `row_${rowIndex}_${Math.random().toString(36).substring(2, 15)}`,
-//             _rowIndex: rowIndex + 2,
-//           };
-
-//           if (isDelegation) {
-//             row.c.forEach((cell, colIndex) => {
-//               baseData[`col${colIndex}`] = cell?.v || "";
-//             });
-//           } else {
-//             baseData.Department = row.c[0]?.v || "";
-//             baseData['Given By'] = row.c[1]?.v || "";
-//             baseData.Name = row.c[2]?.v || "";
-//             baseData['Task Description'] = row.c[3]?.v || "";
-//             baseData['Task Start Date'] = formatDate(row.c[4]?.v);
-//             baseData.Freq = row.c[5]?.v || "";
-//             baseData['Enable Reminders'] = row.c[6]?.v || "";
-//             baseData['Require Attachment'] = row.c[7]?.v || "";
-//             baseData.Task = 'Checklist';
-//           }
-
-//           return baseData;
-//         });
-
-//         if (isDelegation) {
-//           setDelegationTasks(transformedData);
-//         } else {
-//           setTasks(transformedData);
-//         }
-//       } else {
-//         throw new Error("Invalid data format");
-//       }
-//     } catch (err) {
-//       console.error("Fetch error:", err);
-//       setError(err.message || "Failed to load data");
-//     } finally {
-//       if (isDelegation) {
-//         setDelegationLoading(false);
-//       } else {
-//       //  setLoading(false);
-//       }
-//     }
-//  }, []);
 
   const formatDate = (dateValue) => {
     if (!dateValue) return "";
@@ -200,9 +204,9 @@ const handleDeleteSelected = async () => {
   const filteredChecklistTasks = quickTask.filter(task => {
     const nameFilterPass = !nameFilter || task.name === nameFilter;
     const freqFilterPass = !freqFilter || task.frequency === freqFilter;
-   const searchTermPass = task.task_description
-    ?.toLowerCase()
-    .includes(searchTerm.toLowerCase());
+    const searchTermPass = task.task_description
+      ?.toLowerCase()
+      .includes(searchTerm.toLowerCase());
     return nameFilterPass && freqFilterPass && searchTermPass;
   }).sort((a, b) => {
     if (!sortConfig.key) return 0;
@@ -215,28 +219,22 @@ const handleDeleteSelected = async () => {
     return 0;
   });
 
-function formatTimestampToDDMMYYYY(timestamp) {
-  if (!timestamp || timestamp === "" || timestamp === null) {
-    return "—"; // or just return ""
+  function formatTimestampToDDMMYYYY(timestamp) {
+    if (!timestamp || timestamp === "" || timestamp === null) {
+      return "—"; // or just return ""
+    }
+
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) {
+      return "—"; // fallback if it's not a valid date
+    }
+
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+
+    return `${day}/${month}/${year}`;
   }
-
-  const date = new Date(timestamp);
-  if (isNaN(date.getTime())) {
-    return "—"; // fallback if it's not a valid date
-  }
-
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = date.getFullYear();
-
-  return `${day}/${month}/${year}`;
-}
-
-
-  // useEffect(() => {
-  //   fetchData(CONFIG.SHEET_NAME);
-  //   fetchData(CONFIG.DELEGATION_SHEET, true);
-  // }, [fetchData]);
 
   return (
     <AdminLayout>
@@ -351,7 +349,7 @@ function formatTimestampToDDMMYYYY(timestamp) {
                 )}
               </div>
             </div>
-              {selectedTasks.length > 0 && activeTab === 'checklist' && (
+            {selectedTasks.length > 0 && activeTab === 'checklist' && (
               <button
                 onClick={handleDeleteSelected}
                 disabled={isDeleting}
@@ -370,7 +368,7 @@ function formatTimestampToDDMMYYYY(timestamp) {
           {error}{" "}
           <button
             onClick={() => {
-             dispatch(uniqueChecklistTaskData())
+              dispatch(uniqueChecklistTaskData())
             }}
             className="underline ml-2 hover:text-red-600"
           >
@@ -396,113 +394,248 @@ function formatTimestampToDDMMYYYY(timestamp) {
       {!error && (
         <>
           {activeTab === 'checklist' ? (
-           <div className="mt-4 rounded-lg border border-purple-200 shadow-md bg-white overflow-hidden">
-          <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple-100 p-4 flex justify-between items-center">
-            <div>
-              <h2 className="text-purple-700 font-medium">Checklist Tasks</h2>
-              <p className="text-purple-600 text-sm">
-                {CONFIG.PAGE_CONFIG.description}
-              </p>
-            </div>
-            {selectedTasks.length > 0 && (
-              <span className="text-sm text-purple-600">
-                {selectedTasks.length} task(s) selected
-              </span>
-            )}
-          </div>
+            <div className="mt-4 rounded-lg border border-purple-200 shadow-md bg-white overflow-hidden">
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple-100 p-4 flex justify-between items-center">
+                <div>
+                  <h2 className="text-purple-700 font-medium">Checklist Tasks</h2>
+                  <p className="text-purple-600 text-sm">
+                    {CONFIG.PAGE_CONFIG.description}
+                  </p>
+                </div>
+                {selectedTasks.length > 0 && (
+                  <span className="text-sm text-purple-600">
+                    {selectedTasks.length} task(s) selected
+                  </span>
+                )}
+              </div>
               <div className="overflow-x-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50 sticky top-0 z-20">
-                     <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
-                    <input
-                      type="checkbox"
-                      checked={selectedTasks.length === filteredChecklistTasks.length && filteredChecklistTasks.length > 0}
-                      onChange={handleSelectAll}
-                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                    />
-                  </th>
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                        <input
+                          type="checkbox"
+                          checked={selectedTasks.length === filteredChecklistTasks.length && filteredChecklistTasks.length > 0}
+                          onChange={handleSelectAll}
+                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                      </th>
                       {[
-                        { key: 'Department', label: 'Department' },
-                        { key: 'Given By', label: 'Given By' },
-                        { key: 'Name', label: 'Name' },
-                        { key: 'Task Description', label: 'Task Description', minWidth: 'min-w-[300px]' },
-                        { key: 'Task Start Date', label: 'Start Date', bg: 'bg-yellow-50' },
-                          { key: ' End Date', label: 'End Date', bg: 'bg-yellow-50' },
-                        { key: 'Freq', label: 'Frequency' },
-                        { key: 'Enable Reminders', label: 'Reminders' },
-                        { key: 'Require Attachment', label: 'Attachment' },
+                        { key: 'department', label: 'Department' },
+                        { key: 'given_by', label: 'Given By' },
+                        { key: 'name', label: 'Name' },
+                        { key: 'task_description', label: 'Task Description', minWidth: 'min-w-[300px]' },
+                        { key: 'task_start_date', label: 'Start Date', bg: 'bg-yellow-50' },
+                        { key: 'submission_date', label: 'End Date', bg: 'bg-yellow-50' },
+                        { key: 'frequency', label: 'Frequency' },
+                        { key: 'enable_reminder', label: 'Reminders' },
+                        { key: 'require_attachment', label: 'Attachment' },
+                        { key: 'actions', label: 'Actions' },
                       ].map((column) => (
                         <th
-                      key={column.label}
-                      className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${column.bg || ''} ${column.minWidth || ''} ${column.key ? 'cursor-pointer hover:bg-gray-100' : ''}`}
-                      onClick={() => column.key && requestSort(column.key)}
-                    >
-                      <div className="flex items-center">
-                        {column.label}
-                        {sortConfig.key === column.key && (
-                          <span className="ml-1">
-                            {sortConfig.direction === 'asc' ? '↑' : '↓'}
-                          </span>
-                        )}
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
+                          key={column.label}
+                          className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${column.bg || ''} ${column.minWidth || ''} ${column.key && column.key !== 'actions' ? 'cursor-pointer hover:bg-gray-100' : ''}`}
+                          onClick={() => column.key && column.key !== 'actions' && requestSort(column.key)}
+                        >
+                          <div className="flex items-center">
+                            {column.label}
+                            {sortConfig.key === column.key && (
+                              <span className="ml-1">
+                                {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
 
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredChecklistTasks.length > 0 ? (
-                      filteredChecklistTasks.map((task,index) => (
+                      filteredChecklistTasks.map((task, index) => (
                         <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-4 py-4 whitespace-nowrap">
-                         <input
-              type="checkbox"
-              checked={selectedTasks.includes(task)}
-              onChange={() => handleCheckboxChange(task)}
-              className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-            />
-                      </td>
+                          <td className="px-4 py-4 whitespace-nowrap">
+                            <input
+                              type="checkbox"
+                              checked={selectedTasks.includes(task)}
+                              onChange={() => handleCheckboxChange(task)}
+                              className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                            />
+                          </td>
+                          
+                          {/* Department */}
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {task.department}
+                            {editingTaskId === task.task_id ? (
+                              <input
+                                type="text"
+                                value={editFormData.department}
+                                onChange={(e) => handleInputChange('department', e.target.value)}
+                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                              />
+                            ) : (
+                              task.department
+                            )}
                           </td>
+                          
+                          {/* Given By */}
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {task.given_by}
+                            {editingTaskId === task.task_id ? (
+                              <input
+                                type="text"
+                                value={editFormData.given_by}
+                                onChange={(e) => handleInputChange('given_by', e.target.value)}
+                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                              />
+                            ) : (
+                              task.given_by
+                            )}
                           </td>
+                          
+                          {/* Name */}
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {task.name}
+                            {editingTaskId === task.task_id ? (
+                              <input
+                                type="text"
+                                value={editFormData.name}
+                                onChange={(e) => handleInputChange('name', e.target.value)}
+                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                              />
+                            ) : (
+                              task.name
+                            )}
                           </td>
+                          
+                          {/* Task Description */}
                           <td className="px-6 py-4 text-sm text-gray-500 min-w-[300px] max-w-[400px]">
-                            <div className="whitespace-normal break-words">
-                              {task.task_description}
-                            </div>
+                            {editingTaskId === task.task_id ? (
+                              <textarea
+                                value={editFormData.task_description}
+                                onChange={(e) => handleInputChange('task_description', e.target.value)}
+                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                rows="3"
+                              />
+                            ) : (
+                              <div className="whitespace-normal break-words">
+                                {task.task_description}
+                              </div>
+                            )}
                           </td>
+                          
+                          {/* Task Start Date */}
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 bg-yellow-50">
-                            {formatTimestampToDDMMYYYY(task.task_start_date)}
+                            {editingTaskId === task.task_id ? (
+                              <input
+                                type="datetime-local"
+                                value={editFormData.task_start_date ? new Date(editFormData.task_start_date).toISOString().slice(0, 16) : ''}
+                                onChange={(e) => handleInputChange('task_start_date', e.target.value)}
+                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                              />
+                            ) : (
+                              formatTimestampToDDMMYYYY(task.task_start_date)
+                            )}
                           </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 bg-yellow-50">
+                          
+                          {/* Submission Date (End Date) */}
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 bg-yellow-50">
                             {formatTimestampToDDMMYYYY(task.submission_date)}
                           </td>
+                          
+                          {/* Frequency */}
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <span className={`px-2 py-1 rounded-full text-xs ${task.frequency === 'Daily' ? 'bg-blue-100 text-blue-800' :
-                              task.frequency === 'Weekly' ? 'bg-green-100 text-green-800' :
-                                task.frequency === 'Monthly' ? 'bg-purple-100 text-purple-800' :
-                                  'bg-gray-100 text-gray-800'
-                              }`}>
-                              {task.frequency}
-                            </span>
+                            {editingTaskId === task.task_id ? (
+                              <select
+                                value={editFormData.frequency}
+                                onChange={(e) => handleInputChange('frequency', e.target.value)}
+                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                              >
+                                <option value="">Select Frequency</option>
+                                <option value="Daily">Daily</option>
+                                <option value="Weekly">Weekly</option>
+                                <option value="Monthly">Monthly</option>
+                                <option value="Yearly">Yearly</option>
+                              </select>
+                            ) : (
+                              <span className={`px-2 py-1 rounded-full text-xs ${task.frequency === 'Daily' ? 'bg-blue-100 text-blue-800' :
+                                task.frequency === 'Weekly' ? 'bg-green-100 text-green-800' :
+                                  task.frequency === 'Monthly' ? 'bg-purple-100 text-purple-800' :
+                                    'bg-gray-100 text-gray-800'
+                                }`}>
+                                {task.frequency}
+                              </span>
+                            )}
                           </td>
+                          
+                          {/* Enable Reminders */}
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {task.enable_reminder || "—"}
+                            {editingTaskId === task.task_id ? (
+                              <select
+                                value={editFormData.enable_reminder}
+                                onChange={(e) => handleInputChange('enable_reminder', e.target.value)}
+                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                              >
+                                <option value="">Select</option>
+                                <option value="Yes">Yes</option>
+                                <option value="No">No</option>
+                              </select>
+                            ) : (
+                              task.enable_reminder || "—"
+                            )}
                           </td>
+                          
+                          {/* Require Attachment */}
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {task.require_attachment || "—"}
+                            {editingTaskId === task.task_id ? (
+                              <select
+                                value={editFormData.require_attachment}
+                                onChange={(e) => handleInputChange('require_attachment', e.target.value)}
+                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                              >
+                                <option value="">Select</option>
+                                <option value="Yes">Yes</option>
+                                <option value="No">No</option>
+                              </select>
+                            ) : (
+                              task.require_attachment || "—"
+                            )}
+                          </td>
+                          
+                          {/* Actions */}
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {editingTaskId === task.task_id ? (
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={handleSaveEdit}
+                                  disabled={isSaving}
+                                  className="flex items-center gap-1 px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+                                >
+                                  <Save size={14} />
+                                  {isSaving ? 'Saving...' : 'Save'}
+                                </button>
+                                <button
+                                  onClick={handleCancelEdit}
+                                  className="flex items-center gap-1 px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
+                                >
+                                  <X size={14} />
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              task.submission_date === null && (
+                                <button
+                                  onClick={() => handleEditClick(task)}
+                                  className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                                >
+                                  <Edit size={14} />
+                                  Edit
+                                </button>
+                              )
+                            )}
                           </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
+                        <td colSpan={11} className="px-6 py-4 text-center text-gray-500">
                           {searchTerm || nameFilter || freqFilter
                             ? "No tasks matching your filters"
                             : "No tasks available"}

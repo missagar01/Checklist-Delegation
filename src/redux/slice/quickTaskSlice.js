@@ -1,19 +1,27 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { deleteChecklistTasksApi, deleteDelegationTasksApi, fetchChecklistData, fetchDelegationData } from "../api/quickTaskApi";
+import { 
+  deleteChecklistTasksApi, 
+  deleteDelegationTasksApi, 
+  fetchChecklistData, 
+  fetchDelegationData,
+  updateChecklistTaskApi  // ← Make sure this is imported
+} from "../api/quickTaskApi";
 
-export const uniqueChecklistTaskData = createAsyncThunk( 'fetch/checklistTask',async () => {
+export const uniqueChecklistTaskData = createAsyncThunk(
+  'fetch/checklistTask',
+  async () => {
     const Task = await fetchChecklistData();
-   
-    return Task;
-  }
-);
-export const uniqueDelegationTaskData = createAsyncThunk( 'fetch/delegationTask',async () => {
-    const Task = await fetchDelegationData();
-   
     return Task;
   }
 );
 
+export const uniqueDelegationTaskData = createAsyncThunk(
+  'fetch/delegationTask',
+  async () => {
+    const Task = await fetchDelegationData();
+    return Task;
+  }
+);
 
 export const deleteChecklistTask = createAsyncThunk(
   'delete/checklistTask',
@@ -37,17 +45,28 @@ export const deleteDelegationTask = createAsyncThunk(
   }
 );
 
+// ← ADD THIS UPDATE FUNCTION
+export const updateChecklistTask = createAsyncThunk(
+  'update/checklistTask',
+  async ({ updatedTask, originalTask }, { rejectWithValue }) => {
+    try {
+      console.log("Redux action called with:", { updatedTask, originalTask });
+      const result = await updateChecklistTaskApi(updatedTask, originalTask);
+      return result;
+    } catch (error) {
+      console.error("Redux action error:", error);
+      return rejectWithValue(error.message);
+    }
+  }
+);
 
 const quickTaskSlice = createSlice({
   name: 'quickTask',
- 
   initialState: {
     quickTask: [],
-    delegationTasks:[],
+    delegationTasks: [],
     error: null,
     loading: false,
-    
-   
   },
   reducers: {},
   extraReducers: (builder) => {
@@ -64,7 +83,8 @@ const quickTaskSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-         .addCase(uniqueDelegationTaskData.pending, (state) => {
+      
+      .addCase(uniqueDelegationTaskData.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
@@ -76,34 +96,57 @@ const quickTaskSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-   .addCase(deleteChecklistTask.pending, (state) => {
+
+      .addCase(deleteChecklistTask.pending, (state) => {
         state.loading = true;
       })
-     .addCase(deleteChecklistTask.fulfilled, (state, action) => {
-  state.loading = false;
-  state.quickTask = state.quickTask.filter(
-    task => !action.payload.includes(task.task_id) // ✅ task_id
-  );
-})
+      .addCase(deleteChecklistTask.fulfilled, (state, action) => {
+        state.loading = false;
+        state.quickTask = state.quickTask.filter(
+          task => !action.payload.includes(task.task_id)
+        );
+      })
       .addCase(deleteChecklistTask.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
-      // Handle delete delegation tasks
+
       .addCase(deleteDelegationTask.pending, (state) => {
         state.loading = true;
       })
-     .addCase(deleteDelegationTask.fulfilled, (state, action) => {
-  state.loading = false;
-  state.delegationTasks = state.delegationTasks.filter(
-    task => !action.payload.includes(task.task_id) // ✅ task_id
-  );
-})
+      .addCase(deleteDelegationTask.fulfilled, (state, action) => {
+        state.loading = false;
+        state.delegationTasks = state.delegationTasks.filter(
+          task => !action.payload.includes(task.task_id)
+        );
+      })
       .addCase(deleteDelegationTask.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+
+      // ← ADD THESE UPDATE CASES
+      .addCase(updateChecklistTask.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(updateChecklistTask.fulfilled, (state, action) => {
+        state.loading = false;
+        const updatedTasks = action.payload; // Array of updated tasks
+        
+        // Update all matching tasks in the state
+        if (Array.isArray(updatedTasks)) {
+          updatedTasks.forEach(updatedTask => {
+            const index = state.quickTask.findIndex(task => task.task_id === updatedTask.task_id);
+            if (index !== -1) {
+              state.quickTask[index] = updatedTask;
+            }
+          });
+        }
+      })
+      .addCase(updateChecklistTask.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       });
-      
   },
 });
 
