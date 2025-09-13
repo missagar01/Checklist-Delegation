@@ -634,37 +634,37 @@ export default function QuickTask() {
                           </td>
                           
                           {/* Actions */}
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {editingTaskId === task.task_id ? (
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={handleSaveEdit}
-                                  disabled={isSaving}
-                                  className="flex items-center gap-1 px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
-                                >
-                                  <Save size={14} />
-                                  {isSaving ? 'Saving...' : 'Save'}
-                                </button>
-                                <button
-                                  onClick={handleCancelEdit}
-                                  className="flex items-center gap-1 px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
-                                >
-                                  <X size={14} />
-                                  Cancel
-                                </button>
-                              </div>
-                            ) : (
-                              task.submission_date === null && (
-                                <button
-                                  onClick={() => handleEditClick(task)}
-                                  className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-                                >
-                                  <Edit size={14} />
-                                  Edit
-                                </button>
-                              )
-                            )}
-                          </td>
+                          {/* Actions */}
+<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+  {editingTaskId === task.task_id ? (
+    <div className="flex gap-2">
+      <button
+        onClick={handleSaveEdit}
+        disabled={isSaving}
+        className="flex items-center gap-1 px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+      >
+        <Save size={14} />
+        {isSaving ? 'Saving...' : 'Save'}
+      </button>
+      <button
+        onClick={handleCancelEdit}
+        className="flex items-center gap-1 px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
+      >
+        <X size={14} />
+        Cancel
+      </button>
+    </div>
+  ) : (
+    // REMOVED THE submission_date CHECK - ALWAYS SHOW EDIT BUTTON
+    <button
+      onClick={() => handleEditClick(task)}
+      className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+    >
+      <Edit size={14} />
+      Edit
+    </button>
+  )}
+</td>
                         </tr>
                       ))
                     ) : (
