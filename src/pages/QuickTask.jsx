@@ -285,37 +285,71 @@ export default function QuickTask() {
             </div>
 
             <div className="flex gap-2">
-              <div className="relative">
-                <button
-                  onClick={() => toggleDropdown('name')}
-                  className="flex items-center gap-2 px-3 py-2 border border-purple-200 rounded-md bg-white text-sm text-gray-700 hover:bg-gray-50"
-                >
-                  <Filter className="h-4 w-4" />
-                  {nameFilter || 'Filter by Name'}
-                  <ChevronDown size={16} className={`transition-transform ${dropdownOpen.name ? 'rotate-180' : ''}`} />
-                </button>
-                {dropdownOpen.name && (
-                  <div className="absolute z-50 mt-1 w-56 rounded-md bg-white shadow-lg border border-gray-200 max-h-60 overflow-auto">
-                    <div className="py-1">
-                      <button
-                        onClick={clearNameFilter}
-                        className={`block w-full text-left px-4 py-2 text-sm ${!nameFilter ? 'bg-purple-100 text-purple-900' : 'text-gray-700 hover:bg-gray-100'}`}
-                      >
-                        All Names
-                      </button>
-                      {allNames.map(name => (
-                        <button
-                          key={name}
-                          onClick={() => handleNameFilterSelect(name)}
-                          className={`block w-full text-left px-4 py-2 text-sm ${nameFilter === name ? 'bg-purple-100 text-purple-900' : 'text-gray-700 hover:bg-gray-100'}`}
-                        >
-                          {name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+             <div className="relative">
+  <div className="flex items-center gap-2">
+    {/* Input with datalist for autocomplete */}
+    <div className="relative">
+      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+      <input
+        type="text"
+        list="nameOptions"
+        placeholder="Type to filter by name..."
+        value={nameFilter}
+        onChange={(e) => setNameFilter(e.target.value)}
+        className="w-48 pl-10 pr-4 py-2 border border-purple-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+      />
+      <datalist id="nameOptions">
+        {allNames.map(name => (
+          <option key={name} value={name} />
+        ))}
+      </datalist>
+      
+      {/* Clear button for input */}
+      {nameFilter && (
+        <button
+          onClick={clearNameFilter}
+          className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+        >
+          <X size={16} />
+        </button>
+      )}
+    </div>
+    
+    {/* Dropdown button */}
+    <button
+      onClick={() => toggleDropdown('name')}
+      className="flex items-center gap-1 px-3 py-2 border border-purple-200 rounded-md bg-white text-sm text-gray-700 hover:bg-gray-50"
+    >
+      <ChevronDown size={16} className={`transition-transform ${dropdownOpen.name ? 'rotate-180' : ''}`} />
+    </button>
+  </div>
+  
+  {/* Dropdown menu */}
+  {dropdownOpen.name && (
+    <div className="absolute z-50 mt-1 w-56 rounded-md bg-white shadow-lg border border-gray-200 max-h-60 overflow-auto top-full right-0">
+      <div className="py-1">
+        <button
+          onClick={clearNameFilter}
+          className={`block w-full text-left px-4 py-2 text-sm ${!nameFilter ? 'bg-purple-100 text-purple-900' : 'text-gray-700 hover:bg-gray-100'}`}
+        >
+          All Names
+        </button>
+        {allNames.map(name => (
+          <button
+            key={name}
+            onClick={() => {
+              handleNameFilterSelect(name);
+              setDropdownOpen({ ...dropdownOpen, name: false });
+            }}
+            className={`block w-full text-left px-4 py-2 text-sm ${nameFilter === name ? 'bg-purple-100 text-purple-900' : 'text-gray-700 hover:bg-gray-100'}`}
+          >
+            {name}
+          </button>
+        ))}
+      </div>
+    </div>
+  )}
+</div>
 
               <div className="relative">
                 <button

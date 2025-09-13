@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, User, Building, X, Save, Edit, Trash2, Settings } from 'lucide-react';
+// import { Plus, User, Building, X, Save, Edit, Trash2, Settings } from 'lucide-react';
+import { Plus, User, Building, X, Save, Edit, Trash2, Settings, Search, ChevronDown } from 'lucide-react';
 import AdminLayout from '../components/layout/AdminLayout';
 import { useDispatch, useSelector } from 'react-redux';
 import { createDepartment, createUser, deleteUser, departmentDetails, updateDepartment, updateUser, userDetails } from '../redux/slice/settingSlice';
@@ -11,6 +12,25 @@ const Setting = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [currentDeptId, setCurrentDeptId] = useState(null);
+  const [usernameFilter, setUsernameFilter] = useState('');
+const [usernameDropdownOpen, setUsernameDropdownOpen] = useState(false);
+
+// Add this function to handle username filter selection
+const handleUsernameFilterSelect = (username) => {
+  setUsernameFilter(username);
+  setUsernameDropdownOpen(false);
+};
+
+// Add this function to clear username filter
+const clearUsernameFilter = () => {
+  setUsernameFilter('');
+  setUsernameDropdownOpen(false);
+};
+
+// Add this function to toggle username dropdown
+const toggleUsernameDropdown = () => {
+  setUsernameDropdownOpen(!usernameDropdownOpen);
+};
 
   const{settings,userData,department}=useSelector((state)=>state.setting)
   const dispatch =useDispatch();
@@ -340,10 +360,73 @@ const handleEditDepartment = (deptId) => {
         {/* Users Tab */}
         {activeTab === 'users' && (
           <div className="bg-white shadow rounded-lg overflow-hidden border border-purple-200">
-            <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple px-6 py-4  border-gray-200 flex justify-between items-center">
-              <h2 className="text-lg font-medium text-purple-700">User List</h2>
-             
-            </div>
+            <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple px-6 py-4 border-gray-200 flex justify-between items-center">
+  <h2 className="text-lg font-medium text-purple-700">User List</h2>
+  
+  {/* Username Filter */}
+  <div className="relative">
+    <div className="flex items-center gap-2">
+      {/* Input with datalist for autocomplete */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+        <input
+          type="text"
+          list="usernameOptions"
+          placeholder="Filter by username..."
+          value={usernameFilter}
+          onChange={(e) => setUsernameFilter(e.target.value)}
+          className="w-48 pl-10 pr-8 py-2 border border-purple-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+        />
+        <datalist id="usernameOptions">
+          {userData?.map(user => (
+            <option key={user.id} value={user.user_name} />
+          ))}
+        </datalist>
+        
+        {/* Clear button for input */}
+        {usernameFilter && (
+          <button
+            onClick={clearUsernameFilter}
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+          >
+            <X size={16} />
+          </button>
+        )}
+      </div>
+      
+      {/* Dropdown button */}
+      <button
+        onClick={toggleUsernameDropdown}
+        className="flex items-center gap-1 px-3 py-2 border border-purple-200 rounded-md bg-white text-sm text-gray-700 hover:bg-gray-50"
+      >
+        <ChevronDown size={16} className={`transition-transform ${usernameDropdownOpen ? 'rotate-180' : ''}`} />
+      </button>
+    </div>
+    
+    {/* Dropdown menu */}
+    {usernameDropdownOpen && (
+      <div className="absolute z-50 mt-1 w-56 rounded-md bg-white shadow-lg border border-gray-200 max-h-60 overflow-auto top-full right-0">
+        <div className="py-1">
+          <button
+            onClick={clearUsernameFilter}
+            className={`block w-full text-left px-4 py-2 text-sm ${!usernameFilter ? 'bg-purple-100 text-purple-900' : 'text-gray-700 hover:bg-gray-100'}`}
+          >
+            All Usernames
+          </button>
+          {userData?.map(user => (
+            <button
+              key={user.id}
+              onClick={() => handleUsernameFilterSelect(user.user_name)}
+              className={`block w-full text-left px-4 py-2 text-sm ${usernameFilter === user.user_name ? 'bg-purple-100 text-purple-900' : 'text-gray-700 hover:bg-gray-100'}`}
+            >
+              {user.user_name}
+            </button>
+          ))}
+        </div>
+      </div>
+    )}
+  </div>
+</div>
             
             <div className=" h-[calc(100vh-275px)] overflow-auto" style={{ maxHeight: 'calc(100vh - 220px)' }} >
               <table className="min-w-full divide-y divide-gray-200">
@@ -370,8 +453,12 @@ const handleEditDepartment = (deptId) => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {userData?.map((user,index) => (
-                    <tr key={index} className="hover:bg-gray-50">
+                  {userData
+  ?.filter(user => 
+    !usernameFilter || user.user_name.toLowerCase().includes(usernameFilter.toLowerCase())
+  )
+  .map((user, index) => (
+    <tr key={index} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="text-sm font-medium text-gray-900">{user?.user_name}</div>
