@@ -4,9 +4,9 @@ export const fetchUserDetailsApi = async () => {
   try {
     const { data, error } = await supabase
       .from("users")
-      .select('*')
-      .not("user_name", "is", null) // Exclude null
-      .neq("user_name", "");        // Exclude empty strings
+      .select('*, user_access') // Add user_access to the select
+      .not("user_name", "is", null)
+      .neq("user_name", "");
 
     if (error) {
       console.log("Error when fetching data", error);
@@ -71,17 +71,18 @@ export const createUserApi = async (newUser) => {
     const newId = lastId + 1;
 
     // Step 2: Insert user with new ID
-    const { data, error } = await supabase
+     const { data, error } = await supabase
       .from("users")
       .insert([
         {
-          id: newId, // 👈 manually setting the next ID
+          id: newId,
           user_name: newUser.username,
           password: newUser.password,
           email_id: newUser.email,
           number: newUser.phone,
           role: newUser.role,
-          status: newUser.status
+          status: newUser.status,
+          user_access: newUser.user_access // Add this line
         }
       ]);
 
@@ -107,7 +108,8 @@ export const updateUserDataApi = async ({ id, updatedUser }) => {
         email_id: updatedUser.email_id,
         number: updatedUser.number,
         role: updatedUser.role,
-        status: updatedUser.status
+        status: updatedUser.status,
+        user_access: updatedUser.user_access // Add this line
       })
       .eq("id", id);
 

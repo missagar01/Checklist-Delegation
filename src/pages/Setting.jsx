@@ -97,9 +97,9 @@ const toggleUsernameDropdown = () => {
   });
 
 useEffect(() => {
-    dispatch(userDetails())
-    
-  }, [dispatch]);
+  dispatch(userDetails());
+  dispatch(departmentDetails()); // Fetch departments on mount
+}, [dispatch])
 
  // In your handleAddUser function:
 // Modified handleAddUser
@@ -107,6 +107,7 @@ const handleAddUser = async (e) => {
   e.preventDefault();
   const newUser = {
     ...userForm,
+    user_access: userForm.department, // Add this line
   };
 
   try {
@@ -128,7 +129,8 @@ const handleUpdateUser = async (e) => {
     email_id: userForm.email,
     number: userForm.phone,
     role: userForm.role,
-    status: userForm.status
+    status: userForm.status,
+    user_access: userForm.department // Add this line
   };
   
   try {
@@ -185,8 +187,14 @@ const handleDeleteUser = async (userId) => {
 };
   // Handle tab change
   const handleTabChange = (tab) => {
-    setActiveTab(tab);
-  };
+  setActiveTab(tab);
+  if (tab === 'users') {
+    dispatch(userDetails());
+    dispatch(departmentDetails()); // Ensure departments are fetched
+  } else if (tab === 'departments') {
+    dispatch(departmentDetails());
+  }
+};
 
   // User form handlers
   const handleUserInputChange = (e) => {
@@ -208,20 +216,17 @@ const handleDeleteUser = async (userId) => {
 const handleEditUser = (userId) => {
   const user = userData.find(u => u.id === userId);
   setUserForm({
-    username: user.user_name,  // Match your API response field names
+    username: user.user_name,
     email: user.email_id,
     password: user.password,
     phone: user.number,
+    department: user.user_access || '', // Add this line
     role: user.role,
     status: user.status
   });
-  setCurrentUserId(userId); 
-  // Keep track of ID internally
-
+  setCurrentUserId(userId);
   setIsEditing(true);
-
   setShowUserModal(true);
-  
 };
 
 const handleEditDepartment = (deptId) => {
@@ -245,19 +250,19 @@ const handleEditDepartment = (deptId) => {
  
 
   const resetUserForm = () => {
-    setUserForm({
-      username: '',
-      email: '',
-      password: '',
-      phone: '',
-      department: '',
-      givenBy: '',
-      role: 'user',
-      status: 'active'
-    });
-    setIsEditing(false);
-    setCurrentUserId(null);
-  };
+  setUserForm({
+    username: '',
+    email: '',
+    password: '',
+    phone: '',
+    department: '', // Add this line
+    givenBy: '',
+    role: 'user',
+    status: 'active'
+  });
+  setIsEditing(false);
+  setCurrentUserId(null);
+};
 
   // Department form handlers
   const handleDeptInputChange = (e) => {
@@ -442,6 +447,9 @@ const handleEditDepartment = (deptId) => {
                       Phone No.
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+  Department
+</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -470,6 +478,9 @@ const handleEditDepartment = (deptId) => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">{user?.number}</div>
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+  <div className="text-sm text-gray-900">{user?.user_access || 'N/A'}</div>
+</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(user?.status)}`}>
                           {user?.status}
@@ -661,6 +672,30 @@ const handleEditDepartment = (deptId) => {
                             <option value="admin">Admin</option>
                           </select>
                         </div>
+
+                       <div className="sm:col-span-3">
+  <label htmlFor="department" className="block text-sm font-medium text-gray-700">
+    Department
+  </label>
+  <select
+    id="department"
+    name="department"
+    value={userForm.department}
+    onChange={handleUserInputChange}
+    className="mt-1 block w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+  >
+    <option value="">Select Department</option>
+    {department && department.length > 0 ? (
+      department.map((dept) => (
+        <option key={dept.id} value={dept.department}>
+          {dept.department}
+        </option>
+      ))
+    ) : (
+      <option value="" disabled>Loading departments...</option>
+    )}
+  </select>
+</div>
 
                         <div className="sm:col-span-3">
                           <label htmlFor="status" className="block text-sm font-medium text-gray-700">

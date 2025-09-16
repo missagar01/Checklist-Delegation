@@ -1,6 +1,6 @@
 "use client"
 
-import { Filter } from "lucide-react"
+import { Filter, ChevronDown, ChevronUp } from "lucide-react"
 import { useState, useEffect, useCallback } from "react"
 import { fetchDashboardDataApi, getDashboardDataCount } from "../../../redux/api/dashboardApi"
 
@@ -14,24 +14,26 @@ export default function TaskNavigationTabs({
   setFilterStaff,
   departmentData,
   getFrequencyColor,
-  dashboardStaffFilter
+  dashboardStaffFilter,
+  departmentFilter // Add this prop
 }) {
   const [currentPage, setCurrentPage] = useState(1)
   const [displayedTasks, setDisplayedTasks] = useState([])
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [hasMoreData, setHasMoreData] = useState(true)
   const [totalCount, setTotalCount] = useState(0)
+  const [isFilterExpanded, setIsFilterExpanded] = useState(false) // Add this state
   const itemsPerPage = 50
 
-  // Reset pagination when filters change - FIXED: Added dashboardStaffFilter dependency
+  // Reset pagination when filters change
   useEffect(() => {
     setCurrentPage(1)
     setDisplayedTasks([])
     setHasMoreData(true)
     setTotalCount(0)
-  }, [taskView, dashboardType, dashboardStaffFilter]) // FIXED: Added dashboardStaffFilter here
+  }, [taskView, dashboardType, dashboardStaffFilter, departmentFilter]) // Add departmentFilter
 
-  // Function to load tasks from server - FIXED: Updated to properly use dashboardStaffFilter
+  // Function to load tasks from server
   const loadTasksFromServer = useCallback(async (page = 1, append = false) => {
     if (isLoadingMore) return;
     
@@ -42,22 +44,23 @@ export default function TaskNavigationTabs({
         dashboardType, 
         dashboardStaffFilter, 
         taskView, 
-        page 
-      }); // Debug log
+        page,
+        departmentFilter 
+      });
       
-      // FIXED: Use dashboardStaffFilter instead of filterStaff for server call
+      // Use departmentFilter for server call (only affects table data)
       const data = await fetchDashboardDataApi(
         dashboardType, 
-        dashboardStaffFilter, // This ensures server-side filtering works correctly
+        dashboardStaffFilter,
         page, 
         itemsPerPage, 
-        taskView
+        taskView,
+        departmentFilter // Pass department filter to API
       )
 
       // Get total count for this view (only on first load)
       if (page === 1) {
-        // FIXED: Use dashboardStaffFilter for count as well
-        const count = await getDashboardDataCount(dashboardType, dashboardStaffFilter, taskView)
+        const count = await getDashboardDataCount(dashboardType, dashboardStaffFilter, taskView, departmentFilter)
         setTotalCount(count)
       }
 
@@ -70,7 +73,7 @@ export default function TaskNavigationTabs({
         return
       }
 
-      console.log('Raw data received:', data.length, 'records'); // Debug log
+      console.log('Raw data received:', data.length, 'records');
 
       // Process the data similar to your existing logic
       const processedTasks = data.map((task) => {
@@ -93,10 +96,11 @@ export default function TaskNavigationTabs({
           status,
           frequency: task.frequency || "one-time",
           rating: task.color_code_for || 0,
+          department: task.department || "N/A", // Add department field
         }
       })
 
-      console.log('Processed tasks:', processedTasks.length, 'records'); // Debug log
+      console.log('Processed tasks:', processedTasks.length, 'records');
 
       // Apply client-side search filter if needed
       let filteredTasks = processedTasks.filter((task) => {
@@ -111,10 +115,7 @@ export default function TaskNavigationTabs({
         return true
       })
 
-      console.log('Final filtered tasks:', filteredTasks.length, 'records'); // Debug log
-
-      // REMOVED: Client-side staff filtering since server already handles it via dashboardStaffFilter
-      // The server-side filtering via dashboardStaffFilter is sufficient
+      console.log('Final filtered tasks:', filteredTasks.length, 'records');
 
       if (append) {
         setDisplayedTasks(prev => [...prev, ...filteredTasks])
@@ -130,9 +131,9 @@ export default function TaskNavigationTabs({
     } finally {
       setIsLoadingMore(false)
     }
-  }, [dashboardType, dashboardStaffFilter, taskView, searchQuery, isLoadingMore, itemsPerPage]) // FIXED: Complete dependency array
+  }, [dashboardType, dashboardStaffFilter, taskView, searchQuery, departmentFilter, isLoadingMore, itemsPerPage])
 
-  // Helper functions (add these to your component)
+  // Helper functions
   const parseTaskStartDate = (dateStr) => {
     if (!dateStr || typeof dateStr !== "string") return null
 
@@ -183,22 +184,22 @@ export default function TaskNavigationTabs({
     return checkDate < today
   }
 
-  // FIXED: Initial load when component mounts or key dependencies change
+  // Initial load when component mounts or key dependencies change
   useEffect(() => {
     loadTasksFromServer(1, false)
-  }, [taskView, dashboardType, dashboardStaffFilter]) // FIXED: Added dashboardStaffFilter
+  }, [taskView, dashboardType, dashboardStaffFilter, departmentFilter])
 
   // Load more when search changes (client-side filter)
   useEffect(() => {
     if (currentPage === 1) {
       loadTasksFromServer(1, false)
     }
-  }, [searchQuery]) // REMOVED: filterStaff dependency since it's not used anymore
+  }, [searchQuery])
 
-  // FIXED: Reset local staff filter when dashboardStaffFilter changes
+  // Reset local staff filter when dashboardStaffFilter changes
   useEffect(() => {
     if (dashboardStaffFilter !== "all") {
-      setFilterStaff("all") // Reset local filter since dashboard filter is active
+      setFilterStaff("all")
     }
   }, [dashboardStaffFilter])
 
@@ -264,30 +265,90 @@ export default function TaskNavigationTabs({
       </div>
 
       <div className="p-4">
-        <div className="flex flex-col gap-4 md:flex-row mb-4">
-          <div className="flex-1 space-y-2">
-            <label htmlFor="search" className="flex items-center text-purple-700">
-              <Filter className="h-4 w-4 mr-2" />
-              Search Tasks
-            </label>
-            <input
-              id="search"
-              placeholder="Search by task title or ID"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-md border border-purple-200 p-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
-            />
-          </div>
+        {/* Accordion Filter Section */}
+        <div className="mb-4 border border-gray-200 rounded-lg">
+          <button
+            onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+            className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 transition-colors rounded-t-lg"
+          >
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-purple-600" />
+              <span className="font-medium text-purple-700">Filters</span>
+              {(searchQuery || dashboardStaffFilter !== "all" || departmentFilter !== "all") && (
+                <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs">
+                  Active
+                </span>
+              )}
+            </div>
+            {isFilterExpanded ? (
+              <ChevronUp className="h-4 w-4 text-gray-600" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-gray-600" />
+            )}
+          </button>
+          
+          {isFilterExpanded && (
+            <div className="p-4 border-t border-gray-200">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label htmlFor="search" className="block text-sm font-medium text-gray-700">
+                    Search Tasks
+                  </label>
+                  <input
+                    id="search"
+                    placeholder="Search by task title or ID"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full rounded-md border border-gray-300 p-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  />
+                </div>
+                
+                {/* Active Filters Display */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Active Filters
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {dashboardStaffFilter !== "all" && (
+                      <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
+                        Staff: {dashboardStaffFilter}
+                      </span>
+                    )}
+                    {departmentFilter !== "all" && (
+                      <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs">
+                        Department: {departmentFilter}
+                      </span>
+                    )}
+                    {searchQuery && (
+                      <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs">
+                        Search: {searchQuery}
+                      </span>
+                    )}
+                    {!dashboardStaffFilter || dashboardStaffFilter === "all" && 
+                     !departmentFilter || departmentFilter === "all" && 
+                     !searchQuery && (
+                      <span className="text-xs text-gray-500">No active filters</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Show total count */}
         {totalCount > 0 && (
           <div className="mb-4 text-sm text-gray-600">
             Total {taskView} tasks: {totalCount} | Showing: {displayedTasks.length}
-            {dashboardStaffFilter !== "all" && (
-              <span className="ml-2 px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs">
-                Staff: {dashboardStaffFilter}
-              </span>
+            {(dashboardStaffFilter !== "all" || departmentFilter !== "all") && (
+              <div className="mt-1 text-xs">
+                {dashboardStaffFilter !== "all" && (
+                  <span className="mr-3">Filtered by Staff: {dashboardStaffFilter}</span>
+                )}
+                {departmentFilter !== "all" && (
+                  <span>Filtered by Department: {departmentFilter}</span>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -295,8 +356,8 @@ export default function TaskNavigationTabs({
         {displayedTasks.length === 0 && !isLoadingMore ? (
           <div className="text-center p-8 text-gray-500">
             <p>No tasks found for {taskView} view.</p>
-            {dashboardStaffFilter !== "all" && (
-              <p className="text-sm mt-2">Try selecting "All Staff Members" to see more results.</p>
+            {(dashboardStaffFilter !== "all" || departmentFilter !== "all") && (
+              <p className="text-sm mt-2">Try adjusting your filters to see more results.</p>
             )}
           </div>
         ) : (
@@ -316,6 +377,11 @@ export default function TaskNavigationTabs({
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Assigned To
                   </th>
+                  {dashboardType === "checklist" && (
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Department
+                    </th>
+                  )}
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Task Start Date
                   </th>
@@ -330,6 +396,9 @@ export default function TaskNavigationTabs({
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{task.id}</td>
                     <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{task.title}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{task.assignedTo}</td>
+                    {dashboardType === "checklist" && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{task.department}</td>
+                    )}
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{task.taskStartDate}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getFrequencyColor(task.frequency)}`}>

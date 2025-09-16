@@ -17,6 +17,7 @@ import {
   totalTaskInTable,
 } from "../../redux/slice/dashboardSlice.js"
 import { fetchDashboardDataApi } from "../../redux/api/dashboardApi.js"
+import { getUniqueDepartmentsApi } from "../../redux/api/dashboardApi.js"
 
 export default function AdminDashboard() {
   const [dashboardType, setDashboardType] = useState("checklist")
@@ -36,6 +37,8 @@ export default function AdminDashboard() {
   const [hasMoreData, setHasMoreData] = useState(true)
   const [allTasks, setAllTasks] = useState([])
   const [batchSize] = useState(1000) // Increased batch size for better performance
+  const [departmentFilter, setDepartmentFilter] = useState("all")
+const [availableDepartments, setAvailableDepartments] = useState([])
 
   
 
@@ -235,7 +238,7 @@ export default function AdminDashboard() {
     return date.getTime() === tomorrow.getTime()
   }
 
-  const fetchDepartmentData = async (page = 1, append = false) => {
+const fetchDepartmentData = async (page = 1, append = false) => {
   try {
     if (page === 1) {
       setIsLoadingMore(true)
@@ -244,8 +247,8 @@ export default function AdminDashboard() {
       setIsLoadingMore(true)
     }
     
-    // Use the updated API function
-    const data = await fetchDashboardDataApi(dashboardType, dashboardStaffFilter, page, batchSize, 'all')
+    // Use the updated API function with department filter
+    const data = await fetchDashboardDataApi(dashboardType, dashboardStaffFilter, page, batchSize, 'all', departmentFilter)
 
     if (!data || data.length === 0) {
       if (page === 1) {
@@ -454,6 +457,25 @@ const processedTasks = filteredData
     }
   }
 
+  const fetchDepartments = async () => {
+  if (dashboardType === 'checklist') {
+    try {
+      const departments = await getUniqueDepartmentsApi()
+      setAvailableDepartments(departments)
+    } catch (error) {
+      console.error('Error fetching departments:', error)
+      setAvailableDepartments([])
+    }
+  } else {
+    setAvailableDepartments([])
+  }
+}
+
+
+useEffect(() => {
+  fetchDepartments()
+}, [dashboardType])
+
 
   // Add scroll event listener for infinite scroll
   useEffect(() => {
@@ -476,36 +498,41 @@ const processedTasks = filteredData
     }
   }, [isLoadingMore, hasMoreData])
 
-  useEffect(() => {
-    // Fetch detailed data for charts and tables
-    fetchDepartmentData(1, false)
+useEffect(() => {
+  // Fetch detailed data for charts and tables
+  fetchDepartmentData(1, false)
 
-    // Update Redux state counts with staff filter
-    dispatch(
-      totalTaskInTable({
-        dashboardType,
-        staffFilter: dashboardStaffFilter,
-      }),
-    )
-    dispatch(
-      completeTaskInTable({
-        dashboardType,
-        staffFilter: dashboardStaffFilter,
-      }),
-    )
-    dispatch(
-      pendingTaskInTable({
-        dashboardType,
-        staffFilter: dashboardStaffFilter,
-      }),
-    )
-    dispatch(
-      overdueTaskInTable({
-        dashboardType,
-        staffFilter: dashboardStaffFilter,
-      }),
-    )
-  }, [dashboardType, dashboardStaffFilter, dispatch])
+  // Update Redux state counts with staff and department filters
+  dispatch(
+    totalTaskInTable({
+      dashboardType,
+      staffFilter: dashboardStaffFilter,
+      departmentFilter, // Add this
+    }),
+  )
+  dispatch(
+    completeTaskInTable({
+      dashboardType,
+      staffFilter: dashboardStaffFilter,
+      departmentFilter, // Add this
+    }),
+  )
+  dispatch(
+    pendingTaskInTable({
+      dashboardType,
+      staffFilter: dashboardStaffFilter,
+      departmentFilter, // Add this
+    }),
+  )
+  dispatch(
+    overdueTaskInTable({
+      dashboardType,
+      staffFilter: dashboardStaffFilter,
+      departmentFilter, // Add this
+    }),
+  )
+}, [dashboardType, dashboardStaffFilter, departmentFilter, dispatch]) // Add departmentFilter to dependency array
+
 
   // Filter tasks based on criteria
   const filteredTasks = departmentData.allTasks.filter((task) => {
@@ -526,10 +553,11 @@ const processedTasks = filteredData
 
   // Reset dashboard staff filter when dashboard type changes
   useEffect(() => {
-    setDashboardStaffFilter("all")
-    setCurrentPage(1)
-    setHasMoreData(true)
-  }, [dashboardType])
+  setDashboardStaffFilter("all")
+  setDepartmentFilter("all") // Add this line
+  setCurrentPage(1)
+  setHasMoreData(true)
+}, [dashboardType])
 
   const getTasksByView = (view) => {
   return filteredTasks.filter((task) => {
@@ -670,15 +698,19 @@ const processedTasks = filteredData
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <DashboardHeader
-          dashboardType={dashboardType}
-          setDashboardType={setDashboardType}
-          dashboardStaffFilter={dashboardStaffFilter}
-          setDashboardStaffFilter={setDashboardStaffFilter}
-          availableStaff={availableStaff}
-          userRole={userRole}
-          username={username}
-        />
+       <DashboardHeader
+  dashboardType={dashboardType}
+  setDashboardType={setDashboardType}
+  dashboardStaffFilter={dashboardStaffFilter}
+  setDashboardStaffFilter={setDashboardStaffFilter}
+  availableStaff={availableStaff}
+  userRole={userRole}
+  username={username}
+  // Add these new props
+  departmentFilter={departmentFilter}
+  setDepartmentFilter={setDepartmentFilter}
+  availableDepartments={availableDepartments}
+/>
 
         <StatisticsCards
           totalTask={totalTask}
@@ -688,21 +720,22 @@ const processedTasks = filteredData
           dashboardType={dashboardType}
         />
 
-        <TaskNavigationTabs
-          taskView={taskView}
-          setTaskView={setTaskView}
-          dashboardType={dashboardType}
-          dashboardStaffFilter={dashboardStaffFilter} // ← ADD THIS LINE
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          filterStaff={filterStaff}
-          setFilterStaff={setFilterStaff}
-          departmentData={departmentData}
-          getTasksByView={getTasksByView}
-          getFrequencyColor={getFrequencyColor}
-          isLoadingMore={isLoadingMore}
-          hasMoreData={hasMoreData}
-        />
+       <TaskNavigationTabs
+  taskView={taskView}
+  setTaskView={setTaskView}
+  dashboardType={dashboardType}
+  dashboardStaffFilter={dashboardStaffFilter}
+  departmentFilter={departmentFilter} // Add this line
+  searchQuery={searchQuery}
+  setSearchQuery={setSearchQuery}
+  filterStaff={filterStaff}
+  setFilterStaff={setFilterStaff}
+  departmentData={departmentData}
+  getTasksByView={getTasksByView}
+  getFrequencyColor={getFrequencyColor}
+  isLoadingMore={isLoadingMore}
+  hasMoreData={hasMoreData}
+/>
 
         <CompletionRateCard departmentData={departmentData} />
 
@@ -755,10 +788,11 @@ const processedTasks = filteredData
       </div>
       <div className="p-4">
         <StaffTasksTable 
-          dashboardType={dashboardType}
-          dashboardStaffFilter={dashboardStaffFilter}
-          parseTaskStartDate={parseTaskStartDate}
-        />
+  dashboardType={dashboardType}
+  dashboardStaffFilter={dashboardStaffFilter}
+  departmentFilter={departmentFilter} // Add this line
+  parseTaskStartDate={parseTaskStartDate}
+/>
       </div>
     </div>
   </div>

@@ -3,7 +3,12 @@
 import { useState, useEffect, useCallback } from "react"
 import { fetchStaffTasksDataApi, getStaffTasksCountApi } from "../../../redux/api/dashboardApi"
 
-export default function StaffTasksTable({ dashboardType, dashboardStaffFilter, parseTaskStartDate }) {
+export default function StaffTasksTable({ 
+  dashboardType, 
+  dashboardStaffFilter, 
+  departmentFilter, // Add this prop
+  parseTaskStartDate 
+}) {
   const [currentPage, setCurrentPage] = useState(1)
   const [staffMembers, setStaffMembers] = useState([])
   const [isLoadingMore, setIsLoadingMore] = useState(false)
@@ -11,13 +16,13 @@ export default function StaffTasksTable({ dashboardType, dashboardStaffFilter, p
   const [totalCount, setTotalCount] = useState(0)
   const itemsPerPage = 20
 
-  // Reset pagination when filters change
+  // Reset pagination when filters change - Add departmentFilter to dependencies
   useEffect(() => {
     setCurrentPage(1)
     setStaffMembers([])
     setHasMoreData(true)
     setTotalCount(0)
-  }, [dashboardType, dashboardStaffFilter])
+  }, [dashboardType, dashboardStaffFilter, departmentFilter])
 
   // Function to load staff data from server
   const loadStaffData = useCallback(async (page = 1, append = false) => {
@@ -26,12 +31,17 @@ export default function StaffTasksTable({ dashboardType, dashboardStaffFilter, p
     try {
       setIsLoadingMore(true)
       
+      // NOTE: If you want department filtering to affect staff table, 
+      // you would need to update fetchStaffTasksDataApi to accept departmentFilter
+      // For now, this only affects the main task table, not staff summary
+      
       // Fetch staff data with their task summaries
       const data = await fetchStaffTasksDataApi(
         dashboardType,
         dashboardStaffFilter,
         page,
         itemsPerPage
+        // departmentFilter can be added here if you want to filter staff by department too
       )
 
       // Get total count for pagination info (only on first load)
@@ -63,12 +73,12 @@ export default function StaffTasksTable({ dashboardType, dashboardStaffFilter, p
     } finally {
       setIsLoadingMore(false)
     }
-  }, [dashboardType, dashboardStaffFilter, isLoadingMore])
+  }, [dashboardType, dashboardStaffFilter, departmentFilter, isLoadingMore])
 
   // Initial load when component mounts or dependencies change
   useEffect(() => {
     loadStaffData(1, false)
-  }, [dashboardType, dashboardStaffFilter])
+  }, [dashboardType, dashboardStaffFilter, departmentFilter])
 
   // Function to load more data when scrolling
   const loadMoreData = () => {
@@ -104,16 +114,35 @@ export default function StaffTasksTable({ dashboardType, dashboardStaffFilter, p
 
   return (
     <div className="space-y-4">
-      {/* Show total count */}
-      {totalCount > 0 && (
-        <div className="text-sm text-gray-600">
-          Total staff members: {totalCount} | Showing: {staffMembers.length}
+      {/* Show total count and active filters */}
+      <div className="flex justify-between items-center">
+        {totalCount > 0 && (
+          <div className="text-sm text-gray-600">
+            Total staff members: {totalCount} | Showing: {staffMembers.length}
+          </div>
+        )}
+        
+        {/* Show active filters */}
+        <div className="flex gap-2">
+          {dashboardStaffFilter !== "all" && (
+            <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
+              Staff: {dashboardStaffFilter}
+            </span>
+          )}
+          {departmentFilter !== "all" && dashboardType === "checklist" && (
+            <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs">
+              Dept Filter: {departmentFilter}
+            </span>
+          )}
         </div>
-      )}
+      </div>
 
       {staffMembers.length === 0 && !isLoadingMore ? (
         <div className="text-center p-8 text-gray-500">
           <p>No staff data found.</p>
+          {dashboardStaffFilter !== "all" && (
+            <p className="text-sm mt-2">Try selecting "All Staff Members" to see more results.</p>
+          )}
         </div>
       ) : (
         <div 

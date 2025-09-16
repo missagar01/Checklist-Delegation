@@ -8,6 +8,10 @@ export default function DashboardHeader({
   availableStaff,
   userRole,
   username,
+  // Add new props for department filtering
+  departmentFilter,
+  setDepartmentFilter,
+  availableDepartments,
 }) {
   return (
     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -22,6 +26,22 @@ export default function DashboardHeader({
           <option value="checklist">Checklist</option>
           <option value="delegation">Delegation</option>
         </select>
+
+        {/* Department Filter - Only show for checklist */}
+        {dashboardType === "checklist" && userRole === "admin" && (
+          <select
+            value={departmentFilter}
+            onChange={(e) => setDepartmentFilter(e.target.value)}
+            className="w-[160px] rounded-md border border-purple-200 p-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+          >
+            <option value="all">All Departments</option>
+            {availableDepartments.map((dept) => (
+              <option key={dept} value={dept}>
+                {dept}
+              </option>
+            ))}
+          </select>
+        )}
 
         {/* Dashboard Staff Filter */}
         {userRole === "admin" ? (
