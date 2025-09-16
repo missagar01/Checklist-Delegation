@@ -8,7 +8,7 @@ import { LoginCredentialsApi } from "../redux/api/loginApi"
 
 const LoginPage = () => {
   const navigate = useNavigate()
-    const { isLoggedIn,userData } = useSelector((state) => state.login);
+  const { isLoggedIn, userData, error } = useSelector((state) => state.login); // Added error from state
   const dispatch = useDispatch();
  
   const [isDataLoading, setIsDataLoading] = useState(false)
@@ -37,18 +37,22 @@ const LoginPage = () => {
   // }
 
 
-const handleSubmit = (e) => {
-  e.preventDefault();
-  dispatch(loginUser(formData)); 
-};
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setIsLoginLoading(true); // Add loading state
+    dispatch(loginUser(formData)); 
+  };
 
-useEffect(() => {
-  if (isLoggedIn && userData) {
-    localStorage.setItem('user-name', userData.user_name); 
-    localStorage.setItem('role', userData.role);
-    navigate("/dashboard/admin")
-  }
-}, [isLoggedIn, userData, navigate]); 
+  useEffect(() => {
+    if (isLoggedIn && userData) {
+      localStorage.setItem('user-name', userData.user_name); 
+      localStorage.setItem('role', userData.role);
+      navigate("/dashboard/admin")
+    } else if (error) { // Add error handling
+      showToast(error, "error");
+      setIsLoginLoading(false); // Reset loading on error
+    }
+  }, [isLoggedIn, userData, error, navigate]); // Added error to dependencies
 
 
 
