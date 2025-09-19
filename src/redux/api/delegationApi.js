@@ -5,93 +5,150 @@ import supabase from '../../SupabaseClient';
 export const insertDelegationDoneAndUpdate = createAsyncThunk(
   'delegation/insertDelegationDoneAndUpdate',
   async ({ selectedDataArray, uploadedImages }, { rejectWithValue }) => {
-    const userName = localStorage.getItem('user-name');
-
-    const formatDate = (val) => {
-      if (!val || val === '') return null;
-      const date = new Date(val);
-      return isNaN(date.getTime()) ? null : date.toISOString();
-    };
-
     try {
-      for (const item of selectedDataArray) {
-        let imageUrl = null;
-        const imageFile = uploadedImages[item.task_id];
+      console.log('Processing submission:', { selectedDataArray, uploadedImages });
 
-        // Step 1: Upload image if exists
-        if (imageFile) {
-          const filePath = `${item.task_id}/${crypto.randomUUID()}_${imageFile.name}`;
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('delegation')
-            .upload(filePath, imageFile, {
-              cacheControl: '3600',
-              upsert: true,
-            });
+      const results = [];
 
-          if (uploadError) {
-            console.error('Upload error:', uploadError);
-            throw uploadError;
+      for (const taskData of selectedDataArray) {
+        try {
+          // Step 1: Insert into delegation_done table
+          const delegationDoneData = {
+            task_id: taskData.task_id,
+            status: taskData.status, // Should be 'done' or 'extend'
+            next_extend_date: taskData.next_extend_date || null,
+            reason: taskData.reason || '',
+            name: taskData.name,
+            task_description: taskData.task_description,
+            given_by: taskData.given_by,
+            image_url: taskData.image_url, // Will be updated after image upload
+          };
+
+          console.log('Inserting into delegation_done:', delegationDoneData);
+
+          const { data: doneData, error: doneError } = await supabase
+            .from('delegation_done')
+            .insert([delegationDoneData])
+            .select()
+            .single();
+
+          if (doneError) {
+            console.error('Error inserting delegation_done:', doneError);
+            throw doneError;
           }
 
-          const { data: publicUrlData } = supabase.storage
+          console.log('Successfully inserted delegation_done:', doneData);
+
+          // Step 2: Handle image upload if exists
+          let imageUrl = taskData.image_url;
+          const taskImage = uploadedImages[taskData.task_id];
+
+          if (taskImage) {
+            try {
+              console.log('Uploading image for task:', taskData.task_id);
+              
+              // Create a unique filename
+              const timestamp = Date.now();
+              const fileName = `delegation_${taskData.task_id}_${timestamp}_${taskImage.name}`;
+              
+              // Upload to Supabase storage
+              const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('task-images') // Make sure this bucket exists
+                .upload(fileName, taskImage);
+
+              if (uploadError) {
+                console.error('Image upload error:', uploadError);
+                // Continue without image if upload fails
+              } else {
+                // Get public URL
+                const { data: { publicUrl } } = supabase.storage
+                  .from('task-images')
+                  .getPublicUrl(fileName);
+
+                imageUrl = publicUrl;
+                
+                // Update delegation_done with image URL
+                const { error: updateImageError } = await supabase
+                  .from('delegation_done')
+                  .update({ image_url: imageUrl })
+                  .eq('id', doneData.id);
+
+                if (updateImageError) {
+                  console.error('Error updating image URL:', updateImageError);
+                }
+
+                console.log('Image uploaded successfully:', imageUrl);
+              }
+            } catch (imageError) {
+              console.error('Image processing error:', imageError);
+              // Continue without failing the entire submission
+            }
+          }
+
+          // Step 3: Update delegation table based on status
+          let delegationUpdate = {
+            updated_at: new Date().toISOString(),
+            submission_date: new Date().toISOString()
+          };
+
+          if (taskData.status === 'done') {
+            // Mark as completed
+            delegationUpdate.status = 'done';
+          } else if (taskData.status === 'extend') {
+            // Update planned_date for extension
+            if (taskData.next_extend_date) {
+              delegationUpdate.planned_date = new Date(taskData.next_extend_date).toISOString();
+              delegationUpdate.status = 'extend';
+            }
+          }
+
+          console.log('Updating delegation table:', delegationUpdate);
+
+          const { data: updateData, error: updateError } = await supabase
             .from('delegation')
-            .getPublicUrl(uploadData.path);
+            .update(delegationUpdate)
+            .eq('task_id', taskData.task_id)
+            .select()
+            .single();
 
-          imageUrl = publicUrlData?.publicUrl || null;
-        }
+          if (updateError) {
+            console.error('Error updating delegation:', updateError);
+            throw updateError;
+          }
 
-        // Step 2: Insert into delegation_done table with task_id
-        const { data: insertData, error: insertError } = await supabase
-          .from('delegation_done')
-          .insert([
-            {
-              task_id: item.task_id, // Add the task_id here
-              next_extend_date: item.status === 'Done' ? null : formatDate(item.next_target_date),
-              status: item.status === 'Done' ? 'done' : 'extend',
-              reason: item.remarks,
-              task_description: item.task_description,
-              given_by: item.given_by,
-              name: userName,
-              image_url: imageUrl,
-            },
-          ])
-          .select();
+          console.log('Successfully updated delegation:', updateData);
 
-        if (insertError) {
-          console.error('Insert Error:', insertError);
-          throw insertError;
-        }
+          results.push({
+            task_id: taskData.task_id,
+            status: 'success',
+            delegation_done: doneData,
+            delegation_updated: updateData,
+            image_url: imageUrl
+          });
 
-        console.log('New row created in delegation_done:', insertData);
-
-        // Step 3: Update delegation table
-        const updateFields = {
-          status: item.status === 'Done' ? 'done' : 'extend',
-          submission_date: item.status === 'Done' ? new Date().toISOString() : null,
-          remarks: item.remarks,
-          image: imageUrl,
-        };
-
-        if (item.status !== 'Done') {
-          updateFields.planned_date = formatDate(item.next_target_date);
-        }
-
-        // Step 4: Update delegation table
-        const { error: updateError } = await supabase
-          .from('delegation')
-          .update(updateFields)
-          .eq('task_id', item.task_id);
-
-        if (updateError) {
-          console.error('Update Error:', updateError);
-          throw updateError;
+        } catch (taskError) {
+          console.error(`Error processing task ${taskData.task_id}:`, taskError);
+          results.push({
+            task_id: taskData.task_id,
+            status: 'error',
+            error: taskError.message
+          });
         }
       }
 
-      return { success: true };
+      console.log('All submissions processed:', results);
+
+      // Check if any submissions failed
+      const failedTasks = results.filter(r => r.status === 'error');
+      if (failedTasks.length > 0) {
+        console.warn('Some tasks failed:', failedTasks);
+      }
+
+      return results;
+
     } catch (error) {
-      console.error('Insert/Update Error:', error);
-      return rejectWithValue(error.message || 'Failed to process delegation data');
+      console.error('Batch submission error:', error);
+      return rejectWithValue(error.message);
     }
   }
 );

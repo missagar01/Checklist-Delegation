@@ -7,6 +7,7 @@ import {
   Search,
   History,
   ArrowLeft,
+  Filter,
 } from "lucide-react";
 import AdminLayout from "../components/layout/AdminLayout";
 import { useDispatch, useSelector } from "react-redux";
@@ -75,6 +76,14 @@ function DelegationDataPage() {
   const [endDate, setEndDate] = useState("");
   const [userRole, setUserRole] = useState("");
   const [username, setUsername] = useState("");
+  // Add this with your other state declarations
+const [dateFilter, setDateFilter] = useState("all");
+const filterOptions = [
+  { value: "all", label: "All Tasks" },
+  { value: "overdue", label: "Overdue" },
+  { value: "today", label: "Today" },
+  { value: "upcoming", label: "Upcoming" },
+];
 
   // Debounced search term for better performance
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -468,12 +477,13 @@ function DelegationDataPage() {
   //   [parseDateFromDDMMYYYY],
   // )
 
-  const resetFilters = useCallback(() => {
-    setSearchTerm("");
-    setStartDate("");
-    setEndDate("");
-  }, []);
-
+// Update the resetFilters function to include the date filter
+const resetFilters = useCallback(() => {
+  setSearchTerm("");
+  setStartDate("");
+  setEndDate("");
+  setDateFilter("all"); // Add this line
+}, []);
   // Get color based on data from column R
   const getRowColor = useCallback((colorCode) => {
     if (!colorCode) return "bg-white";
@@ -494,13 +504,20 @@ function DelegationDataPage() {
   }, []);
 
   // Optimized filtered data with debounced search
-  const filteredDelegationTasks = useMemo(() => {
-    if (!delegation) return [];
+// Replace the filteredDelegationTasks function with this updated version
+const filteredDelegationTasks = useMemo(() => {
+  if (!delegation) return [];
 
-    return delegation.filter(
-      (task) =>
-        task &&
-        Object.values(task).some(
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  return delegation.filter((task) => {
+    // Search filter
+    const matchesSearch = debouncedSearchTerm
+      ? Object.values(task).some(
           (value) =>
             value &&
             value
@@ -508,8 +525,32 @@ function DelegationDataPage() {
               .toLowerCase()
               .includes(debouncedSearchTerm.toLowerCase())
         )
-    );
-  }, [delegation, debouncedSearchTerm]);
+      : true;
+
+    // Date filter
+    let matchesDateFilter = true;
+    if (dateFilter !== "all" && task.planned_date) {
+      const plannedDate = new Date(task.planned_date);
+      plannedDate.setHours(0, 0, 0, 0);
+      
+      switch (dateFilter) {
+        case "overdue":
+          matchesDateFilter = plannedDate < today;
+          break;
+        case "today":
+          matchesDateFilter = plannedDate.getTime() === today.getTime();
+          break;
+        case "upcoming":
+          matchesDateFilter = plannedDate >= tomorrow;
+          break;
+        default:
+          matchesDateFilter = true;
+      }
+    }
+
+    return matchesSearch && matchesDateFilter;
+  });
+}, [delegation, debouncedSearchTerm, dateFilter]);
 
   // Updated history filtering with user filter based on column H
   const filteredHistoryData = useMemo(() => {
@@ -854,51 +895,58 @@ function DelegationDataPage() {
   }, [resetFilters]);
 
   const handleSubmit = async () => {
-    const selectedItemsArray = Array.from(selectedItems);
+  const selectedItemsArray = Array.from(selectedItems);
 
-    if (selectedItemsArray.length === 0) {
-      alert("Please select at least one item to submit");
-      return;
-    }
+  if (selectedItemsArray.length === 0) {
+    alert("Please select at least one item to submit");
+    return;
+  }
 
-    const missingStatus = selectedItemsArray.filter((id) => !statusData[id]);
-    if (missingStatus.length > 0) {
-      alert(
-        `Please select a status for all selected items. ${missingStatus.length} item(s) are missing status.`
-      );
-      return;
-    }
-
-    const missingNextDate = selectedItemsArray.filter(
-      (id) => statusData[id] === "Extend date" && !nextTargetDate[id]
+  const missingStatus = selectedItemsArray.filter((id) => !statusData[id]);
+  if (missingStatus.length > 0) {
+    alert(
+      `Please select a status for all selected items. ${missingStatus.length} item(s) are missing status.`
     );
-    if (missingNextDate.length > 0) {
-      alert(
-        `Please select a next target date for all items with "Extend date" status. ${missingNextDate.length} item(s) are missing target date.`
-      );
-      return;
-    }
+    return;
+  }
 
-    const missingRequiredImages = selectedItemsArray.filter((id) => {
-      const item = delegation.find((account) => account.task_id === id);
-      const requiresAttachment =
-        item.require_attachment &&
-        item.require_attachment.toUpperCase() === "YES";
-      return requiresAttachment && !item.image;
-    });
+  const missingNextDate = selectedItemsArray.filter(
+    (id) => statusData[id] === "Extend date" && !nextTargetDate[id]
+  );
+  if (missingNextDate.length > 0) {
+    alert(
+      `Please select a next target date for all items with "Extend date" status. ${missingNextDate.length} item(s) are missing target date.`
+    );
+    return;
+  }
 
-    if (missingRequiredImages.length > 0) {
-      alert(
-        `Please upload images for all required attachments. ${missingRequiredImages.length} item(s) are missing required images.`
-      );
-      return;
-    }
+  const missingRequiredImages = selectedItemsArray.filter((id) => {
+    const item = delegation.find((account) => account.task_id === id);
+    const requiresAttachment =
+      item.require_attachment &&
+      item.require_attachment.toUpperCase() === "YES";
+    return requiresAttachment && !uploadedImages[id] && !item.image;
+  });
 
-    setIsSubmitting(true);
+  if (missingRequiredImages.length > 0) {
+    alert(
+      `Please upload images for all required attachments. ${missingRequiredImages.length} item(s) are missing required images.`
+    );
+    return;
+  }
 
-    // Prepare the selected data to be returned
+  setIsSubmitting(true);
+
+  try {
+    // Prepare the selected data with proper status mapping
     const selectedData = selectedItemsArray.map((id) => {
       const item = delegation.find((account) => account.task_id === id);
+      
+      // Map status to database values
+      const dbStatus = statusData[id] === "Done" ? "done" : 
+                      statusData[id] === "Extend date" ? "extend" : 
+                      statusData[id];
+
       return {
         task_id: item.task_id,
         department: item.department,
@@ -907,26 +955,44 @@ function DelegationDataPage() {
         task_description: item.task_description,
         task_start_date: item.task_start_date,
         planned_date: item.planned_date,
-        status: statusData[id],
-        next_target_date: nextTargetDate[id] || "", // Store the raw date value
-        remarks: remarksData[id] || "",
-        image: uploadedImages[id] || item.image,
+        status: dbStatus, // Use mapped status
+        next_extend_date: statusData[id] === "Extend date" ? nextTargetDate[id] : null,
+        reason: remarksData[id] || "",
+        image_url: uploadedImages[id] ? null : item.image, // Will be updated after upload
         require_attachment: item.require_attachment,
+        // Add submission timestamp
+        submission_timestamp: new Date().toISOString()
       };
     });
 
-    // Here you can do whatever you want with the selectedData
-    console.log("Selected Data:", selectedData);
+    console.log("Selected Data for submission:", selectedData);
 
-   
-   
+    // Process each task individually to ensure proper handling
+    const submissionPromises = selectedData.map(async (taskData) => {
+      const taskImage = uploadedImages[taskData.task_id];
+      
+      return dispatch(
+        insertDelegationDoneAndUpdate({
+          selectedDataArray: [taskData], // Send one task at a time
+          uploadedImages: taskImage ? { [taskData.task_id]: taskImage } : {},
+        })
+      );
+    });
 
-    dispatch(
-      insertDelegationDoneAndUpdate({
-        selectedDataArray: selectedData,
-        uploadedImages: uploadedImages,
-      })
-    );
+    // Wait for all submissions to complete
+    const results = await Promise.allSettled(submissionPromises);
+    
+    // Check for any failures
+    const failedSubmissions = results.filter(result => result.status === 'rejected');
+    
+    if (failedSubmissions.length > 0) {
+      console.error('Some submissions failed:', failedSubmissions);
+      alert(`${failedSubmissions.length} out of ${selectedItemsArray.length} submissions failed. Please check the console for details.`);
+    } else {
+      setSuccessMessage(
+        `Successfully submitted ${selectedItemsArray.length} task records!`
+      );
+    }
 
     // Reset form state
     setSelectedItems(new Set());
@@ -934,16 +1000,20 @@ function DelegationDataPage() {
     setRemarksData({});
     setStatusData({});
     setNextTargetDate({});
-    setIsSubmitting(false);
-    setSuccessMessage(
-      `Successfully prepared ${selectedItemsArray.length} task records for submission!`
-    );
-
     
-     setTimeout(() => {
-    window.location.reload();
-  }, 1000); // You can reduce or increase this delay
-  };
+    // Refresh data
+    setTimeout(() => {
+      dispatch(delegationData());
+      dispatch(delegation_DoneData());
+    }, 1000);
+
+  } catch (error) {
+    console.error('Submission error:', error);
+    alert('An error occurred during submission. Please try again.');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const selectedItemsCount = selectedItems.size;
 
@@ -973,6 +1043,20 @@ function DelegationDataPage() {
                 className="pl-10 pr-4 py-2 border border-purple-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
             </div>
+<div className="flex items-center gap-2">
+  <Filter className="h-4 w-4 text-gray-500" />
+  <select
+    value={dateFilter}
+    onChange={(e) => setDateFilter(e.target.value)}
+    className="border border-gray-300 rounded-md px-2 py-1 text-sm"
+  >
+    {filterOptions.map((option) => (
+      <option key={option.value} value={option.value}>
+        {option.label}
+      </option>
+    ))}
+  </select>
+</div>
 
             <button
               onClick={toggleHistory}
