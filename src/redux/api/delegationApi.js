@@ -53,7 +53,7 @@ export const insertDelegationDoneAndUpdate = createAsyncThunk(
               
               // Upload to Supabase storage
               const { data: uploadData, error: uploadError } = await supabase.storage
-                .from('task-images') // Make sure this bucket exists
+                .from('delegation') // Make sure this bucket exists
                 .upload(fileName, taskImage);
 
               if (uploadError) {
@@ -62,7 +62,7 @@ export const insertDelegationDoneAndUpdate = createAsyncThunk(
               } else {
                 // Get public URL
                 const { data: { publicUrl } } = supabase.storage
-                  .from('task-images')
+                  .from('delegation')
                   .getPublicUrl(fileName);
 
                 imageUrl = publicUrl;
@@ -88,7 +88,9 @@ export const insertDelegationDoneAndUpdate = createAsyncThunk(
           // Step 3: Update delegation table based on status
           let delegationUpdate = {
             updated_at: new Date().toISOString(),
-            submission_date: new Date().toISOString()
+            submission_date: new Date().toISOString(),
+            image:imageUrl,
+            remarks:taskData.reason
           };
 
           if (taskData.status === 'done') {
