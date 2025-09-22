@@ -399,7 +399,13 @@ const getAccessibleRoutes = () => {
         <header className="flex h-14 items-center justify-between border-b border-blue-200 bg-white px-4 md:px-6">
           <div className="flex md:hidden w-8"></div>
           <h1 className="text-lg font-semibold text-blue-700">Checklist & Delegation</h1>
-          <div className="w-8"></div>
+          <div className="flex items-center">
+            <img
+              src="/logo.jpg"
+              alt="Company Logo"
+              className="h-8 w-auto md:h-10 lg:h-12 transition-all duration-300"
+            />
+          </div>
         </header>
         <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-gradient-to-br from-blue-50 to-purple-50">
           {children}
