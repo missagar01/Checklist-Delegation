@@ -13,7 +13,7 @@ const CONFIG = {
   PAGE_CONFIG: {
     title: "Checklist Tasks",
     historyTitle: "Checklist Task History",
-    description: "Showing today, tomorrow's tasks and past due tasks",
+    description: "Showing today's tasks and past due tasks",
     historyDescription: "Read-only view of completed tasks with submission history (excluding admin-processed items)",
   },
 }
@@ -872,7 +872,7 @@ function AccountDataPage() {
         <div className="rounded-lg border border-purple-200 shadow-md bg-white overflow-hidden">
           <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple-100 p-3 sm:p-4">
             <h2 className="text-purple-700 font-medium text-sm sm:text-base">
-              {showHistory ? `Completed ${CONFIG.SHEET_NAME} Tasks` : `Pending ${CONFIG.SHEET_NAME} Tasks`}
+              {showHistory ? `Completed ${CONFIG.SHEET_NAME} Tasks` : `Pending Checklist Tasks`}
             </h2>
             <p className="text-purple-600 text-xs sm:text-sm mt-1">
               {showHistory
