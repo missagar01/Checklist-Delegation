@@ -1049,7 +1049,7 @@ export const getStaffTasksCountApi = async (dashboardType, staffFilter = null) =
 export const getUniqueDepartmentsApi = async () => {
   try {
     const { data, error } = await supabase
-      .from('checklist')
+      .from('users')
       .select('department')
       .not('department', 'is', null)
       .not('department', 'eq', '');
