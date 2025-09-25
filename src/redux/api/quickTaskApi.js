@@ -93,8 +93,8 @@ export const updateChecklistTaskApi = async (updatedTask, originalTask) => {
         given_by: updatedTask.given_by,
         name: updatedTask.name,
         task_description: updatedTask.task_description,
-        task_start_date: updatedTask.task_start_date,
-        frequency: updatedTask.frequency,
+        // task_start_date: updatedTask.task_start_date,
+        // frequency: updatedTask.frequency,
         enable_reminder: updatedTask.enable_reminder,
         require_attachment: updatedTask.require_attachment,
         remark: updatedTask.remark
