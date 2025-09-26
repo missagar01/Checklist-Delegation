@@ -710,7 +710,7 @@ function AccountDataPage() {
     });
 
     if (missingStatus.length > 0) {
-      alert(`Please select status (Yes/No) for all selected tasks. ${missingStatus.length} item(s) are missing status selection.`);
+      alert(`Please select status (Yes/No) for all selected tasks. ${missingStatus.length} item(s) are missing status selection.\n\nकृपया सभी चयनित कार्यों के लिए स्थिति (हाँ/नहीं) चुनें। ${missingStatus.length} आइटम स्थिति चयन से छूट गए हैं।`);
       return;
     }
 
@@ -722,7 +722,7 @@ function AccountDataPage() {
     });
 
     if (missingRemarks.length > 0) {
-      alert(`Please provide remarks for items marked as "No". ${missingRemarks.length} item(s) are missing remarks.`);
+      alert(`Please provide remarks for items marked as "No". ${missingRemarks.length} item(s) are missing remarks.\n\nकृपया "नहीं" चिह्नित आइटमों के लिए टिप्पणियाँ प्रदान करें। ${missingRemarks.length} आइटम टिप्पणियों से छूट गए हैं।`);
       return;
     }
 
