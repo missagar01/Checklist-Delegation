@@ -716,11 +716,15 @@ function AccountDataPage() {
     }
 
     // Check for missing required images
+    // Check for missing required images (only if status is not "No")
     const missingRequiredImages = selectedItemsArray.filter((id) => {
       const item = checklist.find((account) => account.task_id === id);
       const requiresAttachment = item.require_attachment && item.require_attachment.toUpperCase() === "YES";
       const hasImage = uploadedImages[id] || item.image;
-      return requiresAttachment && !hasImage;
+      const statusIsNo = additionalData[id] === "No";
+
+      // Only require image if attachment is required AND status is not "No"
+      return requiresAttachment && !hasImage && !statusIsNo;
     });
 
     if (missingRequiredImages.length > 0) {
@@ -1464,14 +1468,16 @@ function AccountDataPage() {
                               </div>
                             ) : (
                               <label
-                                className={`flex items-center cursor-pointer ${account.require_attachment?.toUpperCase() === "YES"
+                                className={`flex items-center cursor-pointer ${account.require_attachment?.toUpperCase() === "YES" &&
+                                  additionalData[account.task_id] !== "No" // Only show as required if status is not "No"
                                   ? "text-red-600 font-medium"
                                   : "text-purple-600"
                                   } hover:text-purple-800`}
                               >
                                 <Upload className="h-4 w-4 mr-1 flex-shrink-0" />
                                 <span className="text-xs break-words">
-                                  {account.require_attachment?.toUpperCase() === "YES"
+                                  {account.require_attachment?.toUpperCase() === "YES" &&
+                                    additionalData[account.task_id] !== "No"
                                     ? "Required*"
                                     : "Upload"}
                                 </span>
