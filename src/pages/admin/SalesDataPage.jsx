@@ -703,7 +703,18 @@ function AccountDataPage() {
       return;
     }
 
-    // Check for missing remarks
+    // NEW: Check if all selected items have status selected
+    const missingStatus = selectedItemsArray.filter((id) => {
+      const status = additionalData[id];
+      return !status || status === ""; // Status is empty or not selected
+    });
+
+    if (missingStatus.length > 0) {
+      alert(`Please select status (Yes/No) for all selected tasks. ${missingStatus.length} item(s) are missing status selection.`);
+      return;
+    }
+
+    // Check for missing remarks (only for items with status "No")
     const missingRemarks = selectedItemsArray.filter((id) => {
       const additionalStatus = additionalData[id];
       const remarks = remarksData[id];
@@ -715,7 +726,6 @@ function AccountDataPage() {
       return;
     }
 
-    // Check for missing required images
     // Check for missing required images (only if status is not "No")
     const missingRequiredImages = selectedItemsArray.filter((id) => {
       const item = checklist.find((account) => account.task_id === id);
