@@ -1,9 +1,12 @@
 import supabase from "../../SupabaseClient";
 
 // In your API file
-export const fetchChechListDataSortByDate = async (page = 1, limit = 50) => {
+// 1. COMPLETE API FUNCTIONS - checkListApi.js
+
+export const fetchChechListDataSortByDate = async (page = 1, limit = 50, searchTerm = '') => {
   const role = localStorage.getItem('role');
   const username = localStorage.getItem('user-name');
+  const userAccess = localStorage.getItem('user_access');
 
   try {
     const today = new Date();
@@ -17,16 +20,26 @@ export const fetchChechListDataSortByDate = async (page = 1, limit = 50) => {
 
     let query = supabase
       .from('checklist')
-      .select('*', { count: 'exact' }) // Get total count
+      .select('*', { count: 'exact' })
       .lte('task_start_date', endOfTodayISO)
       .order('task_start_date', { ascending: true })
       .is("submission_date", null)
       .is("status", null)
-      .range(from, to); // Add range for pagination
+      .range(from, to);
+
+    // Apply search filter if searchTerm exists
+    if (searchTerm && searchTerm.trim() !== '') {
+      const searchValue = searchTerm.trim();
+      query = query.or(`task_id.ilike.%${searchValue}%,name.ilike.%${searchValue}%,given_by.ilike.%${searchValue}%,department.ilike.%${searchValue}%,task_description.ilike.%${searchValue}%`);
+    }
 
     // Apply role filter
     if (role === 'user' && username) {
       query = query.eq('name', username);
+    } else if (role === 'admin' && userAccess) {
+      // Filter by departments in user_access for admin
+      const allowedDepartments = userAccess.split(',').map(dept => dept.trim());
+      query = query.in('department', allowedDepartments);
     }
 
     const { data, error, count } = await query;
@@ -45,12 +58,13 @@ export const fetchChechListDataSortByDate = async (page = 1, limit = 50) => {
   }
 };
 
-export const fetchChechListDataForHistory = async (page = 1) => {
+export const fetchChechListDataForHistory = async (page = 1, searchTerm = '') => {
   const itemsPerPage = 50;
   const start = (page - 1) * itemsPerPage;
   
   const role = localStorage.getItem('role');
   const username = localStorage.getItem('user-name');
+  const userAccess = localStorage.getItem('user_access');
 
   try {
     let query = supabase
@@ -61,8 +75,18 @@ export const fetchChechListDataForHistory = async (page = 1) => {
       .not('status', 'is', null)
       .range(start, start + itemsPerPage - 1);
 
+    // Apply search filter if searchTerm exists
+    if (searchTerm && searchTerm.trim() !== '') {
+      const searchValue = searchTerm.trim();
+      query = query.or(`task_id.ilike.%${searchValue}%,name.ilike.%${searchValue}%,given_by.ilike.%${searchValue}%,department.ilike.%${searchValue}%,task_description.ilike.%${searchValue}%`);
+    }
+
     if (role === 'user' && username) {
       query = query.eq('name', username);
+    } else if (role === 'admin' && userAccess) {
+      // Filter by departments in user_access for admin
+      const allowedDepartments = userAccess.split(',').map(dept => dept.trim());
+      query = query.in('department', allowedDepartments);
     }
 
     const { data, error, count } = await query;

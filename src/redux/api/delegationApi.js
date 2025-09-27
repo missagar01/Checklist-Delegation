@@ -155,9 +155,75 @@ export const insertDelegationDoneAndUpdate = createAsyncThunk(
   }
 );
 
+// export const fetchDelegationDataSortByDate = async () => {
+
+//   const role = localStorage.getItem("role");
+//   const username = localStorage.getItem("user-name");
+//   try {
+//     let query = supabase
+//       .from('delegation')
+//       .select('*')
+//       .order('task_start_date', { ascending: true })
+//       .or('status.is.null,status.eq.extend');
+
+//     // Apply role-based filter
+//     if (role === 'user' && username) {
+//       query = query.eq('name', username);
+//     }
+
+//     const { data, error } = await query;
+
+//     if (error) {
+//       console.log("Error when fetching data", error);
+//       return [];
+//     }
+
+//     console.log("Fetched successfully", data);
+//     return data;
+
+//   } catch (error) {
+//     console.log("Error from Supabase", error);
+//     return [];
+//   }
+// };
+
+// export const fetchDelegation_DoneDataSortByDate = async () => {
+//   const role = localStorage.getItem("role");
+//   const username = localStorage.getItem("user-name");
+//   try {
+//     let query = supabase
+//       .from('delegation_done')
+//       .select('*')
+//       .order('created_at', { ascending: false });
+
+//     // Filter by user if role is 'user'
+//     if (role === 'user' && username) {
+//       query = query.eq('name', username);
+//     }
+
+//     const { data, error } = await query;
+
+//     if (error) {
+//       console.log("Error when fetching data", error);
+//       return [];
+//     }
+
+//     console.log("Fetched successfully", data);
+//     return data;
+
+//   } catch (error) {
+//     console.log("Error from Supabase", error);
+//     return [];
+//   }
+// };
+
+
+
 export const fetchDelegationDataSortByDate = async () => {
   const role = localStorage.getItem("role");
   const username = localStorage.getItem("user-name");
+  const userAccess = localStorage.getItem("user_access"); // Add this line
+  
   try {
     let query = supabase
       .from('delegation')
@@ -168,6 +234,10 @@ export const fetchDelegationDataSortByDate = async () => {
     // Apply role-based filter
     if (role === 'user' && username) {
       query = query.eq('name', username);
+    } else if (role === 'admin' && userAccess) {
+      // Filter by departments in user_access for admin
+      const allowedDepartments = userAccess.split(',').map(dept => dept.trim());
+      query = query.in('department', allowedDepartments);
     }
 
     const { data, error } = await query;
@@ -189,6 +259,8 @@ export const fetchDelegationDataSortByDate = async () => {
 export const fetchDelegation_DoneDataSortByDate = async () => {
   const role = localStorage.getItem("role");
   const username = localStorage.getItem("user-name");
+  const userAccess = localStorage.getItem("user_access"); // Add this line
+  
   try {
     let query = supabase
       .from('delegation_done')
@@ -198,6 +270,10 @@ export const fetchDelegation_DoneDataSortByDate = async () => {
     // Filter by user if role is 'user'
     if (role === 'user' && username) {
       query = query.eq('name', username);
+    } else if (role === 'admin' && userAccess) {
+      // Filter by departments in user_access for admin
+      const allowedDepartments = userAccess.split(',').map(dept => dept.trim());
+      query = query.in('department', allowedDepartments);
     }
 
     const { data, error } = await query;
