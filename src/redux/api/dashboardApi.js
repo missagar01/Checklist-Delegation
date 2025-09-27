@@ -513,7 +513,16 @@ import supabase from "../../SupabaseClient";
 /**
  * Fetch dashboard data with proper server-side filtering and pagination
  */
-export const fetchDashboardDataApi = async (dashboardType, staffFilter = null, page = 1, limit = 50, taskView = 'recent', departmentFilter = null) => {
+export const fetchDashboardDataApi = async (
+  dashboardType, 
+  staffFilter = null, 
+  page = 1, 
+  limit = 50, 
+  taskView = 'recent', 
+  departmentFilter = null,
+  startDate = null,
+  endDate = null
+) => {
   try {
     console.log('Fetching dashboard data:', { dashboardType, staffFilter, page, limit, taskView, departmentFilter });
     
@@ -538,6 +547,8 @@ export const fetchDashboardDataApi = async (dashboardType, staffFilter = null, p
     if (departmentFilter && departmentFilter !== 'all' && dashboardType === 'checklist') {
       query = query.eq('department', departmentFilter);
     }
+
+    
     
     // Apply staff filter if provided and not "all" (for admin users)
     if (staffFilter && staffFilter !== 'all' && role === 'admin') {
@@ -1059,9 +1070,49 @@ export const getUniqueDepartmentsApi = async () => {
       throw error;
     }
 
-    // Get unique departments and sort them
-    const uniqueDepartments = [...new Set(data.map(item => item.department))].sort();
+    // Get unique departments, handle case-insensitive comparison, and sort them
+    const uniqueDepartments = [...new Set(
+      data.map(item => item.department.trim()) // Remove extra spaces
+        .filter(dept => dept.length > 0) // Remove empty strings
+    )].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase())); // Case-insensitive sort
+    
     return uniqueDepartments;
+  } catch (error) {
+    console.error("Error from Supabase:", error);
+    throw error;
+  }
+};
+
+
+export const getStaffNamesByDepartmentApi = async (departmentFilter = null) => {
+  try {
+    let query = supabase
+      .from('users')
+      .select('user_name, user_access')
+      .not('user_name', 'is', null)
+      .not('user_name', 'eq', '');
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("Error fetching staff names:", error);
+      throw error;
+    }
+
+    let filteredStaff = data.map(user => user.user_name);
+
+    // Filter by department if provided
+    if (departmentFilter && departmentFilter !== 'all') {
+      filteredStaff = data
+        .filter(user => {
+          if (!user.user_access) return false;
+          const userDepartments = user.user_access.split(',').map(dept => dept.trim().toLowerCase());
+          return userDepartments.includes(departmentFilter.toLowerCase());
+        })
+        .map(user => user.user_name);
+    }
+
+    return [...new Set(filteredStaff)]; // Remove duplicates
   } catch (error) {
     console.error("Error from Supabase:", error);
     throw error;

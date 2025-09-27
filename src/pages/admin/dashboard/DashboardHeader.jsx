@@ -8,10 +8,10 @@ export default function DashboardHeader({
   availableStaff,
   userRole,
   username,
-  // Add new props for department filtering
   departmentFilter,
   setDepartmentFilter,
   availableDepartments,
+  isLoadingMore
 }) {
   return (
     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">

@@ -16,8 +16,9 @@ import {
   pendingTaskInTable,
   totalTaskInTable,
 } from "../../redux/slice/dashboardSlice.js"
-import { fetchDashboardDataApi } from "../../redux/api/dashboardApi.js"
-import { getUniqueDepartmentsApi } from "../../redux/api/dashboardApi.js"
+// import { fetchDashboardDataApi } from "../../redux/api/dashboardApi.js"
+import { fetchDashboardDataApi, getUniqueDepartmentsApi, getStaffNamesByDepartmentApi } from "../../redux/api/dashboardApi.js"
+// import { getUniqueDepartmentsApi } from "../../redux/api/dashboardApi.js"
 
 export default function AdminDashboard() {
   const [dashboardType, setDashboardType] = useState("checklist")
@@ -301,8 +302,32 @@ const fetchDepartmentData = async (page = 1, append = false) => {
       let filteredData = data
 
       // Extract unique staff names for the dropdown BEFORE staff filtering
-      const uniqueStaff = [...new Set(data.map((task) => task.name).filter((name) => name && name.trim() !== ""))]
-      setAvailableStaff(uniqueStaff)
+      // Extract unique staff names for the dropdown BEFORE staff filtering
+// Extract unique staff names for the dropdown BEFORE staff filtering
+// Extract unique staff names for the dropdown BEFORE staff filtering
+let uniqueStaff;
+
+if (dashboardType === 'checklist' && departmentFilter !== 'all') {
+  // For checklist with department filter, get staff from users table based on user_access
+  try {
+    uniqueStaff = await getStaffNamesByDepartmentApi(departmentFilter);
+  } catch (error) {
+    console.error('Error fetching staff by department:', error);
+    uniqueStaff = [...new Set(data.map((task) => task.name).filter((name) => name && name.trim() !== ""))];
+  }
+} else {
+  // Default behavior - extract from task data
+  uniqueStaff = [...new Set(data.map((task) => task.name).filter((name) => name && name.trim() !== ""))];
+}
+
+// For non-admin users, always ensure current user appears in staff dropdown
+if (userRole !== "admin" && username) {
+  if (!uniqueStaff.some(staff => staff.toLowerCase() === username.toLowerCase())) {
+    uniqueStaff.push(username)
+  }
+}
+
+setAvailableStaff(uniqueStaff)
 
       // SECOND: Apply dashboard staff filter ONLY if not "all"
       if (dashboardStaffFilter !== "all") {
@@ -457,25 +482,51 @@ const processedTasks = filteredData
     }
   }
 
-  const fetchDepartments = async () => {
+const fetchDepartments = async () => {
   if (dashboardType === 'checklist') {
     try {
-      const departments = await getUniqueDepartmentsApi()
-      setAvailableDepartments(departments)
+      const departments = await getUniqueDepartmentsApi();
+      console.log('All departments from API:', departments);
+      
+      // Get user's department access
+      const userAccess = localStorage.getItem("user_access") || "";
+      console.log('User access from localStorage:', userAccess);
+      
+      const userDepartments = userAccess 
+        ? userAccess.split(',').map(dept => dept.trim().toLowerCase()) // Keep lowercase for comparison
+        : [];
+      console.log('Parsed user departments:', userDepartments);
+      
+      // Filter departments based on user access for admin users
+      let filteredDepartments = departments;
+      if (userRole === "admin" && userDepartments.length > 0) {
+        filteredDepartments = departments.filter(dept => 
+          userDepartments.includes(dept.toLowerCase()) // Compare in lowercase
+        );
+      }
+      
+      console.log('Filtered departments:', filteredDepartments);
+      setAvailableDepartments(filteredDepartments);
     } catch (error) {
-      console.error('Error fetching departments:', error)
-      setAvailableDepartments([])
+      console.error('Error fetching departments:', error);
+      setAvailableDepartments([]);
     }
   } else {
-    setAvailableDepartments([])
+    setAvailableDepartments([]);
   }
 }
 
 
 useEffect(() => {
-  fetchDepartments()
-}, [dashboardType])
+  fetchDepartments();
+}, [dashboardType, userRole]); // Add userRole as dependency
 
+// Reset staff filter when department filter changes
+useEffect(() => {
+  if (dashboardType === 'checklist') {
+    setDashboardStaffFilter("all");
+  }
+}, [departmentFilter, dashboardType]);
 
   // Add scroll event listener for infinite scroll
   useEffect(() => {
@@ -698,7 +749,7 @@ useEffect(() => {
   return (
     <AdminLayout>
       <div className="space-y-6">
-       <DashboardHeader
+      <DashboardHeader
   dashboardType={dashboardType}
   setDashboardType={setDashboardType}
   dashboardStaffFilter={dashboardStaffFilter}
@@ -706,10 +757,10 @@ useEffect(() => {
   availableStaff={availableStaff}
   userRole={userRole}
   username={username}
-  // Add these new props
   departmentFilter={departmentFilter}
   setDepartmentFilter={setDepartmentFilter}
   availableDepartments={availableDepartments}
+  isLoadingMore={isLoadingMore} // Add this line
 />
 
         <StatisticsCards
