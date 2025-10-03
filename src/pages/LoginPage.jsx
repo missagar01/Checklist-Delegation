@@ -10,7 +10,7 @@ const LoginPage = () => {
   const navigate = useNavigate()
   const { isLoggedIn, userData, error } = useSelector((state) => state.login); // Added error from state
   const dispatch = useDispatch();
- 
+
   const [isDataLoading, setIsDataLoading] = useState(false)
   const [isLoginLoading, setIsLoginLoading] = useState(false)
   const [masterData, setMasterData] = useState({
@@ -22,30 +22,45 @@ const LoginPage = () => {
     password: "",
   })
   const [toast, setToast] = useState({ show: false, message: "", type: "" })
- // Function to check if a role is any variation of "inactive"
-  // const isInactiveRole = (role) => {
-  //   if (!role) return false;
 
-  //   // Convert to lowercase
-  //   const normalizedRole = String(role).toLowerCase().trim();
-
-  //   // Check for different variations of "inactive" status
-  //   return normalizedRole === "inactive" ||
-  //     normalizedRole === "in active" ||
-  //     normalizedRole === "inactiv" ||
-  //     normalizedRole === "in activ";
-  // }
-
+  const ADMIN_CREDENTIALS = {
+    username: 'admin',
+    password: 'admin123'
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    setIsLoginLoading(true); // Add loading state
-    dispatch(loginUser(formData)); 
+    setIsLoginLoading(true);
+
+    // Check for hardcoded admin credentials
+    if (formData.username === ADMIN_CREDENTIALS.username &&
+      formData.password === ADMIN_CREDENTIALS.password) {
+
+      // Create user data for hardcoded admin
+      const hardcodedAdminData = {
+        user_name: 'admin',
+        role: 'admin',
+        isHardcodedAdmin: true // Special flag to identify this specific user
+      };
+
+      // Store in localStorage
+      localStorage.setItem('user-name', hardcodedAdminData.user_name);
+      localStorage.setItem('role', hardcodedAdminData.role);
+      localStorage.setItem('is-hardcoded-admin', 'true');
+
+      // Navigate to dashboard
+      navigate("/dashboard/admin");
+      setIsLoginLoading(false);
+      return;
+    }
+
+    // For all other users, use the normal login process
+    dispatch(loginUser(formData));
   };
 
   useEffect(() => {
     if (isLoggedIn && userData) {
-      localStorage.setItem('user-name', userData.user_name); 
+      localStorage.setItem('user-name', userData.user_name);
       localStorage.setItem('role', userData.role);
       navigate("/dashboard/admin")
     } else if (error) { // Add error handling
@@ -54,194 +69,11 @@ const LoginPage = () => {
     }
   }, [isLoggedIn, userData, error, navigate]); // Added error to dependencies
 
-
-
-
- 
-
-
-
-
- 
-
-
-  // Fetch master data on component mount
-  // useEffect(() => {
-  //   const fetchMasterData = async () => {
-  //     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzXzqnKmbeXw3i6kySQcBOwxHQA7y8WBFfEe69MPbCR-jux0Zte7-TeSKi8P4CIFkhE/exec"
-
-  //     try {
-  //       setIsDataLoading(true)
-
-  //       // Get the spreadsheet ID from your Apps Script
-  //       const SPREADSHEET_ID = "1pjNOV1ogLtiMm-Ow9_UVbsd3oN52jA5FdLGLgKwqlcw"
-
-  //       // Construct the URL to read the sheet data directly
-  //       const sheetUrl = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=master`
-
-  //       const response = await fetch(sheetUrl)
-  //       const text = await response.text()
-
-  //       // Parse the Google Sheets JSON response
-  //       const jsonString = text.substring(47).slice(0, -2) // Remove Google's wrapper
-  //       const data = JSON.parse(jsonString)
-
-  //       // Create userCredentials and userRoles objects from the sheet data
-  //       const userCredentials = {}
-  //       const userRoles = {}
-
-  //       // Process the data rows (skip header row if it exists)
-  //       if (data.table && data.table.rows) {
-  //         console.log("Raw sheet data:", data.table.rows);
-
-  //         // Start from index 1 to skip header row (adjust if needed)
-  //         for (let i = 1; i < data.table.rows.length; i++) {
-  //           const row = data.table.rows[i]
-
-  //           // Extract data from columns C, D, E (indices 2, 3, 4)
-  //           const username = row.c[2] ? String(row.c[2].v || '').trim().toLowerCase() : '';
-  //           const password = row.c[3] ? String(row.c[3].v || '').trim() : '';
-  //           const role = row.c[4] ? String(row.c[4].v || '').trim() : 'user';
-
-  //           console.log(`Processing row ${i}: username=${username}, password=${password}, role=${role}`);
-
-  //           // Only process if we have both username and password
-  //           if (username && password && password.trim() !== '') {
-  //             // Check if the role is any kind of inactive status
-  //             if (isInactiveRole(role)) {
-  //               console.log(`Skipping inactive user: ${username} with role: ${role}`);
-  //               continue; // Skip this user
-  //             }
-
-  //             // Store normalized role for comparison
-  //             const normalizedRole = role.toLowerCase();
-
-  //             // Store in our maps
-  //             userCredentials[username] = password;
-  //             userRoles[username] = normalizedRole;
-
-  //             console.log(`Added credential for: ${username}, Role: ${normalizedRole}`);
-  //           }
-  //         }
-  //       }
-
-  //       setMasterData({ userCredentials, userRoles })
-  //       console.log("Loaded credentials from master sheet:", Object.keys(userCredentials).length)
-  //       console.log("Credentials map:", userCredentials)
-  //       console.log("Roles map:", userRoles)
-
-  //       // Debug - check admin roles specifically
-  //       const adminUsers = Object.entries(userRoles)
-  //         .filter(([, role]) => role === 'admin')
-  //         .map(([username]) => username);
-  //       console.log("Admin users found:", adminUsers);
-
-  //     } catch (error) {
-  //       console.error("Error Fetching Master Data:", error)
-
-  //       // Fallback: Try the alternative method using your Apps Script
-  //       try {
-  //         console.log("Trying alternative method...");
-  //         const fallbackResponse = await fetch(SCRIPT_URL, {
-  //           method: 'GET'
-  //         })
-
-  //         if (fallbackResponse.ok) {
-  //           console.log("Apps Script is accessible, but getMasterData action needs to be implemented");
-  //           showToast("Unable to load user data. Please contact administrator.", "error")
-  //         }
-  //       } catch (fallbackError) {
-  //         console.error("Fallback also failed:", fallbackError);
-  //       }
-
-  //       showToast(`Network error: ${error.message}. Please try again later.`, "error")
-  //     } finally {
-  //       setIsDataLoading(false)
-  //     }
-  //   }
-
-  //   fetchMasterData()
-  // }, [])
-
   const handleChange = (e) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  // const handleSubmit = async (e) => {
-  //   e.preventDefault()
-  //   setIsLoginLoading(true)
-
-  //   try {
-  //     const trimmedUsername = formData.username.trim().toLowerCase()
-  //     const trimmedPassword = formData.password.trim()
-
-  //     console.log("Login Attempt Details:")
-  //     console.log("Entered Username:", trimmedUsername)
-  //     console.log("Entered Password:", trimmedPassword) // For debugging (remove in production)
-  //     console.log("Available Credentials Count:", Object.keys(masterData.userCredentials).length)
-  //     console.log("Current userCredentials:", masterData.userCredentials)
-  //     console.log("Current userRoles:", masterData.userRoles)
-
-  //     // Check if the username exists in our credentials map
-  //     if (trimmedUsername in masterData.userCredentials) {
-  //       const correctPassword = masterData.userCredentials[trimmedUsername]
-  //       const userRole = masterData.userRoles[trimmedUsername]
-
-  //       console.log("Found user in credentials map")
-  //       console.log("Expected Password:", correctPassword)
-  //       console.log("Password Match:", correctPassword === trimmedPassword)
-  //       console.log("User Role:", userRole)
-
-  //       // Check if password matches
-  //       if (correctPassword === trimmedPassword) {
-  //         // Store user info in sessionStorage
-  //         sessionStorage.setItem('username', trimmedUsername)
-
-  //         // Check if user is admin - explicitly compare with the string "admin"
-  //         const isAdmin = userRole === "admin";
-  //         console.log(`User ${trimmedUsername} is admin: ${isAdmin}`);
-
-  //         // Set role based on the fetched role
-  //         sessionStorage.setItem('role', isAdmin ? 'admin' : 'user')
-
-  //         // For admin users, we don't want to restrict by department
-  //         if (isAdmin) {
-  //           sessionStorage.setItem('department', 'all') // Admin sees all departments
-  //           sessionStorage.setItem('isAdmin', 'true') // Additional flag to ensure admin permissions
-  //           console.log("ADMIN LOGIN - Setting full access permissions");
-  //         } else {
-  //           sessionStorage.setItem('department', trimmedUsername)
-  //           sessionStorage.setItem('isAdmin', 'false')
-  //           console.log("USER LOGIN - Setting restricted access");
-  //         }
-
-  //         // Navigate to dashboard
-  //         navigate("/dashboard/admin")
-
-  //         showToast(`Login successful. Welcome, ${trimmedUsername}!`, "success")
-  //         return
-  //       } else {
-  //         showToast("Username or password is incorrect. Please try again.", "error")
-  //       }
-  //     } else {
-  //       showToast("Username or password is incorrect. Please try again.", "error")
-  //     }
-
-  //     // If we got here, login failed
-  //     console.error("Login Failed", {
-  //       usernameExists: trimmedUsername in masterData.userCredentials,
-  //       passwordMatch: (trimmedUsername in masterData.userCredentials) ?
-  //         "Password did not match" : 'Username not found',
-  //       userRole: masterData.userRoles[trimmedUsername] || 'No role'
-  //     })
-  //   } catch (error) {
-  //     console.error("Login Error:", error)
-  //     showToast(`Login failed: ${error.message}. Please try again.`, "error")
-  //   } finally {
-  //     setIsLoginLoading(false)
-  //   }
-  // }
 
   const showToast = (message, type) => {
     setToast({ show: true, message, type })
