@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
-import { CheckSquare, ClipboardList, Home, LogOut, Menu, Database, ChevronDown, ChevronRight ,  Zap, Settings} from 'lucide-react'
+import { CheckSquare, ClipboardList, Home, LogOut, Menu, Database, ChevronDown, ChevronRight, Zap, Settings } from 'lucide-react'
 
 export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
   const location = useLocation()
@@ -11,133 +11,119 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
   const [isDataSubmenuOpen, setIsDataSubmenuOpen] = useState(false)
   const [username, setUsername] = useState("")
   const [userRole, setUserRole] = useState("")
+  const [isHardcodedAdmin, setIsHardcodedAdmin] = useState(false)
 
-  // Check authentication on component mount
   useEffect(() => {
-    const storedUsername = localStorage.getItem('user-name')
-    const storedRole = localStorage.getItem('role')
-    
+    const storedUsername = localStorage.getItem('user-name');
+    const storedRole = localStorage.getItem('role');
+    const storedIsHardcodedAdmin = localStorage.getItem('is-hardcoded-admin') === 'true';
+
     if (!storedUsername) {
-      // Redirect to login if not authenticated
-      navigate("/login")
-      return
+      navigate("/login");
+      return;
     }
-  
-    setUsername(storedUsername)
-    setUserRole(storedRole || "user")
-  }, [navigate])
 
-  // Handle logout
-  // Handle logout
-const handleLogout = () => {
-  localStorage.removeItem('user-name')
-  localStorage.removeItem('role')
-  localStorage.removeItem('token') // Add this if you're using token-based auth
-  // Force immediate navigation to login
-  window.location.href = "/login" // Use window.location.href instead of navigate
-}
+    setUsername(storedUsername);
+    setUserRole(storedRole || "user");
+    setIsHardcodedAdmin(storedIsHardcodedAdmin);
+  }, [navigate]);
 
-  // Filter dataCategories based on user role
+  const handleLogout = () => {
+    localStorage.removeItem('user-name')
+    localStorage.removeItem('role')
+    localStorage.removeItem('token')
+    localStorage.removeItem('is-hardcoded-admin') // Don't forget this
+    window.location.href = "/login"
+  }
+
   const dataCategories = [
-    //{ id: "main", name: "PURAB", link: "/dashboard/data/main" },
     { id: "sales", name: "Checklist", link: "/dashboard/data/sales" },
-    // { id: "service", name: "Service", link: "/dashboard/data/service" },
-    //{ id: "account", name: "RKL", link: "/dashboard/data/account" },
-    //{ id: "warehouse", name: "REFRASYNTH", link: "/dashboard/data/warehouse" },
-    //{ id: "delegation", name: "Delegation", link: "/dashboard/data/delegation" },
-    //{ id: "purchase", name: "Slag Crusher", link: "/dashboard/data/purchase" },
-    //{ id: "director", name: "Hr", link: "/dashboard/data/director" },
-    //{ id: "managing-director", name: "PURAB", link: "/dashboard/data/managing-director" },
-    // { id: "coo", name: "COO", link: "/dashboard/data/coo" },
-    // { id: "jockey", name: "Jockey", link: "/dashboard/data/jockey" },
   ]
 
-  // Determine which departments to show in the submenu
-  // const getAccessibleDepartments = () => {
-  //   if (userRole === "admin") {
-  //     // Admin sees all departments
-  //     return dataCategories
-  //   } else {
-  //     // Regular users see only their own department plus admin (if needed)
-  //     return dataCategories.filter(cat => 
-  //       cat.id === username || 
-  //       cat.id.toLowerCase() === username.toLowerCase()
-  //     )
-  //   }
-  // }
-
-  // Update the routes array based on user role
+  // Update the routes configuration
   const routes = [
     {
       href: "/dashboard/admin",
       label: "Dashboard",
       icon: Database,
       active: location.pathname === "/dashboard/admin",
-      showFor: ["admin", "user"] // Show for both roles
+      showFor: ["admin", "user"] // Show for all authenticated users
     },
     {
       href: "/dashboard/quick-task",
       label: "Quick Task",
       icon: Zap,
       active: location.pathname === "/dashboard/quick-task",
-      showFor: ["admin"] // Only show for admin
+      showFor: ["hardcoded_admin"] // Only show for hardcoded admin
     },
     {
       href: "/dashboard/assign-task",
       label: "Assign Task",
       icon: CheckSquare,
       active: location.pathname === "/dashboard/assign-task",
-      showFor: ["admin", "user"] // Only show for admin
+      showFor: ["admin", "user"] // Show for all authenticated users
     },
-     
     {
       href: "/dashboard/delegation",
-     label: "Delegation",
-     icon: ClipboardList,
-     active: location.pathname === "/dashboard/delegation",
-     showFor: ["admin", "user"] // Only show for admin
-   },
+      label: "Delegation",
+      icon: ClipboardList,
+      active: location.pathname === "/dashboard/delegation",
+      showFor: ["admin", "user"] // Show for all authenticated users
+    },
     {
       href: "#",
       label: "Data",
       icon: Database,
       active: location.pathname.includes("/dashboard/data"),
       submenu: true,
-      showFor: ["admin", "user"] // Show for both roles
+      showFor: ["admin", "user"] // Show for all authenticated users
     },
-     {
-      href:"/dashboard/setting",
+    {
+      href: "/dashboard/setting",
       label: "Settings",
       icon: Settings,
       active: location.pathname.includes("/dashboard/setting"),
-     
-      showFor: ["admin"] // Only show for admin
+      showFor: ["hardcoded_admin"] // Only show for hardcoded admin
     },
-  ]
+  ];
 
-// Modify getAccessibleDepartments to show all departments
-// const getAccessibleDepartments = () => {
-//   // Both admin and users see all departments
-//   return dataCategories
-// }
-const getAccessibleDepartments = () => {
-  const userRole = localStorage.getItem('role') || 'user'
-  return dataCategories.filter(cat => 
-    !cat.showFor || cat.showFor.includes(userRole)
-  )
-}
+  // Fixed: Proper role filtering function
+  const getAccessibleRoutes = () => {
+    const currentUserRole = userRole || localStorage.getItem('role') || 'user';
+    const currentIsHardcodedAdmin = isHardcodedAdmin || localStorage.getItem('is-hardcoded-admin') === 'true';
 
-// Filter routes based on user role
-const getAccessibleRoutes = () => {
-  const userRole = localStorage.getItem('role') || 'user'
-  return routes.filter(route => 
-    route.showFor.includes(userRole)
-  )
-}
+    return routes.filter(route => {
+      // If route is for hardcoded_admin only
+      if (route.showFor.includes('hardcoded_admin')) {
+        return currentIsHardcodedAdmin;
+      }
+
+      // For regular routes, check if user role is in showFor array
+      return route.showFor.includes(currentUserRole);
+    });
+  };
+
+  // Fixed: Department filtering
+  const getAccessibleDepartments = () => {
+    const currentUserRole = userRole || localStorage.getItem('role') || 'user';
+    const currentIsHardcodedAdmin = isHardcodedAdmin || localStorage.getItem('is-hardcoded-admin') === 'true';
+
+    // If hardcoded admin, show all departments
+    if (currentIsHardcodedAdmin) {
+      return dataCategories;
+    }
+
+    // For regular users/admins, filter based on role
+    return dataCategories.filter(cat => {
+      // Add your department-specific logic here
+      // For now, showing all departments to all authenticated users
+      return true;
+    });
+  };
 
   // Check if the current path is a data category page
   const isDataPage = location.pathname.includes("/dashboard/data/")
-  
+
   // If it's a data page, expand the submenu by default
   useEffect(() => {
     if (isDataPage && !isDataSubmenuOpen) {
@@ -167,11 +153,10 @@ const getAccessibleRoutes = () => {
                   <div>
                     <button
                       onClick={() => setIsDataSubmenuOpen(!isDataSubmenuOpen)}
-                      className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                        route.active
-                          ? "bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700"
-                          : "text-gray-700 hover:bg-blue-50"
-                      }`}
+                      className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${route.active
+                        ? "bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700"
+                        : "text-gray-700 hover:bg-blue-50"
+                        }`}
                     >
                       <div className="flex items-center gap-3">
                         <route.icon className={`h-4 w-4 ${route.active ? "text-blue-600" : ""}`} />
@@ -185,11 +170,10 @@ const getAccessibleRoutes = () => {
                           <li key={category.id}>
                             <Link
                               to={category.link || `/dashboard/data/${category.id}`}
-                              className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
-                                location.pathname === (category.link || `/dashboard/data/${category.id}`)
-                                  ? "bg-blue-50 text-blue-700 font-medium"
-                                  : "text-gray-600 hover:bg-blue-50 hover:text-blue-700 "
-                              }`}
+                              className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${location.pathname === (category.link || `/dashboard/data/${category.id}`)
+                                ? "bg-blue-50 text-blue-700 font-medium"
+                                : "text-gray-600 hover:bg-blue-50 hover:text-blue-700 "
+                                }`}
                               onClick={() => setIsMobileMenuOpen(false)}
                             >
                               {category.name}
@@ -202,11 +186,10 @@ const getAccessibleRoutes = () => {
                 ) : (
                   <Link
                     to={route.href}
-                    className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                      route.active
-                        ? "bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700"
-                        : "text-gray-700 hover:bg-blue-50"
-                    }`}
+                    className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${route.active
+                      ? "bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700"
+                      : "text-gray-700 hover:bg-blue-50"
+                      }`}
                   >
                     <route.icon className={`h-4 w-4 ${route.active ? "text-blue-600" : ""}`} />
                     {route.label}
@@ -224,7 +207,8 @@ const getAccessibleRoutes = () => {
               </div>
               <div>
                 <p className="text-sm font-medium text-blue-700">
-                  {username || "User"} {userRole === "admin" ? "(Admin)" : ""}
+                  {username || "User"}
+                  {userRole === "admin" ? " (Admin)" : isHardcodedAdmin ? " (Super Admin)" : ""}
                 </p>
                 <p className="text-xs text-blue-600">
                   {username ? `${username.toLowerCase()}@example.com` : "user@example.com"}
@@ -233,8 +217,8 @@ const getAccessibleRoutes = () => {
             </div>
             <div className="flex items-center gap-2">
               {toggleDarkMode && (
-                <button 
-                  onClick={toggleDarkMode} 
+                <button
+                  onClick={toggleDarkMode}
                   className="text-blue-700 hover:text-blue-900 p-1 rounded-full hover:bg-blue-100"
                 >
                   {darkMode ? (
@@ -249,7 +233,7 @@ const getAccessibleRoutes = () => {
                   <span className="sr-only">{darkMode ? "Light mode" : "Dark mode"}</span>
                 </button>
               )}
-              <button 
+              <button
                 onClick={handleLogout}
                 className="text-blue-700 hover:text-blue-900 p-1 rounded-full hover:bg-blue-100"
               >
@@ -260,7 +244,6 @@ const getAccessibleRoutes = () => {
           </div>
         </div>
       </aside>
-
       {/* Mobile menu button */}
       <button
         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -293,11 +276,10 @@ const getAccessibleRoutes = () => {
                       <div>
                         <button
                           onClick={() => setIsDataSubmenuOpen(!isDataSubmenuOpen)}
-                          className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                            route.active
-                              ? "bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700"
-                              : "text-gray-700 hover:bg-blue-50"
-                          }`}
+                          className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${route.active
+                            ? "bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700"
+                            : "text-gray-700 hover:bg-blue-50"
+                            }`}
                         >
                           <div className="flex items-center gap-3">
                             <route.icon className={`h-4 w-4 ${route.active ? "text-blue-600" : ""}`} />
@@ -315,11 +297,10 @@ const getAccessibleRoutes = () => {
                               <li key={category.id}>
                                 <Link
                                   to={category.link || `/dashboard/data/${category.id}`}
-                                  className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
-                                    location.pathname === (category.link || `/dashboard/data/${category.id}`)
-                                      ? "bg-blue-50 text-blue-700 font-medium"
-                                      : "text-gray-600 hover:bg-blue-50 hover:text-blue-700"
-                                  }`}
+                                  className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${location.pathname === (category.link || `/dashboard/data/${category.id}`)
+                                    ? "bg-blue-50 text-blue-700 font-medium"
+                                    : "text-gray-600 hover:bg-blue-50 hover:text-blue-700"
+                                    }`}
                                   onClick={() => setIsMobileMenuOpen(false)}
                                 >
                                   {category.name}
@@ -332,11 +313,10 @@ const getAccessibleRoutes = () => {
                     ) : (
                       <Link
                         to={route.href}
-                        className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                          route.active
-                            ? "bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700"
-                            : "text-gray-700 hover:bg-blue-50"
-                        }`}
+                        className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${route.active
+                          ? "bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700"
+                          : "text-gray-700 hover:bg-blue-50"
+                          }`}
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
                         <route.icon className={`h-4 w-4 ${route.active ? "text-blue-600" : ""}`} />
@@ -364,8 +344,8 @@ const getAccessibleRoutes = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   {toggleDarkMode && (
-                    <button 
-                      onClick={toggleDarkMode} 
+                    <button
+                      onClick={toggleDarkMode}
                       className="text-blue-700 hover:text-blue-900 p-1 rounded-full hover:bg-blue-100"
                     >
                       {darkMode ? (
@@ -380,7 +360,7 @@ const getAccessibleRoutes = () => {
                       <span className="sr-only">{darkMode ? "Light mode" : "Dark mode"}</span>
                     </button>
                   )}
-                  <button 
+                  <button
                     onClick={handleLogout}
                     className="text-blue-700 hover:text-blue-900 p-1 rounded-full hover:bg-blue-100 "
                   >
@@ -410,18 +390,18 @@ const getAccessibleRoutes = () => {
         <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-gradient-to-br from-blue-50 to-purple-50">
           {children}
           <div className="fixed md:left-64 left-0 right-0 bottom-0 py-1 px-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-center text-sm shadow-md z-10">
-          <a
-    href="https://www.botivate.in/" // Replace with actual URL
-    target="_blank"
-    rel="noopener noreferrer"
-    className="hover:underline"
-  >
-    Powered by-<span className="font-semibold">Botivate</span>
-  </a>
-    </div>
+            <a
+              href="https://www.botivate.in/" // Replace with actual URL
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:underline"
+            >
+              Powered by-<span className="font-semibold">Botivate</span>
+            </a>
+          </div>
         </main>
       </div>
-      
+
     </div>
   )
 }
