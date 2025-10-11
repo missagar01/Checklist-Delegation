@@ -4,7 +4,7 @@ export const fetchUserDetailsApi = async () => {
   try {
     const { data, error } = await supabase
       .from("users")
-      .select('*, user_access') // Add user_access to the select
+      .select('*, user_access, leave_date, remark') // Add user_access to the select
       .not("user_name", "is", null)
       .neq("user_name", "");
 
@@ -100,17 +100,27 @@ export const createUserApi = async (newUser) => {
 
 export const updateUserDataApi = async ({ id, updatedUser }) => {
   try {
+    const updateData = {
+      user_name: updatedUser.user_name,
+      password: updatedUser.password,
+      email_id: updatedUser.email_id,
+      number: updatedUser.number,
+      role: updatedUser.role,
+      status: updatedUser.status,
+      user_access: updatedUser.user_access
+    };
+
+    // Add leave data if provided
+    if (updatedUser.leave_date !== undefined) {
+      updateData.leave_date = updatedUser.leave_date;
+    }
+    if (updatedUser.remark !== undefined) {
+      updateData.remark = updatedUser.remark;
+    }
+
     const { data, error } = await supabase
       .from("users")
-      .update({
-        user_name: updatedUser.user_name,
-        password: updatedUser.password,
-        email_id: updatedUser.email_id,
-        number: updatedUser.number,
-        role: updatedUser.role,
-        status: updatedUser.status,
-        user_access: updatedUser.user_access // Add this line
-      })
+      .update(updateData)
       .eq("id", id);
 
     if (error) {
