@@ -1027,29 +1027,6 @@ function AccountDataPage() {
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50 sticky top-0 z-10">
                         <tr>
-                          {userRole === "admin" && (
-                            <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
-                              <div className="flex flex-col items-center">
-                                <input
-                                  type="checkbox"
-                                  className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                                  checked={
-                                    filteredHistoryData.filter(item => isEmpty(item.admin_done)).length > 0 &&
-                                    selectedHistoryItems.length === filteredHistoryData.filter(item => isEmpty(item.admin_done)).length
-                                  }
-                                  onChange={(e) => {
-                                    const unprocessedItems = filteredHistoryData.filter(item => isEmpty(item.admin_done));
-                                    if (e.target.checked) {
-                                      setSelectedHistoryItems(unprocessedItems.map(item => item.task_id));
-                                    } else {
-                                      setSelectedHistoryItems([]);
-                                    }
-                                  }}
-                                />
-                                <span className="text-xs text-gray-400 mt-1 hidden sm:inline">Select</span>
-                              </div>
-                            </th>
-                          )}
                           <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                             Task ID
                           </th>
@@ -1089,48 +1066,13 @@ function AccountDataPage() {
                           <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                             File
                           </th>
-                          {userRole === "admin" && (
-                            <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50 whitespace-nowrap">
-                              Admin Processed
-                            </th>
-                          )}
+
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {filteredHistoryData.length > 0 ? (
                           filteredHistoryData.map((history, index) => (
                             <tr key={index} className="hover:bg-gray-50">
-                              {userRole === "admin" && (
-                                <td className="px-2 sm:px-3 py-2 sm:py-4 w-12">
-                                  {!isEmpty(history.admin_done) ? (
-                                    <div className="flex flex-col items-center">
-                                      <input
-                                        type="checkbox"
-                                        className="h-4 w-4 rounded border-gray-300 text-green-600 bg-green-100"
-                                        checked={true}
-                                        disabled={true}
-                                        title={`Admin processed on: ${history.admin_done}`}
-                                      />
-                                      <span className="text-xs text-green-600 mt-1 text-center break-words hidden sm:inline">
-                                        Processed
-                                      </span>
-                                    </div>
-                                  ) : (
-                                    <input
-                                      type="checkbox"
-                                      className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                                      checked={selectedHistoryItems.some((item) => item.task_id === history.task_id)}
-                                      onChange={() => {
-                                        setSelectedHistoryItems((prev) =>
-                                          prev.some((item) => item.task_id === history.task_id)
-                                            ? prev.filter((item) => item.task_id !== history.task_id)
-                                            : [...prev, history]
-                                        );
-                                      }}
-                                    />
-                                  )}
-                                </td>
-                              )}
                               <td className="px-2 sm:px-3 py-2 sm:py-4">
                                 <div className="text-xs sm:text-sm font-medium text-gray-900 break-words">
                                   {history.task_id || "—"}
@@ -1245,25 +1187,7 @@ function AccountDataPage() {
                                   <span className="text-gray-400 text-xs sm:text-sm">No file</span>
                                 )}
                               </td>
-                              {userRole === "admin" && (
-                                <td className="px-2 sm:px-3 py-2 sm:py-4 bg-gray-50">
-                                  {!isEmpty(history.admin_done) ? (
-                                    <div className="text-xs sm:text-sm text-gray-900 break-words">
-                                      <div className="font-medium text-green-700">
-                                        {history.admin_done.includes(" ") ? history.admin_done.split(" ")[0] : history.admin_done}
-                                      </div>
-                                      {history.admin_done.includes(" ") && (
-                                        <div className="text-xs text-green-600">
-                                          {history.admin_done.split(" ")[1]}
-                                        </div>
-                                      )}
-                                      <div className="text-xs text-green-600 mt-1">✓ Processed</div>
-                                    </div>
-                                  ) : (
-                                    <span className="text-gray-400 text-xs sm:text-sm">Not processed</span>
-                                  )}
-                                </td>
-                              )}
+
                             </tr>
                           ))
                         ) : (
@@ -1309,14 +1233,16 @@ function AccountDataPage() {
                     <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap w-16">
                       Seq. No.
                     </th>
-                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                        checked={filteredAccountData.length > 0 && selectedItems.size === filteredAccountData.length}
-                      // onChange={handleSelectAllItems}
-                      />
-                    </th>
+                    {userRole === "user" && (
+                      <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                          checked={filteredAccountData.length > 0 && selectedItems.size === filteredAccountData.length}
+
+                        />
+                      </th>
+                    )}
                     <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                       Task ID
                     </th>
@@ -1367,14 +1293,16 @@ function AccountDataPage() {
                               {sequenceNumber}
                             </div>
                           </td>
-                          <td className="px-2 sm:px-3 py-2 sm:py-4 w-12">
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                              checked={isSelected}
-                              onChange={(e) => handleCheckboxClick(e, account.task_id)}
-                            />
-                          </td>
+                          {userRole === "user" && (
+                            <td className="px-2 sm:px-3 py-2 sm:py-4 w-12">
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                                checked={isSelected}
+                                onChange={(e) => handleCheckboxClick(e, account.task_id)}
+                              />
+                            </td>
+                          )}
                           <td className="px-2 sm:px-3 py-2 sm:py-4">
                             <div className="text-xs sm:text-sm text-gray-900 break-words">{account.task_id || "—"}</div>
                           </td>

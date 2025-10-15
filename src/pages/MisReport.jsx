@@ -5,7 +5,6 @@ import { fetchStaffTasksDataApi, getStaffTasksCountApi, getTotalUsersCountApi } 
 import AdminLayout from '../components/layout/AdminLayout';
 
 function StaffTasksPage() {
-    const [dashboardType, setDashboardType] = useState("checklist")
     const [dashboardStaffFilter, setDashboardStaffFilter] = useState("all")
     const [currentPage, setCurrentPage] = useState(1)
     const [staffMembers, setStaffMembers] = useState([])
@@ -16,7 +15,7 @@ function StaffTasksPage() {
     const [totalUsersCount, setTotalUsersCount] = useState(0)
     const [availableStaff, setAvailableStaff] = useState([])
     const [searchQuery, setSearchQuery] = useState("")
-    const itemsPerPage = 50 // Increased for better performance
+    const itemsPerPage = 50
 
     const userRole = localStorage.getItem("role")
     const username = localStorage.getItem("user-name")
@@ -28,7 +27,7 @@ function StaffTasksPage() {
         setFilteredStaffMembers([])
         setHasMoreData(true)
         setTotalStaffCount(0)
-    }, [dashboardType, dashboardStaffFilter])
+    }, [dashboardStaffFilter])
 
     // Optimized filter function with debouncing
     useEffect(() => {
@@ -44,6 +43,73 @@ function StaffTasksPage() {
         }
     }, [staffMembers, searchQuery])
 
+    // Combine checklist and delegation data
+    const combineStaffData = (checklistData, delegationData) => {
+        const combinedMap = new Map()
+
+        // Process checklist data
+        if (checklistData) {
+            checklistData.forEach(staff => {
+                combinedMap.set(staff.name, {
+                    ...staff,
+                    checklistTotal: staff.totalTasks || 0,
+                    checklistCompleted: staff.completedTasks || 0,
+                    checklistPending: staff.pendingTasks || 0,
+                    checklistProgress: staff.progress || 0
+                })
+            })
+        }
+
+        // Process delegation data
+        if (delegationData) {
+            delegationData.forEach(staff => {
+                const existing = combinedMap.get(staff.name)
+                if (existing) {
+                    // Update existing staff member
+                    combinedMap.set(staff.name, {
+                        ...existing,
+                        delegationTotal: staff.totalTasks || 0,
+                        delegationCompleted: staff.completedTasks || 0,
+                        delegationPending: staff.pendingTasks || 0,
+                        delegationProgress: staff.progress || 0
+                    })
+                } else {
+                    // Add new staff member from delegation data
+                    combinedMap.set(staff.name, {
+                        ...staff,
+                        name: staff.name,
+                        email: staff.email,
+                        checklistTotal: 0,
+                        checklistCompleted: 0,
+                        checklistPending: 0,
+                        checklistProgress: 0,
+                        delegationTotal: staff.totalTasks || 0,
+                        delegationCompleted: staff.completedTasks || 0,
+                        delegationPending: staff.pendingTasks || 0,
+                        delegationProgress: staff.progress || 0
+                    })
+                }
+            })
+        }
+
+        // Calculate combined totals and return array
+        return Array.from(combinedMap.values()).map(staff => {
+            const totalTasks = (staff.checklistTotal || 0) + (staff.delegationTotal || 0)
+            const completed = (staff.checklistCompleted || 0) + (staff.delegationCompleted || 0)
+            const pending = (staff.checklistPending || 0) + (staff.delegationPending || 0)
+            const progress = totalTasks > 0 ? Math.round((completed / totalTasks) * 100) : 0
+
+            return {
+                ...staff,
+                totalTasks,
+                completedTasks: completed,
+                pendingTasks: pending,
+                progress: progress,
+                delegationPending: staff.delegationPending || 0
+            }
+        })
+    }
+
     // Optimized data loading with parallel requests
     const loadStaffData = useCallback(async (page = 1, append = false) => {
         if (isLoading) return;
@@ -51,47 +117,50 @@ function StaffTasksPage() {
         try {
             setIsLoading(true)
 
-            // Load data and counts in parallel for first page
+            // Load both checklist and delegation data in parallel
             if (page === 1) {
-                const [data, staffCount, usersCount] = await Promise.all([
-                    fetchStaffTasksDataApi(dashboardType, dashboardStaffFilter, page, itemsPerPage),
-                    getStaffTasksCountApi(dashboardType, dashboardStaffFilter),
+                const [checklistData, delegationData, staffCount, usersCount] = await Promise.all([
+                    fetchStaffTasksDataApi("checklist", dashboardStaffFilter, page, itemsPerPage),
+                    fetchStaffTasksDataApi("delegation", dashboardStaffFilter, page, itemsPerPage),
+                    getStaffTasksCountApi("checklist", dashboardStaffFilter),
                     getTotalUsersCountApi()
                 ]);
 
                 setTotalStaffCount(staffCount)
                 setTotalUsersCount(usersCount)
 
-                if (!data || data.length === 0) {
+                const combinedData = combineStaffData(checklistData, delegationData)
+
+                if (!combinedData || combinedData.length === 0) {
                     setHasMoreData(false)
                     setStaffMembers([])
                     setFilteredStaffMembers([])
                     return
                 }
 
-                setStaffMembers(data)
-                setFilteredStaffMembers(data)
-                setHasMoreData(data.length === itemsPerPage)
+                setStaffMembers(combinedData)
+                setFilteredStaffMembers(combinedData)
+                setHasMoreData(combinedData.length === itemsPerPage)
             } else {
-                // For subsequent pages, only load data
-                const data = await fetchStaffTasksDataApi(
-                    dashboardType,
-                    dashboardStaffFilter,
-                    page,
-                    itemsPerPage
-                )
+                // For subsequent pages, load both data types
+                const [checklistData, delegationData] = await Promise.all([
+                    fetchStaffTasksDataApi("checklist", dashboardStaffFilter, page, itemsPerPage),
+                    fetchStaffTasksDataApi("delegation", dashboardStaffFilter, page, itemsPerPage)
+                ])
 
-                if (!data || data.length === 0) {
+                const combinedData = combineStaffData(checklistData, delegationData)
+
+                if (!combinedData || combinedData.length === 0) {
                     setHasMoreData(false)
                     return
                 }
 
                 setStaffMembers(prev => {
-                    const newStaff = [...prev, ...data]
+                    const newStaff = [...prev, ...combinedData]
                     setFilteredStaffMembers(newStaff)
                     return newStaff
                 })
-                setHasMoreData(data.length === itemsPerPage)
+                setHasMoreData(combinedData.length === itemsPerPage)
             }
 
         } catch (error) {
@@ -99,12 +168,12 @@ function StaffTasksPage() {
         } finally {
             setIsLoading(false)
         }
-    }, [dashboardType, dashboardStaffFilter, isLoading])
+    }, [dashboardStaffFilter, isLoading])
 
     // Initial load when component mounts or dependencies change
     useEffect(() => {
         loadStaffData(1, false)
-    }, [dashboardType, dashboardStaffFilter])
+    }, [dashboardStaffFilter])
 
     // Function to load more data
     const loadMoreData = () => {
@@ -115,13 +184,17 @@ function StaffTasksPage() {
         }
     }
 
-    // Optimized available staff fetching - only when needed
+    // Optimized available staff fetching
     useEffect(() => {
         const fetchAvailableStaff = async () => {
             try {
-                // Use a smaller limit for dropdown
-                const staffData = await fetchStaffTasksDataApi(dashboardType, "all", 1, 100)
-                const uniqueStaff = [...new Set(staffData.map(staff => staff.name).filter(Boolean))]
+                const [checklistData, delegationData] = await Promise.all([
+                    fetchStaffTasksDataApi("checklist", "all", 1, 100),
+                    fetchStaffTasksDataApi("delegation", "all", 1, 100)
+                ])
+
+                const combinedData = combineStaffData(checklistData, delegationData)
+                const uniqueStaff = [...new Set(combinedData.map(staff => staff.name).filter(Boolean))]
 
                 if (userRole !== "admin" && username) {
                     if (!uniqueStaff.some(staff => staff.toLowerCase() === username.toLowerCase())) {
@@ -136,7 +209,7 @@ function StaffTasksPage() {
         }
 
         fetchAvailableStaff()
-    }, [dashboardType, userRole, username])
+    }, [userRole, username])
 
     return (
         <AdminLayout>
@@ -148,6 +221,7 @@ function StaffTasksPage() {
                             {/* Title Section */}
                             <div className="flex-1">
                                 <h1 className="text-2xl font-bold text-purple-700">Staff MIS Report</h1>
+                                <p className="text-sm text-gray-600 mt-1">Combined Checklist & Delegation Data</p>
                             </div>
 
                             {/* Filters Section */}
@@ -178,18 +252,6 @@ function StaffTasksPage() {
                                         ))}
                                     </select>
                                 </div>
-
-                                {/* Dashboard Type Filter */}
-                                <div className="w-full sm:w-40">
-                                    <select
-                                        value={dashboardType}
-                                        onChange={(e) => setDashboardType(e.target.value)}
-                                        className="w-full rounded-md border border-purple-200 p-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 text-sm"
-                                    >
-                                        <option value="checklist">Checklist</option>
-                                        <option value="delegation">Delegation</option>
-                                    </select>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -201,6 +263,7 @@ function StaffTasksPage() {
                         <div className="flex justify-between items-center">
                             <div>
                                 <h3 className="text-purple-700 font-medium">Staff Performance Details</h3>
+                                <p className="text-xs text-gray-600">Showing combined checklist and delegation data</p>
                             </div>
 
                             {/* Active Filters Display */}
@@ -210,9 +273,6 @@ function StaffTasksPage() {
                                         Staff: {dashboardStaffFilter}
                                     </span>
                                 )}
-                                <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs">
-                                    Type: {dashboardType}
-                                </span>
                                 {searchQuery && (
                                     <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs">
                                         Search: "{searchQuery}"
@@ -232,7 +292,7 @@ function StaffTasksPage() {
                                     <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                                         <span>Total Users: <strong>{totalUsersCount}</strong></span>
                                         <span className="hidden sm:inline">•</span>
-                                        <span>Showing: <strong>{staffMembers.length}</strong>{hasMoreData}</span>
+                                        <span>Showing: <strong>{staffMembers.length}</strong>{hasMoreData && '+'}</span>
                                     </div>
                                 )}
                             </div>
@@ -270,12 +330,24 @@ function StaffTasksPage() {
                                                     </th>
                                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                         Total Tasks
+                                                        <div className="text-xs font-normal text-gray-400 mt-1">
+                                                            (C + D)
+                                                        </div>
                                                     </th>
                                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                        Completed
+                                                        Total Completed
+                                                        <div className="text-xs font-normal text-gray-400 mt-1">
+                                                            (C + D)
+                                                        </div>
                                                     </th>
                                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                        Pending
+                                                        Checklist Pending
+                                                        {/* <div className="text-xs font-normal text-gray-400 mt-1">
+                                                            (Checklist + Delegation)
+                                                        </div> */}
+                                                    </th>
+                                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        Delegation Pending
                                                     </th>
                                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                         Progress
@@ -295,13 +367,34 @@ function StaffTasksPage() {
                                                                 <div className="text-xs text-gray-500">{staff.email}</div>
                                                             </div>
                                                         </td>
-                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{staff.totalTasks}</td>
-                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{staff.completedTasks}</td>
-                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{staff.pendingTasks}</td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                            <div className="font-medium">{staff.totalTasks}</div>
+                                                            <div className="text-xs text-gray-400">
+                                                                ({staff.checklistTotal || 0} + {staff.delegationTotal || 0})
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                            <div className="font-medium">{staff.completedTasks}</div>
+                                                            <div className="text-xs text-gray-400">
+                                                                ({staff.checklistCompleted || 0} + {staff.delegationCompleted || 0})
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-red-500">
+                                                            <div className="font-medium">{staff.pendingTasks}</div>
+                                                            {/* <div className="text-xs text-gray-400">
+                                                                ({staff.checklistPending || 0})
+                                                            </div> */}
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-red-500 font-medium">
+                                                            {staff.delegationPending || 0}
+                                                        </td>
                                                         <td className="px-6 py-4 whitespace-nowrap">
                                                             <div className="flex items-center gap-2">
                                                                 <div className="w-[100px] bg-gray-200 rounded-full h-2">
-                                                                    <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${staff.progress}%` }}></div>
+                                                                    <div
+                                                                        className="bg-blue-600 h-2 rounded-full"
+                                                                        style={{ width: `${staff.progress}%` }}
+                                                                    ></div>
                                                                 </div>
                                                                 <span className="text-xs text-gray-500">{staff.progress}%</span>
                                                             </div>
@@ -333,7 +426,7 @@ function StaffTasksPage() {
                                             <button
                                                 onClick={loadMoreData}
                                                 disabled={isLoading}
-                                                className="px-6 py-2  text-black rounded-md transition-colors flex items-center gap-2"
+                                                className="px-6 py-2 text-black rounded-md transition-colors flex items-center gap-2"
                                             >
                                                 {isLoading ? (
                                                     <>

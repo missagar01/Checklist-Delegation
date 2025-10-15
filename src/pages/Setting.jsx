@@ -19,13 +19,13 @@ const Setting = () => {
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [leaveDate, setLeaveDate] = useState('');
   const [remark, setRemark] = useState('');
-  const [leaveUsernameFilter, setLeaveUsernameFilter] = useState(''); 
+  const [leaveUsernameFilter, setLeaveUsernameFilter] = useState('');
 
   const handleLeaveUsernameFilter = (username) => {
     setLeaveUsernameFilter(username);
   };
 
-  const clearLeaveUsernameFilter = () => {  
+  const clearLeaveUsernameFilter = () => {
     setLeaveUsernameFilter('');
   };
 
@@ -78,69 +78,69 @@ const Setting = () => {
     }
   };
 
- const handleSubmitLeave = async () => {
-  if (selectedUsers.length === 0 || !leaveDate) {
-    alert('Please select at least one user and provide a leave date');
-    return;
-  }
+  const handleSubmitLeave = async () => {
+    if (selectedUsers.length === 0 || !leaveDate) {
+      alert('Please select at least one user and provide a leave date');
+      return;
+    }
 
-  try {
-    // Update each selected user with leave information
-    const updatePromises = selectedUsers.map(userId => 
-      dispatch(updateUser({
-        id: userId,
-        updatedUser: {
-          leave_date: leaveDate,
-          remark: remark
-        }
-      })).unwrap()
-    );
-
-    await Promise.all(updatePromises);
-    
-    // Delete matching checklist tasks
-    const deleteChecklistPromises = selectedUsers.map(async (userId) => {
-      const user = userData.find(u => u.id === userId);
-      if (user && user.user_name) {
-        try {
-          // Convert leaveDate to match task_start_date format (only date part)
-          const leaveDateObj = new Date(leaveDate);
-          const formattedLeaveDate = leaveDateObj.toISOString().split('T')[0]; // Get YYYY-MM-DD
-          
-          // Delete checklist tasks where name matches and date matches (ignoring time)
-          const { error } = await supabase
-            .from('checklist')
-            .delete()
-            .eq('name', user.user_name)
-            .gte('task_start_date', `${formattedLeaveDate}T00:00:00`)
-            .lte('task_start_date', `${formattedLeaveDate}T23:59:59`);
-
-          if (error) {
-            console.error('Error deleting checklist task:', error);
-          } else {
-            console.log(`Deleted checklist tasks for ${user.user_name} on ${formattedLeaveDate}`);
+    try {
+      // Update each selected user with leave information
+      const updatePromises = selectedUsers.map(userId =>
+        dispatch(updateUser({
+          id: userId,
+          updatedUser: {
+            leave_date: leaveDate,
+            remark: remark
           }
-        } catch (error) {
-          console.error('Error in checklist deletion:', error);
-        }
-      }
-    });
+        })).unwrap()
+      );
 
-    await Promise.all(deleteChecklistPromises);
-    
-    // Reset form
-    setSelectedUsers([]);
-    setLeaveDate('');
-    setRemark('');
-    
-    // Refresh data
-    setTimeout(() => window.location.reload(), 1000);
-    alert('Leave information submitted successfully and matching tasks deleted');
-  } catch (error) {
-    console.error('Error submitting leave information:', error);
-    alert('Error submitting leave information');
-  }
-};
+      await Promise.all(updatePromises);
+
+      // Delete matching checklist tasks
+      const deleteChecklistPromises = selectedUsers.map(async (userId) => {
+        const user = userData.find(u => u.id === userId);
+        if (user && user.user_name) {
+          try {
+            // Convert leaveDate to match task_start_date format (only date part)
+            const leaveDateObj = new Date(leaveDate);
+            const formattedLeaveDate = leaveDateObj.toISOString().split('T')[0]; // Get YYYY-MM-DD
+
+            // Delete checklist tasks where name matches and date matches (ignoring time)
+            const { error } = await supabase
+              .from('checklist')
+              .delete()
+              .eq('name', user.user_name)
+              .gte('task_start_date', `${formattedLeaveDate}T00:00:00`)
+              .lte('task_start_date', `${formattedLeaveDate}T23:59:59`);
+
+            if (error) {
+              console.error('Error deleting checklist task:', error);
+            } else {
+              console.log(`Deleted checklist tasks for ${user.user_name} on ${formattedLeaveDate}`);
+            }
+          } catch (error) {
+            console.error('Error in checklist deletion:', error);
+          }
+        }
+      });
+
+      await Promise.all(deleteChecklistPromises);
+
+      // Reset form
+      setSelectedUsers([]);
+      setLeaveDate('');
+      setRemark('');
+
+      // Refresh data
+      setTimeout(() => window.location.reload(), 1000);
+      alert('Leave information submitted successfully and matching tasks deleted');
+    } catch (error) {
+      console.error('Error submitting leave information:', error);
+      alert('Error submitting leave information');
+    }
+  };
 
   // Add to your existing handleTabChange function
   // Handle tab change
@@ -409,9 +409,9 @@ const Setting = () => {
 
 
   // Add this filtered users calculation for leave tab
-const filteredLeaveUsers = userData?.filter(user =>
-  !leaveUsernameFilter || user.user_name.toLowerCase().includes(leaveUsernameFilter.toLowerCase())
-);
+  const filteredLeaveUsers = userData?.filter(user =>
+    !leaveUsernameFilter || user.user_name.toLowerCase().includes(leaveUsernameFilter.toLowerCase())
+  );
 
 
   const getStatusColor = (status) => {
@@ -427,7 +427,7 @@ const filteredLeaveUsers = userData?.filter(user =>
   };
 
   return (
-  <AdminLayout>
+    <AdminLayout>
       <div className="space-y-8">
         {/* Header and Tabs */}
         <div className="my-5 flex justify-between">
@@ -483,136 +483,136 @@ const filteredLeaveUsers = userData?.filter(user =>
         </div>
 
         {/* Leave Management Tab */}
-       {activeTab === 'leave' && (
-  <div className="bg-white shadow rounded-lg overflow-hidden border border-purple-200">
-    <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple px-6 py-4 border-gray-200 flex justify-between items-center">
-      <h2 className="text-lg font-medium text-purple-700">Leave Management</h2>
-      
-      <div className="flex items-center gap-4">
-        {/* Username Search Filter for Leave Tab */}
-        <div className="relative">
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-              <input
-                type="text"
-                list="leaveUsernameOptions"
-                placeholder="Filter by username..."
-                value={leaveUsernameFilter}
-                onChange={(e) => setLeaveUsernameFilter(e.target.value)}
-                className="w-48 pl-10 pr-8 py-2 border border-purple-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-              />
-              <datalist id="leaveUsernameOptions">
-                {userData?.map(user => (
-                  <option key={user.id} value={user.user_name} />
-                ))}
-              </datalist>
+        {activeTab === 'leave' && (
+          <div className="bg-white shadow rounded-lg overflow-hidden border border-purple-200">
+            <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple px-6 py-4 border-gray-200 flex justify-between items-center">
+              <h2 className="text-lg font-medium text-purple-700">Leave Management</h2>
 
-              {/* Clear button for input */}
-              {leaveUsernameFilter && (
+              <div className="flex items-center gap-4">
+                {/* Username Search Filter for Leave Tab */}
+                <div className="relative">
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                      <input
+                        type="text"
+                        list="leaveUsernameOptions"
+                        placeholder="Filter by username..."
+                        value={leaveUsernameFilter}
+                        onChange={(e) => setLeaveUsernameFilter(e.target.value)}
+                        className="w-48 pl-10 pr-8 py-2 border border-purple-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                      />
+                      <datalist id="leaveUsernameOptions">
+                        {userData?.map(user => (
+                          <option key={user.id} value={user.user_name} />
+                        ))}
+                      </datalist>
+
+                      {/* Clear button for input */}
+                      {leaveUsernameFilter && (
+                        <button
+                          onClick={clearLeaveUsernameFilter}
+                          className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Submit Button */}
                 <button
-                  onClick={clearLeaveUsernameFilter}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  onClick={handleSubmitLeave}
+                  className="rounded-md bg-green-600 py-2 px-4 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                 >
-                  <X size={16} />
+                  Submit Leave
                 </button>
-              )}
+              </div>
+            </div>
+
+            {/* Leave Form */}
+            <div className="p-6 border-b border-gray-200">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Leave Date
+                  </label>
+                  <input
+                    type="date"
+                    value={leaveDate}
+                    onChange={(e) => setLeaveDate(e.target.value)}
+                    className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Remarks
+                  </label>
+                  <input
+                    type="text"
+                    value={remark}
+                    onChange={(e) => setRemark(e.target.value)}
+                    placeholder="Enter remarks"
+                    className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Users List for Leave Selection - Updated with filter */}
+            <div className="h-[calc(100vh-400px)] overflow-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <input
+                        type="checkbox"
+                        onChange={handleSelectAll}
+                        checked={selectedUsers.length === filteredLeaveUsers?.length && filteredLeaveUsers?.length > 0}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Username
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Current Leave Date
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Current Remarks
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredLeaveUsers?.map((user) => (
+                    <tr key={user.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={selectedUsers.includes(user.id)}
+                          onChange={(e) => handleUserSelection(user.id, e.target.checked)}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{user.user_name}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {user.leave_date ? new Date(user.leave_date).toLocaleDateString() : 'No leave set'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{user.remark || 'No remarks'}</div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
-        </div>
-
-        {/* Submit Button */}
-        <button
-          onClick={handleSubmitLeave}
-          className="rounded-md bg-green-600 py-2 px-4 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-        >
-          Submit Leave
-        </button>
-      </div>
-    </div>
-
-    {/* Leave Form */}
-    <div className="p-6 border-b border-gray-200">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Leave Date
-          </label>
-          <input
-            type="date"
-            value={leaveDate}
-            onChange={(e) => setLeaveDate(e.target.value)}
-            className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-          />
-        </div>
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Remarks
-          </label>
-          <input
-            type="text"
-            value={remark}
-            onChange={(e) => setRemark(e.target.value)}
-            placeholder="Enter remarks"
-            className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-          />
-        </div>
-      </div>
-    </div>
-
-    {/* Users List for Leave Selection - Updated with filter */}
-    <div className="h-[calc(100vh-400px)] overflow-auto">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <input
-                type="checkbox"
-                onChange={handleSelectAll}
-                checked={selectedUsers.length === filteredLeaveUsers?.length && filteredLeaveUsers?.length > 0}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Username
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Current Leave Date
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Current Remarks
-            </th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {filteredLeaveUsers?.map((user) => (
-            <tr key={user.id} className="hover:bg-gray-50">
-              <td className="px-6 py-4 whitespace-nowrap">
-                <input
-                  type="checkbox"
-                  checked={selectedUsers.includes(user.id)}
-                  onChange={(e) => handleUserSelection(user.id, e.target.checked)}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="text-sm font-medium text-gray-900">{user.user_name}</div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="text-sm text-gray-900">
-                  {user.leave_date ? new Date(user.leave_date).toLocaleDateString() : 'No leave set'}
-                </div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="text-sm text-gray-900">{user.remark || 'No remarks'}</div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  </div>
-)}
+        )}
 
 
         {/* Users Tab */}
@@ -719,6 +719,7 @@ const filteredLeaveUsers = userData?.filter(user =>
                       !usernameFilter || user.user_name.toLowerCase().includes(usernameFilter.toLowerCase())
                     )
                     .map((user, index) => (
+
                       <tr key={index} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
@@ -773,7 +774,6 @@ const filteredLeaveUsers = userData?.filter(user =>
           <div className="bg-white shadow rounded-lg overflow-hidden border border-purple-200">
             <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple px-6 py-4  border-gray-200 flex justify-between items-center">
               <h2 className="text-lg font-medium text-purple-700">Department List</h2>
-
             </div>
 
             <div className="h-[calc(100vh-275px)] overflow-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
@@ -795,29 +795,28 @@ const filteredLeaveUsers = userData?.filter(user =>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {department?.map((dept, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{index + 1}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{dept?.department}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{dept?.given_by}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleEditDepartment(dept?.id)}
-                            className="text-blue-600 hover:text-blue-900"
-                          >
-                            <Edit size={18} />
-                          </button>
-                          {/* <button
-                            // onClick={() => handleDeleteDepartment(dept?.id)}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            <Trash2 size={18} />
-                          </button> */}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {department
+                    ?.filter(dept =>
+                      dept?.department && dept.department.trim() !== '' &&
+                      dept?.given_by && dept.given_by.trim() !== ''
+                    )
+                    ?.map((dept, index) => (
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{index + 1}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{dept?.department}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{dept?.given_by}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleEditDepartment(dept?.id)}
+                              className="text-blue-600 hover:text-blue-900"
+                            >
+                              <Edit size={18} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>
@@ -939,11 +938,14 @@ const filteredLeaveUsers = userData?.filter(user =>
                           >
                             <option value="">Select Department</option>
                             {department && department.length > 0 ? (
-                              department.map((dept) => (
-                                <option key={dept.id} value={dept.department}>
-                                  {dept.department}
-                                </option>
-                              ))
+                              // Get unique departments using Set
+                              [...new Set(department.map(dept => dept.department))]
+                                .filter(deptName => deptName) // Remove empty values
+                                .map((deptName, index) => (
+                                  <option key={index} value={deptName}>
+                                    {deptName}
+                                  </option>
+                                ))
                             ) : (
                               <option value="" disabled>Loading departments...</option>
                             )}
