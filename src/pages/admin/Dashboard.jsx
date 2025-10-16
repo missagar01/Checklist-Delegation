@@ -788,7 +788,7 @@ export default function AdminDashboard() {
           hasMoreData={hasMoreData}
         />
 
-        <CompletionRateCard departmentData={departmentData} />
+        {/* <CompletionRateCard departmentData={departmentData} /> */}
 
         {/* Tabs */}
         <div className="space-y-4">
