@@ -6,7 +6,7 @@ export default function TasksOverviewChart({ data }) {
       <BarChart data={data}>
         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
         <XAxis dataKey="name" fontSize={12} stroke="#888888" tickLine={false} axisLine={false} />
-        <YAxis fontSize={12} stroke="#888888" tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
+        <YAxis fontSize={12} stroke="#888888" tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} domain={[0, 1000]} />
         <Tooltip />
         <Legend />
         <Bar dataKey="completed" stackId="a" fill="#22c55e" radius={[4, 4, 0, 0]} />

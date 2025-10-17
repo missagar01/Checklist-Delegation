@@ -60,28 +60,28 @@ export const fetchUniqueDepartmentDataApi = async (user_name) => {
 
 
 
-export const fetchUniqueGivenByDataApi = async () =>{
-    try {
-       const { data, error } = await supabase
-  .from('users')
-  .select('given_by')
-   .not('given_by', 'is', null)
-  .order('given_by', { ascending: true });
-  
+export const fetchUniqueGivenByDataApi = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('given_by')
+      .not('given_by', 'is', null)
+      .order('given_by', { ascending: true });
 
-const uniqueGivenBy = [...new Set(data.map(d => d.given_by))];
 
-        if (!error) {
-            console.log("fetch succefully",uniqueGivenBy)
-            
-        } else {
-           console.log("error when fetching data",error) 
-        } 
-        return uniqueGivenBy;
-    } catch (error) {
-       console.log("error from supabase",error);
-        
+    const uniqueGivenBy = [...new Set(data.map(d => d.given_by))];
+
+    if (!error) {
+      console.log("fetch succefully", uniqueGivenBy)
+
+    } else {
+      console.log("error when fetching data", error)
     }
+    return uniqueGivenBy;
+  } catch (error) {
+    console.log("error from supabase", error);
+
+  }
 }
 
 export const fetchUniqueDoerNameDataApi = async (department) => {
@@ -92,7 +92,8 @@ export const fetchUniqueDoerNameDataApi = async (department) => {
       .from("users")
       .select("user_name, role, user_access")
       .or(`user_access.ilike.%${department}%,role.eq.admin`) // ✅ match department OR admin role
-      .eq("status", "active") // only active users
+      .eq("status", "active")
+      .eq("role", "user") // only active users
       .order("user_name", { ascending: true });
 
     const uniqueDoerName = [...new Set(data?.map((d) => d.user_name))];
@@ -110,12 +111,12 @@ export const fetchUniqueDoerNameDataApi = async (department) => {
 
 
 
-export const pushAssignTaskApi =async(generatedTasks)=>{
-    const submitTable =
-  generatedTasks[0]?.frequency === "one-time" ? "delegation" : "checklist";
+export const pushAssignTaskApi = async (generatedTasks) => {
+  const submitTable =
+    generatedTasks[0]?.frequency === "one-time" ? "delegation" : "checklist";
 
 
-    const tasksData = generatedTasks.map((task) => ({
+  const tasksData = generatedTasks.map((task) => ({
     department: task.department,
     given_by: task.givenBy,
     name: task.doer,
@@ -123,26 +124,26 @@ export const pushAssignTaskApi =async(generatedTasks)=>{
     task_start_date: task.dueDate,
     frequency: task.frequency,
     enable_reminder: task.enableReminders ? "Yes" : "No",
-  require_attachment: task.requireAttachment ? "Yes" : "No",
+    require_attachment: task.requireAttachment ? "Yes" : "No",
   }));
 
 
-    try {
-        const{data,error} = await supabase
-        .from(submitTable)
-         .insert(tasksData);
-       
-         if (!error) {
-            console.log("post succefully",data)
-            
-        } else {
-           console.log("error when posting data",error) 
-        } 
-        return data;
-    } catch (error) {
-       console.log("error from supabase",error);
-        
+  try {
+    const { data, error } = await supabase
+      .from(submitTable)
+      .insert(tasksData);
+
+    if (!error) {
+      console.log("post succefully", data)
+
+    } else {
+      console.log("error when posting data", error)
     }
+    return data;
+  } catch (error) {
+    console.log("error from supabase", error);
+
+  }
 }
 
 
