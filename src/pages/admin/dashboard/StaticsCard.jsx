@@ -20,19 +20,29 @@ export default function StatisticsCards({ dashboardType, totalTask, completeTask
     <div className="flex flex-col lg:flex-row gap-4 sm:gap-6">
       {/* Left side - Statistics Cards */}
       <div className="lg:w-1/2">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        <div className="grid grid-cols-3 sm:grid-cols-2 gap-3 sm:gap-4 justify-center">
+
           {/* Total Tasks */}
           <div className="rounded-lg border border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-all bg-white">
             <div className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-blue-50 to-blue-100 rounded-tr-lg p-3 sm:p-4">
               <h3 className="text-xs sm:text-sm font-medium text-blue-700">Total Tasks</h3>
               <ListTodo className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500" />
             </div>
-            <div className="p-3 sm:p-4">
+            <div className="hidden sm:block p-3 sm:p-4">
               <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-700">{totalTask}</div>
               <p className="text-xs text-blue-600">
                 {dashboardType === "delegation"
                   ? "All tasks"
                   : "Total tasks in checklist"}
+              </p>
+            </div>
+
+            <div className="sm:hidden p-3 sm:p-4 mt-4">
+              <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-700">{totalTask}</div>
+              <p className="text-xs text-blue-600">
+                {dashboardType === "delegation"
+                  ? "All tasks"
+                  : "Total tasks"}
               </p>
             </div>
           </div>
@@ -87,7 +97,7 @@ export default function StatisticsCards({ dashboardType, totalTask, completeTask
           </div>
 
           {/* Overdue Tasks */}
-          <div className="rounded-lg border border-l-4 border-l-red-500 shadow-md hover:shadow-lg transition-all bg-white sm:col-span-2 lg:col-span-1">
+          <div className="rounded-lg border border-l-4 border-l-red-500 shadow-md hover:shadow-lg transition-all bg-white sm:col-span-2 lg:col-span-1 col-span-2">
             <div className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-red-50 to-red-100 rounded-tr-lg p-3 sm:p-4">
               <h3 className="text-xs sm:text-sm font-medium text-red-700">
                 {dashboardType === "delegation" ? "Completed 3+ Times" : "Overdue Tasks"}
@@ -105,6 +115,8 @@ export default function StatisticsCards({ dashboardType, totalTask, completeTask
               </p>
             </div>
           </div>
+
+
         </div>
       </div>
 

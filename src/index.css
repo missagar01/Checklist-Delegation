@@ -4,6 +4,9 @@
 .gradient-bg {
     background: linear-gradient(to right, #9333EA, #DB2777);
 }
+.gradient-bg2 {
+    background: linear-gradient(to right, #f10303, #f4cedf);
+}
 
 .gradient-bg:hover {
     background: linear-gradient(to right, #7E22CE, #BE185D);
