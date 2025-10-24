@@ -533,13 +533,6 @@ const filteredChecklistTasks = quickTask.filter(task => {
         </div>
       )}
 
-      /* {loading && activeTab === 'checklist' && (
-        <div className="mt-8 text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500 mb-2"></div>
-          <p className="text-purple-600">Loading task data...</p>
-        </div>
-      )} */
-
       {loading && activeTab === 'delegation' && (
         <div className="mt-8 text-center">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500 mb-2"></div>
