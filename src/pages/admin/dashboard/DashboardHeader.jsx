@@ -36,15 +36,16 @@ export default function DashboardHeader({
     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
       <div className="flex items-center gap-4">
         <h1 className="text-2xl font-bold tracking-tight text-purple-500">Dashboard</h1>
-
-        <div className="flex items-center gap-2 ml-auto mr-5">
-          <div className="text-sm text-gray-600">Total Users</div>
-          <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center">
-            <span className="text-white font-bold text-sm">
-              {totalUsersCount}
-            </span>
+        {userRole === "admin" && (
+          <div className="flex items-center gap-2 ml-auto mr-5">
+            <div className="text-sm text-gray-600">Total Users</div>
+            <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center">
+              <span className="text-white font-bold text-sm">
+                {totalUsersCount}
+              </span>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <div className="flex items-center gap-2">
