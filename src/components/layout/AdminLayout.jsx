@@ -28,6 +28,7 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
   const [isDataSubmenuOpen, setIsDataSubmenuOpen] = useState(false);
   const [username, setUsername] = useState("");
   const [userRole, setUserRole] = useState("");
+  const [userEmail, setUserEmail] = useState("");
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   const [isUserPopupOpen, setIsUserPopupOpen] = useState(false);
@@ -36,6 +37,7 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
   useEffect(() => {
     const storedUsername = localStorage.getItem("user-name");
     const storedRole = localStorage.getItem("role");
+    const storedEmail = localStorage.getItem("email_id");
 
     if (!storedUsername) {
       // Redirect to login if not authenticated
@@ -45,6 +47,7 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
 
     setUsername(storedUsername);
     setUserRole(storedRole || "user");
+    setUserEmail(storedEmail);
 
     // Check if this is the super admin (username = 'admin')
     setIsSuperAdmin(storedUsername === "admin");
@@ -54,6 +57,7 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
   const handleLogout = () => {
     localStorage.removeItem("user-name");
     localStorage.removeItem("role");
+    localStorage.removeItem("email_id");
     localStorage.removeItem("token");
     window.location.href = "/login";
   };
@@ -170,17 +174,15 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
                   <div>
                     <button
                       onClick={() => setIsDataSubmenuOpen(!isDataSubmenuOpen)}
-                      className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                        route.active
-                          ? "bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700"
-                          : "text-gray-700 hover:bg-blue-50"
-                      }`}
+                      className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${route.active
+                        ? "bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700"
+                        : "text-gray-700 hover:bg-blue-50"
+                        }`}
                     >
                       <div className="flex items-center gap-3">
                         <route.icon
-                          className={`h-4 w-4 ${
-                            route.active ? "text-blue-600" : ""
-                          }`}
+                          className={`h-4 w-4 ${route.active ? "text-blue-600" : ""
+                            }`}
                         />
                         {route.label}
                       </div>
@@ -199,13 +201,12 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
                                 category.link ||
                                 `/dashboard/data/${category.id}`
                               }
-                              className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
-                                location.pathname ===
+                              className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${location.pathname ===
                                 (category.link ||
                                   `/dashboard/data/${category.id}`)
-                                  ? "bg-blue-50 text-blue-700 font-medium"
-                                  : "text-gray-600 hover:bg-blue-50 hover:text-blue-700 "
-                              }`}
+                                ? "bg-blue-50 text-blue-700 font-medium"
+                                : "text-gray-600 hover:bg-blue-50 hover:text-blue-700 "
+                                }`}
                               onClick={() => setIsMobileMenuOpen(false)}
                             >
                               {category.name}
@@ -218,16 +219,14 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
                 ) : (
                   <Link
                     to={route.href}
-                    className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                      route.active
-                        ? "bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700"
-                        : "text-gray-700 hover:bg-blue-50"
-                    }`}
+                    className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${route.active
+                      ? "bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700"
+                      : "text-gray-700 hover:bg-blue-50"
+                      }`}
                   >
                     <route.icon
-                      className={`h-4 w-4 ${
-                        route.active ? "text-blue-600" : ""
-                      }`}
+                      className={`h-4 w-4 ${route.active ? "text-blue-600" : ""
+                        }`}
                     />
                     {route.label}
                   </Link>
@@ -254,9 +253,7 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
                     : ""}
                 </p>
                 <p className="text-xs text-blue-600">
-                  {username
-                    ? `${username.toLowerCase()}@example.com`
-                    : "user@example.com"}
+                  {userEmail || "user@example.com"}
                 </p>
               </div>
             </div>
@@ -352,17 +349,15 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
                           onClick={() =>
                             setIsDataSubmenuOpen(!isDataSubmenuOpen)
                           }
-                          className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                            route.active
-                              ? "bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700"
-                              : "text-gray-700 hover:bg-blue-50"
-                          }`}
+                          className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${route.active
+                            ? "bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700"
+                            : "text-gray-700 hover:bg-blue-50"
+                            }`}
                         >
                           <div className="flex items-center gap-3">
                             <route.icon
-                              className={`h-4 w-4 ${
-                                route.active ? "text-blue-600" : ""
-                              }`}
+                              className={`h-4 w-4 ${route.active ? "text-blue-600" : ""
+                                }`}
                             />
                             {route.label}
                           </div>
@@ -381,13 +376,12 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
                                     category.link ||
                                     `/dashboard/data/${category.id}`
                                   }
-                                  className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
-                                    location.pathname ===
+                                  className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${location.pathname ===
                                     (category.link ||
                                       `/dashboard/data/${category.id}`)
-                                      ? "bg-blue-50 text-blue-700 font-medium"
-                                      : "text-gray-600 hover:bg-blue-50 hover:text-blue-700"
-                                  }`}
+                                    ? "bg-blue-50 text-blue-700 font-medium"
+                                    : "text-gray-600 hover:bg-blue-50 hover:text-blue-700"
+                                    }`}
                                   onClick={() => setIsMobileMenuOpen(false)}
                                 >
                                   {category.name}
@@ -400,17 +394,15 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
                     ) : (
                       <Link
                         to={route.href}
-                        className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                          route.active
-                            ? "bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700"
-                            : "text-gray-700 hover:bg-blue-50"
-                        }`}
+                        className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${route.active
+                          ? "bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700"
+                          : "text-gray-700 hover:bg-blue-50"
+                          }`}
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
                         <route.icon
-                          className={`h-4 w-4 ${
-                            route.active ? "text-blue-600" : ""
-                          }`}
+                          className={`h-4 w-4 ${route.active ? "text-blue-600" : ""
+                            }`}
                         />
                         {route.label}
                       </Link>
@@ -437,9 +429,7 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
                         : ""}
                     </p>
                     <p className="text-xs text-blue-600">
-                      {username
-                        ? `${username.toLowerCase()}@example.com`
-                        : "user@example.com"}
+                      {userEmail || "user@example.com"}
                     </p>
                   </div>
                 </div>
@@ -522,12 +512,11 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
               <div className="p-2 rounded-full hover:bg-white/20 transition-all duration-300 cursor-pointer transform hover:scale-110">
                 <Link
                   to={"/dashboard/admin"}
-                  className={` ${
-                    location.pathname === `/dashboard/admin`
-                      ? "bg-white/20"
-                      : ""
-                  }`}
-                  // onClick={() => setIsMobileMenuOpen(false)}
+                  className={` ${location.pathname === `/dashboard/admin`
+                    ? "bg-white/20"
+                    : ""
+                    }`}
+                // onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <Home size={29} className="drop-shadow-md" />
                 </Link>
@@ -535,11 +524,10 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
               <div className="p-2 rounded-full hover:bg-white/20 transition-all duration-300 cursor-pointer transform hover:scale-110">
                 <Link
                   to={"/dashboard/data/sales"}
-                  className={` ${
-                    location.pathname === `/dashboard/data/sales`
-                      ? "bg-white/20"
-                      : ""
-                  }`}
+                  className={` ${location.pathname === `/dashboard/data/sales`
+                    ? "bg-white/20"
+                    : ""
+                    }`}
                 >
                   <CalendarCheck size={29} className="drop-shadow-md" />
                 </Link>
@@ -547,11 +535,10 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
               <div className="p-3 rounded-full bg-white text-purple-600 hover:bg-purple-100 transition-all duration-300 cursor-pointer transform hover:scale-110 shadow-lg -mt-6">
                 <Link
                   to={"/dashboard/assign-task"}
-                  className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
-                    location.pathname === `/dashboard/assign-task`
-                      ? "bg-white/20"
-                      : ""
-                  }`}
+                  className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${location.pathname === `/dashboard/assign-task`
+                    ? "bg-white/20"
+                    : ""
+                    }`}
                 >
                   <CirclePlus size={29} className="drop-shadow-md" />
                 </Link>
@@ -559,11 +546,10 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
               <div className="p-2 rounded-full hover:bg-white/20 transition-all duration-300 cursor-pointer transform hover:scale-110">
                 <Link
                   to={"/dashboard/delegation"}
-                  className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
-                    location.pathname === `/dashboard/delegation`
-                      ? "bg-white/20"
-                      : ""
-                  }`}
+                  className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${location.pathname === `/dashboard/delegation`
+                    ? "bg-white/20"
+                    : ""
+                    }`}
                 >
                   <BookmarkCheck size={29} className="drop-shadow-md" />
                 </Link>
@@ -624,9 +610,7 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
                         : ""}
                     </p>
                     <p className="text-xs text-blue-600">
-                      {username
-                        ? `${username.toLowerCase()}@example.com`
-                        : "user@example.com"}
+                      {userEmail || "user@example.com"}
                     </p>
                   </div>
                 </div>

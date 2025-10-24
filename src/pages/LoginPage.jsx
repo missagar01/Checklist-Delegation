@@ -8,52 +8,56 @@ import { LoginCredentialsApi } from "../redux/api/loginApi"
 
 const LoginPage = () => {
   const navigate = useNavigate()
-  const { isLoggedIn, userData, error } = useSelector((state) => state.login); // Added error from state
+  const { isLoggedIn, userData, error } = useSelector((state) => state.login);
   const dispatch = useDispatch();
 
   const [isDataLoading, setIsDataLoading] = useState(false)
   const [isLoginLoading, setIsLoginLoading] = useState(false)
   const [masterData, setMasterData] = useState({
-    userCredentials: {}, // Object where keys are usernames and values are passwords
-    userRoles: {} // Object where keys are usernames and values are roles
+    userCredentials: {},
+    userRoles: {}
   })
   const [formData, setFormData] = useState({
     username: "",
     password: "",
+    // Remove email_id from here since it's not a login input
   })
   const [toast, setToast] = useState({ show: false, message: "", type: "" })
 
-
   const handleSubmit = (e) => {
     e.preventDefault();
-    setIsLoginLoading(true); // Add loading state
+    setIsLoginLoading(true);
     dispatch(loginUser(formData));
   };
 
   useEffect(() => {
     if (isLoggedIn && userData) {
-      localStorage.setItem('user-name', userData.user_name);
-      localStorage.setItem('role', userData.role);
-      navigate("/dashboard/admin")
-    } else if (error) { // Add error handling
-      showToast(error, "error");
-      setIsLoginLoading(false); // Reset loading on error
-    }
-  }, [isLoggedIn, userData, error, navigate]); // Added error to dependencies
+      console.log("User Data received:", userData); // Debug log
 
+      // Store all user data in localStorage
+      localStorage.setItem('user-name', userData.user_name || userData.username || "");
+      localStorage.setItem('role', userData.role || "");
+      localStorage.setItem('email_id', userData.email_id || userData.email || "");
+
+      console.log("Stored email:", userData.email_id || userData.email); // Debug log
+
+      navigate("/dashboard/admin")
+    } else if (error) {
+      showToast(error, "error");
+      setIsLoginLoading(false);
+    }
+  }, [isLoggedIn, userData, error, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-
-
   const showToast = (message, type) => {
     setToast({ show: true, message, type })
     setTimeout(() => {
       setToast({ show: false, message: "", type: "" })
-    }, 5000) // Toast duration
+    }, 5000)
   }
 
   return (
@@ -65,9 +69,7 @@ const LoginPage = () => {
             alt="Company Logo"
             className="h-auto w-100 mr-3"
           />
-          <h2 className="text-2xl font-bold text-blue-700 p-2 items-center justify-center" >Checklist & Delegation</h2>
-          <div className="flex items-center justify-center mb-2">
-          </div>
+          <h2 className="text-2xl font-bold text-blue-700 p-2 items-center justify-center">Checklist & Delegation</h2>
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
@@ -108,13 +110,14 @@ const LoginPage = () => {
           <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 -mx-4 -mb-4 mt-4 rounded-b-lg">
             <button
               type="submit"
-              className="w-full py-2 px-4  gradient-bg text-white rounded-md font-medium gradient-bg:hover disabled:opacity-50"
+              className="w-full py-2 px-4 gradient-bg text-white rounded-md font-medium gradient-bg:hover disabled:opacity-50"
               disabled={isLoginLoading || isDataLoading}
             >
               {isLoginLoading ? "Logging in..." : isDataLoading ? "Loading..." : "Login"}
             </button>
           </div>
         </form>
+
         <div className="fixed left-0 right-0 bottom-0 py-1 px-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-center text-sm shadow-md z-10">
           <a
             href="https://www.botivate.in/"
