@@ -517,7 +517,7 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
         <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-gradient-to-br from-blue-50 to-purple-50">
           {children}
 
-          <div className="fixed md:left-64 left-0 right-0 bottom-0 py-1 px-4 gradient-bg text-white text-center text-sm shadow-lg z-10 backdrop-blur-sm bg-gradient-to-r from-purple-600 to-blue-600">
+          <div className="fixed md:left-64 left-0 right-0 bottom-0 py-1 px-4 gradient-bg text-white text-center text-sm shadow-lg z-10 backdrop-blur-sm">
             <div className="sm:hidden flex justify-between items-center mb-[-10px]">
               <div className="p-2 rounded-full hover:bg-white/20 transition-all duration-300 cursor-pointer transform hover:scale-110">
                 <Link
