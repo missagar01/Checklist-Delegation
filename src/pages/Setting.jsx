@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Plus, User, Building, X, Save, Edit, Trash2, Settings, Search, ChevronDown, Calendar } from 'lucide-react';
 import AdminLayout from '../components/layout/AdminLayout';
 import { useDispatch, useSelector } from 'react-redux';
-import { createDepartment, createUser, deleteUser, departmentDetails, updateDepartment, updateUser, userDetails } from '../redux/slice/settingSlice';
+import { createDepartment, createUser, deleteUser, departmentOnlyDetails, givenByDetails, departmentDetails, updateDepartment, updateUser, userDetails } from '../redux/slice/settingSlice';
 import supabase from '../SupabaseClient';
 
 const Setting = () => {
@@ -15,11 +15,14 @@ const Setting = () => {
   const [usernameFilter, setUsernameFilter] = useState('');
   const [usernameDropdownOpen, setUsernameDropdownOpen] = useState(false);
 
+  const [activeDeptSubTab, setActiveDeptSubTab] = useState('departments');
   // Leave Management State
-  const [selectedUsers, setSelectedUsers] = useState([]);
-  const [leaveDate, setLeaveDate] = useState('');
-  const [remark, setRemark] = useState('');
-  const [leaveUsernameFilter, setLeaveUsernameFilter] = useState('');
+// Leave Management State
+const [selectedUsers, setSelectedUsers] = useState([]);
+const [leaveStartDate, setLeaveStartDate] = useState('');
+const [leaveEndDate, setLeaveEndDate] = useState('');
+const [remark, setRemark] = useState('');
+const [leaveUsernameFilter, setLeaveUsernameFilter] = useState('');
 
   const handleLeaveUsernameFilter = (username) => {
     setLeaveUsernameFilter(username);
@@ -46,7 +49,11 @@ const Setting = () => {
     setUsernameDropdownOpen(!usernameDropdownOpen);
   };
 
-  const { settings, userData, department } = useSelector((state) => state.setting)
+  // const { settings, userData, department } = useSelector((state) => state.setting)
+  // Update the useSelector to include the new state
+// const { settings, userData, department, departmentsOnly, givenBy } = useSelector((state) => state.setting)
+// In your Setting component, update the useSelector:
+const { userData, department, departmentsOnly, givenBy, loading, error } = useSelector((state) => state.setting);
   const dispatch = useDispatch();
 
   const handleAddButtonClick = () => {
@@ -78,69 +85,82 @@ const Setting = () => {
     }
   };
 
-  const handleSubmitLeave = async () => {
-    if (selectedUsers.length === 0 || !leaveDate) {
-      alert('Please select at least one user and provide a leave date');
-      return;
-    }
+const handleSubmitLeave = async () => {
+  if (selectedUsers.length === 0 || !leaveStartDate || !leaveEndDate) {
+    alert('Please select at least one user and provide both start and end dates');
+    return;
+  }
 
-    try {
-      // Update each selected user with leave information
-      const updatePromises = selectedUsers.map(userId =>
-        dispatch(updateUser({
-          id: userId,
-          updatedUser: {
-            leave_date: leaveDate,
-            remark: remark
-          }
-        })).unwrap()
-      );
+  // Validate date range
+  const startDate = new Date(leaveStartDate);
+  const endDate = new Date(leaveEndDate);
+  
+  if (startDate > endDate) {
+    alert('End date cannot be before start date');
+    return;
+  }
 
-      await Promise.all(updatePromises);
-
-      // Delete matching checklist tasks
-      const deleteChecklistPromises = selectedUsers.map(async (userId) => {
-        const user = userData.find(u => u.id === userId);
-        if (user && user.user_name) {
-          try {
-            // Convert leaveDate to match task_start_date format (only date part)
-            const leaveDateObj = new Date(leaveDate);
-            const formattedLeaveDate = leaveDateObj.toISOString().split('T')[0]; // Get YYYY-MM-DD
-
-            // Delete checklist tasks where name matches and date matches (ignoring time)
-            const { error } = await supabase
-              .from('checklist')
-              .delete()
-              .eq('name', user.user_name)
-              .gte('task_start_date', `${formattedLeaveDate}T00:00:00`)
-              .lte('task_start_date', `${formattedLeaveDate}T23:59:59`);
-
-            if (error) {
-              console.error('Error deleting checklist task:', error);
-            } else {
-              console.log(`Deleted checklist tasks for ${user.user_name} on ${formattedLeaveDate}`);
-            }
-          } catch (error) {
-            console.error('Error in checklist deletion:', error);
-          }
+  try {
+    // Update each selected user with leave information
+    const updatePromises = selectedUsers.map(userId =>
+      dispatch(updateUser({
+        id: userId,
+        updatedUser: {
+          leave_date: leaveStartDate, // You can store start date or both dates
+          leave_end_date: leaveEndDate, // Add this field to your user table if needed
+          remark: remark
         }
-      });
+      })).unwrap()
+    );
 
-      await Promise.all(deleteChecklistPromises);
+    await Promise.all(updatePromises);
 
-      // Reset form
-      setSelectedUsers([]);
-      setLeaveDate('');
-      setRemark('');
+    // Delete matching checklist tasks for the date range
+    const deleteChecklistPromises = selectedUsers.map(async (userId) => {
+      const user = userData.find(u => u.id === userId);
+      if (user && user.user_name) {
+        try {
+          // Format dates for Supabase query
+          const formattedStartDate = `${leaveStartDate}T00:00:00`;
+          const formattedEndDate = `${leaveEndDate}T23:59:59`;
 
-      // Refresh data
-      setTimeout(() => window.location.reload(), 1000);
-      alert('Leave information submitted successfully and matching tasks deleted');
-    } catch (error) {
-      console.error('Error submitting leave information:', error);
-      alert('Error submitting leave information');
-    }
-  };
+          console.log(`Deleting tasks for ${user.user_name} from ${leaveStartDate} to ${leaveEndDate}`);
+
+          // Delete checklist tasks where name matches and date falls within the range
+          const { error } = await supabase
+            .from('checklist')
+            .delete()
+            .eq('name', user.user_name)
+            .gte('task_start_date', formattedStartDate)
+            .lte('task_start_date', formattedEndDate);
+
+          if (error) {
+            console.error('Error deleting checklist tasks:', error);
+          } else {
+            console.log(`Deleted checklist tasks for ${user.user_name} from ${leaveStartDate} to ${leaveEndDate}`);
+          }
+        } catch (error) {
+          console.error('Error in checklist deletion:', error);
+        }
+      }
+    });
+
+    await Promise.all(deleteChecklistPromises);
+
+    // Reset form
+    setSelectedUsers([]);
+    setLeaveStartDate('');
+    setLeaveEndDate('');
+    setRemark('');
+
+    // Refresh data
+    setTimeout(() => window.location.reload(), 1000);
+    alert('Leave information submitted successfully and matching tasks deleted');
+  } catch (error) {
+    console.error('Error submitting leave information:', error);
+    alert('Error submitting leave information');
+  }
+};
 
   // Add to your existing handleTabChange function
   // Handle tab change
@@ -435,38 +455,40 @@ const Setting = () => {
             <h1 className="text-2xl font bold text-purple-600 font-bold">User Management System</h1>
           </div>
 
-          <div className="flex border border-purple-200 rounded-md overflow-hidden self-start">
-            <button
-              className={`flex px-4 py-3 text-sm font-medium ${activeTab === 'users' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
-              onClick={() => {
-                handleTabChange('users');
-                dispatch(userDetails());
-              }}
-            >
-              <User size={18} />
-              Users
-            </button>
-            <button
-              className={`flex px-4 py-3 text-sm font-medium ${activeTab === 'departments' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
-              onClick={() => {
-                handleTabChange('departments');
-                dispatch(departmentDetails());
-              }}
-            >
-              <Building size={18} />
-              Departments
-            </button>
-            <button
-              className={`flex px-4 py-3 text-sm font-medium ${activeTab === 'leave' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
-              onClick={() => {
-                handleTabChange('leave');
-                dispatch(userDetails());
-              }}
-            >
-              <Calendar size={18} />
-              Leave Management
-            </button>
-          </div>
+         <div className="flex border border-purple-200 rounded-md overflow-hidden self-start">
+  <button
+    className={`flex px-4 py-3 text-sm font-medium ${activeTab === 'users' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
+    onClick={() => {
+      handleTabChange('users');
+      dispatch(userDetails());
+    }}
+  >
+    <User size={18} />
+    Users
+  </button>
+  <button
+    className={`flex px-4 py-3 text-sm font-medium ${activeTab === 'departments' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
+    onClick={() => {
+      handleTabChange('departments');
+      dispatch(departmentOnlyDetails()); // Fetch departments only
+      dispatch(givenByDetails()); // Fetch given by data
+    }}
+  >
+    <Building size={18} />
+    Departments
+  </button>
+  <button
+    className={`flex px-4 py-3 text-sm font-medium ${activeTab === 'leave' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
+    onClick={() => {
+      handleTabChange('leave');
+      dispatch(userDetails());
+    }}
+  >
+    <Calendar size={18} />
+    Leave Management
+  </button>
+</div>
+
 
           {/* Add button - hide for leave tab */}
           {activeTab !== 'leave' && (
@@ -481,6 +503,8 @@ const Setting = () => {
             </button>
           )}
         </div>
+
+        
 
         {/* Leave Management Tab */}
         {activeTab === 'leave' && (
@@ -531,86 +555,107 @@ const Setting = () => {
               </div>
             </div>
 
+
             {/* Leave Form */}
-            <div className="p-6 border-b border-gray-200">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Leave Date
-                  </label>
-                  <input
-                    type="date"
-                    value={leaveDate}
-                    onChange={(e) => setLeaveDate(e.target.value)}
-                    className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Remarks
-                  </label>
-                  <input
-                    type="text"
-                    value={remark}
-                    onChange={(e) => setRemark(e.target.value)}
-                    placeholder="Enter remarks"
-                    className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  />
-                </div>
-              </div>
-            </div>
+<div className="p-6 border-b border-gray-200">
+  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        Leave Start Date
+      </label>
+      <input
+        type="date"
+        value={leaveStartDate}
+        onChange={(e) => setLeaveStartDate(e.target.value)}
+        className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+      />
+    </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        Leave End Date
+      </label>
+      <input
+        type="date"
+        value={leaveEndDate}
+        onChange={(e) => setLeaveEndDate(e.target.value)}
+        className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+      />
+    </div>
+    <div className="md:col-span-2">
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        Remarks
+      </label>
+      <input
+        type="text"
+        value={remark}
+        onChange={(e) => setRemark(e.target.value)}
+        placeholder="Enter remarks"
+        className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+      />
+    </div>
+  </div>
+</div>
 
             {/* Users List for Leave Selection - Updated with filter */}
-            <div className="h-[calc(100vh-400px)] overflow-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      <input
-                        type="checkbox"
-                        onChange={handleSelectAll}
-                        checked={selectedUsers.length === filteredLeaveUsers?.length && filteredLeaveUsers?.length > 0}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Username
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Current Leave Date
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Current Remarks
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredLeaveUsers?.map((user) => (
-                    <tr key={user.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <input
-                          type="checkbox"
-                          checked={selectedUsers.includes(user.id)}
-                          onChange={(e) => handleUserSelection(user.id, e.target.checked)}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{user.user_name}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {user.leave_date ? new Date(user.leave_date).toLocaleDateString() : 'No leave set'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{user.remark || 'No remarks'}</div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            {/* Users List for Leave Selection */}
+<div className="h-[calc(100vh-400px)] overflow-auto">
+  <table className="min-w-full divide-y divide-gray-200">
+    <thead className="bg-gray-50">
+      <tr>
+        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          <input
+            type="checkbox"
+            onChange={handleSelectAll}
+            checked={selectedUsers.length === filteredLeaveUsers?.length && filteredLeaveUsers?.length > 0}
+            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+        </th>
+        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          Username
+        </th>
+        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          Current Leave Start Date
+        </th>
+        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          Current Leave End Date
+        </th>
+        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          Current Remarks
+        </th>
+      </tr>
+    </thead>
+    <tbody className="bg-white divide-y divide-gray-200">
+      {filteredLeaveUsers?.map((user) => (
+        <tr key={user.id} className="hover:bg-gray-50">
+          <td className="px-6 py-4 whitespace-nowrap">
+            <input
+              type="checkbox"
+              checked={selectedUsers.includes(user.id)}
+              onChange={(e) => handleUserSelection(user.id, e.target.checked)}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+          </td>
+          <td className="px-6 py-4 whitespace-nowrap">
+            <div className="text-sm font-medium text-gray-900">{user.user_name}</div>
+          </td>
+          <td className="px-6 py-4 whitespace-nowrap">
+            <div className="text-sm text-gray-900">
+              {user.leave_date ? new Date(user.leave_date).toLocaleDateString() : 'No leave set'}
             </div>
+          </td>
+          <td className="px-6 py-4 whitespace-nowrap">
+            <div className="text-sm text-gray-900">
+              {user.leave_end_date ? new Date(user.leave_end_date).toLocaleDateString() : 'No end date set'}
+            </div>
+          </td>
+          <td className="px-6 py-4 whitespace-nowrap">
+            <div className="text-sm text-gray-900">{user.remark || 'No remarks'}</div>
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
           </div>
         )}
 
@@ -770,58 +815,148 @@ const Setting = () => {
         )}
 
         {/* Departments Tab */}
-        {activeTab === 'departments' && (
-          <div className="bg-white shadow rounded-lg overflow-hidden border border-purple-200">
-            <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple px-6 py-4  border-gray-200 flex justify-between items-center">
-              <h2 className="text-lg font-medium text-purple-700">Department List</h2>
-            </div>
+       {/* Departments Tab */}
+{/* Departments Tab */}
+{activeTab === 'departments' && (
+  <div className="bg-white shadow rounded-lg overflow-hidden border border-purple-200">
+    <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple px-6 py-4 border-gray-200">
+      <div className="flex justify-between items-center">
+        <h2 className="text-lg font-medium text-purple-700">Department Management</h2>
+        
+        {/* Sub-tabs for Departments and Given By */}
+        <div className="flex border border-purple-200 rounded-md overflow-hidden">
+          <button
+            className={`px-4 py-2 text-sm font-medium ${activeDeptSubTab === 'departments' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
+            onClick={() => setActiveDeptSubTab('departments')}
+          >
+            Departments
+          </button>
+          <button
+            className={`px-4 py-2 text-sm font-medium ${activeDeptSubTab === 'givenBy' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
+            onClick={() => setActiveDeptSubTab('givenBy')}
+          >
+            Given By
+          </button>
+        </div>
+      </div>
+    </div>
 
-            <div className="h-[calc(100vh-275px)] overflow-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      ID
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Department Name
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Given By
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
+    {/* Loading State */}
+    {loading && (
+      <div className="p-8 text-center">
+        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+        <p className="mt-2 text-gray-600">Loading...</p>
+      </div>
+    )}
+
+    {/* Error State */}
+    {error && (
+      <div className="p-4 bg-red-50 border border-red-200 rounded-md m-4">
+        <p className="text-red-600">Error: {error}</p>
+      </div>
+    )}
+
+    {/* Departments Sub-tab - Show only department names */}
+    {activeDeptSubTab === 'departments' && !loading && (
+      <div className="h-[calc(100vh-275px)] overflow-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                ID
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Department Name
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {department && department.length > 0 ? (
+              // Get unique departments and show them
+              Array.from(new Map(department.map(dept => [dept.department, dept])).values())
+                .filter(dept => dept?.department && dept.department.trim() !== '')
+                .map((dept, index) => (
+                  <tr key={dept.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{index + 1}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{dept.department}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleEditDepartment(dept.id)}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          <Edit size={18} />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {department
-                    ?.filter(dept =>
-                      dept?.department && dept.department.trim() !== '' &&
-                      dept?.given_by && dept.given_by.trim() !== ''
-                    )
-                    ?.map((dept, index) => (
-                      <tr key={index} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{index + 1}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{dept?.department}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{dept?.given_by}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => handleEditDepartment(dept?.id)}
-                              className="text-blue-600 hover:text-blue-900"
-                            >
-                              <Edit size={18} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+                ))
+            ) : (
+              <tr>
+                <td colSpan="3" className="px-6 py-4 text-center text-sm text-gray-500">
+                  No departments found
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    )}
+
+    {/* Given By Sub-tab - Show only given_by values */}
+    {activeDeptSubTab === 'givenBy' && !loading && (
+      <div className="h-[calc(100vh-275px)] overflow-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                ID
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Given By
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {department && department.length > 0 ? (
+              // Get unique given_by values and show them
+              Array.from(new Map(department.map(dept => [dept.given_by, dept])).values())
+                .filter(dept => dept?.given_by && dept.given_by.trim() !== '')
+                .map((dept, index) => (
+                  <tr key={dept.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{index + 1}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{dept.given_by}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleEditDepartment(dept.id)}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          <Edit size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+            ) : (
+              <tr>
+                <td colSpan="3" className="px-6 py-4 text-center text-sm text-gray-500">
+                  No given by data found
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    )}
+  </div>
+)}
 
         {/* User Modal */}
         {showUserModal && (
@@ -1077,3 +1212,74 @@ const Setting = () => {
 };
 
 export default Setting;
+
+
+
+
+
+
+
+
+
+
+// <div className="space-y-8">
+//   {/* Header and Tabs */}
+//   <div className="my-5">
+//     {/* Header */}
+//     <div className="flex justify-between items-center mb-6">
+//       <h1 className="text-xl md:text-2xl font-bold text-purple-600">User Management System</h1>
+//     </div>
+
+//     {/* Tabs and Add Button Container */}
+//     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+//       {/* Tabs */}
+//       <div className="flex border border-purple-200 rounded-md overflow-hidden self-start w-full sm:w-auto">
+//         <button
+//           className={`flex flex-1 justify-center items-center px-3 py-2 md:px-4 md:py-3 text-sm font-medium ${activeTab === 'users' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
+//           onClick={() => {
+//             handleTabChange('users');
+//             dispatch(userDetails());
+//           }}
+//         >
+//           <User size={16} className="mr-1 md:mr-2" />
+//           <span className="hidden xs:inline">Users</span>
+//         </button>
+//         <button
+//           className={`flex flex-1 justify-center items-center px-3 py-2 md:px-4 md:py-3 text-sm font-medium ${activeTab === 'departments' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
+//           onClick={() => {
+//             handleTabChange('departments');
+//             dispatch(departmentOnlyDetails());
+//             dispatch(givenByDetails());
+//           }}
+//         >
+//           <Building size={16} className="mr-1 md:mr-2" />
+//           <span className="hidden xs:inline">Departments</span>
+//         </button>
+//         <button
+//           className={`flex flex-1 justify-center items-center px-3 py-2 md:px-4 md:py-3 text-sm font-medium ${activeTab === 'leave' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
+//           onClick={() => {
+//             handleTabChange('leave');
+//             dispatch(userDetails());
+//           }}
+//         >
+//           <Calendar size={16} className="mr-1 md:mr-2" />
+//           <span className="hidden xs:inline">Leave</span>
+//         </button>
+//       </div>
+
+//       {/* Add button - hide for leave tab */}
+//       {activeTab !== 'leave' && (
+//         <button
+//           onClick={handleAddButtonClick}
+//           className="rounded-md gradient-bg py-2 px-3 md:px-4 text-white hover:from-blue-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 w-full sm:w-auto"
+//         >
+//           <div className="flex items-center justify-center">
+//             <Plus size={16} className="mr-1 md:mr-2" />
+//             <span className="text-sm">
+//               {activeTab === 'users' ? 'Add User' : 'Add Department'}
+//             </span>
+//           </div>
+//         </button>
+//       )}
+//     </div>
+//   </div>

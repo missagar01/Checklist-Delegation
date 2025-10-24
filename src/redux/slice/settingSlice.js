@@ -1,6 +1,19 @@
 // loginSlice.js
+// import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
+// import { createDepartmentApi, createUserApi, deleteUserByIdApi, fetchDepartmentDataApi, fetchUserDetailsApi, updateDepartmentDataApi, updateUserDataApi } from '../api/settingApi';
+// loginSlice.js - Fix the imports
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-import { createDepartmentApi, createUserApi, deleteUserByIdApi, fetchDepartmentDataApi, fetchUserDetailsApi, updateDepartmentDataApi, updateUserDataApi } from '../api/settingApi';
+import { 
+  createDepartmentApi, 
+  createUserApi, 
+  deleteUserByIdApi, 
+  fetchDepartmentDataApi, 
+  fetchUserDetailsApi, 
+  updateDepartmentDataApi, 
+  updateUserDataApi,
+  fetchDepartmentsOnlyApi,  // Add this import
+  fetchGivenByDataApi       // Add this import
+} from '../api/settingApi';
 
 
 export const userDetails = createAsyncThunk(
@@ -9,6 +22,22 @@ export const userDetails = createAsyncThunk(
     const user = await fetchUserDetailsApi();
    
     return user;
+  }
+);
+
+export const departmentOnlyDetails = createAsyncThunk(
+  'fetch/departments-only',
+  async () => {
+    const departments = await fetchDepartmentsOnlyApi();
+    return departments;
+  }
+);
+
+export const givenByDetails = createAsyncThunk(
+  'fetch/given-by',
+  async () => {
+    const givenBy = await fetchGivenByDataApi();
+    return givenBy;
   }
 );
 
@@ -71,6 +100,8 @@ const settingsSlice = createSlice({
   initialState: {
     userData: [],
     department:[],
+    departmentsOnly: [], // Add this for departments tab
+    givenBy: [], // Add this for given by tab
     error: null,
     loading: false,
     isLoggedIn: false,
@@ -114,6 +145,30 @@ const settingsSlice = createSlice({
         state.userData.push(action.payload);
        
       })
+      .addCase(departmentOnlyDetails.pending, (state) => {
+  state.loading = true;
+  state.error = null;
+})
+.addCase(departmentOnlyDetails.fulfilled, (state, action) => {
+  state.loading = false;
+  state.departmentsOnly = action.payload;
+})
+.addCase(departmentOnlyDetails.rejected, (state, action) => {
+  state.loading = false;
+  state.error = action.payload;
+})
+.addCase(givenByDetails.pending, (state) => {
+  state.loading = true;
+  state.error = null;
+})
+.addCase(givenByDetails.fulfilled, (state, action) => {
+  state.loading = false;
+  state.givenBy = action.payload;
+})
+.addCase(givenByDetails.rejected, (state, action) => {
+  state.loading = false;
+  state.error = action.payload;
+})
       .addCase(createUser.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
