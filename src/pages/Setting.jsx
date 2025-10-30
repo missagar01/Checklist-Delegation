@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, User, Building, X, Save, Edit, Trash2, Settings, Search, ChevronDown, Calendar } from 'lucide-react';
+import { Plus, User, Building, X, Save, Edit, Trash2, Settings, Search, ChevronDown, Calendar, RefreshCw } from 'lucide-react';
 import AdminLayout from '../components/layout/AdminLayout';
 import { useDispatch, useSelector } from 'react-redux';
 import { createDepartment, createUser, deleteUser, departmentOnlyDetails, givenByDetails, departmentDetails, updateDepartment, updateUser, userDetails } from '../redux/slice/settingSlice';
@@ -14,16 +14,204 @@ const Setting = () => {
   const [currentDeptId, setCurrentDeptId] = useState(null);
   const [usernameFilter, setUsernameFilter] = useState('');
   const [usernameDropdownOpen, setUsernameDropdownOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const [activeDeptSubTab, setActiveDeptSubTab] = useState('departments');
   // Leave Management State
-// Leave Management State
-const [selectedUsers, setSelectedUsers] = useState([]);
-const [leaveStartDate, setLeaveStartDate] = useState('');
-const [leaveEndDate, setLeaveEndDate] = useState('');
-const [remark, setRemark] = useState('');
-const [leaveUsernameFilter, setLeaveUsernameFilter] = useState('');
+  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [leaveStartDate, setLeaveStartDate] = useState('');
+  const [leaveEndDate, setLeaveEndDate] = useState('');
+  const [remark, setRemark] = useState('');
+  const [leaveUsernameFilter, setLeaveUsernameFilter] = useState('');
+  
+  const { userData, department, departmentsOnly, givenBy, loading, error } = useSelector((state) => state.setting);
+  const dispatch = useDispatch();
+  // Add this function to fetch device logs and update user status
+// Add this function to fetch device logs from both APIs and update user status
+// Fix the fetchDeviceLogsAndUpdateStatus function
+const fetchDeviceLogsAndUpdateStatus = async () => {
+  try {
+    setIsRefreshing(true);
+    const today = new Date().toISOString().split('T')[0];
+    
+    const IN_API_URL = `http://139.167.179.193:90/api/v2/WebAPI/GetDeviceLogs?APIKey=205511032522&SerialNumber=E03C1CB34D83AA02&FromDate=${today}&ToDate=${today}`;
+    const OUT_API_URL = `http://139.167.179.193:90/api/v2/WebAPI/GetDeviceLogs?APIKey=205511032522&SerialNumber=E03C1CB36042AA02&FromDate=${today}&ToDate=${today}`;
+    
+    const [inResponse, outResponse] = await Promise.all([
+      fetch(IN_API_URL),
+      fetch(OUT_API_URL)
+    ]);
+    
+    const inLogs = await inResponse.json();
+    const outLogs = await outResponse.json();
+    
+    const allLogs = [...inLogs, ...outLogs];
+    
+    console.log('All logs received:', allLogs.length);
+    
+    // Process logs to get latest status for each employee
+    const employeeStatus = {};
+    allLogs.forEach(log => {
+      const employeeCode = log.EmployeeCode;
+      const punchDirection = log.PunchDirection?.toLowerCase();
+      const logDate = new Date(log.LogDate);
+      
+      // Only update if this log is newer than what we have
+      if (!employeeStatus[employeeCode] || logDate > new Date(employeeStatus[employeeCode].logDate)) {
+        employeeStatus[employeeCode] = {
+          status: punchDirection === 'in' ? 'active' : 'inactive',
+          logDate: log.LogDate,
+          serialNumber: log.SerialNumber,
+          punchDirection: punchDirection
+        };
+      }
+    });
+    
+    console.log('Employee status to update:', Object.keys(employeeStatus).length);
+    
+    // Update users in database
+    const updatePromises = Object.entries(employeeStatus).map(async ([employeeCode, statusInfo]) => {
+      try {
+        // Find user by employee code
+        const { data: users, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('employee_id', employeeCode);
+        
+        if (userError) {
+          console.error('Error finding user:', userError);
+          return;
+        }
+          
+        if (users && users.length > 0) {
+          const user = users[0];
+          console.log(`Found user: ${user.user_name}, current status: ${user.status}, new status: ${statusInfo.status}, punch: ${statusInfo.punchDirection}`);
+          
+          // Only update if status changed
+          if (user.status !== statusInfo.status) {
+            console.log(`Updating ${user.user_name} from ${user.status} to ${statusInfo.status}`);
+            
+            // Prepare update data - only include fields that exist in your table
+            const updateData = {
+              status: statusInfo.status
+            };
+            
+            // Only add these fields if they exist in your table
+            // Remove last_punch_time and last_punch_device if they don't exist
+            // updateData.last_punch_time = statusInfo.logDate;
+            // updateData.last_punch_device = statusInfo.serialNumber;
+            
+            const { data, error } = await supabase
+              .from('users')
+              .update(updateData)
+              .eq('id', user.id);
+            
+            if (error) {
+              console.error(`Error updating user ${user.user_name}:`, error);
+              console.error('Error details:', {
+                message: error.message,
+                details: error.details,
+                hint: error.hint
+              });
+            } else {
+              console.log(`✅ SUCCESS: Updated user ${user.user_name} to ${statusInfo.status}`);
+            }
+          } else {
+            console.log(`No change needed for ${user.user_name}, status already ${user.status}`);
+          }
+        } else {
+          console.log(`No user found with employee_id: ${employeeCode}`);
+        }
+      } catch (error) {
+        console.error(`Error processing employee ${employeeCode}:`, error);
+      }
+    });
+    
+    await Promise.all(updatePromises);
+    
+    // Refresh the user data
+    dispatch(userDetails());
+    
+    console.log(`Processed ${Object.keys(employeeStatus).length} employee records`);
+    
+  } catch (error) {
+    console.error('Error fetching device logs:', error);
+  } finally {
+    setIsRefreshing(false);
+  }
+};
+  // Add real-time subscription
+  useEffect(() => {
+    // Subscribe to users table changes
+    const subscription = supabase
+      .channel('users-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'users'
+        },
+        (payload) => {
+          console.log('Real-time update received:', payload);
+          // Refresh user data when any change occurs
+          dispatch(userDetails());
+        }
+      )
+      .subscribe();
 
+    // Set up interval to check device logs every 30 seconds
+    const intervalId = setInterval(fetchDeviceLogsAndUpdateStatus, 30000);
+
+    // Initial fetch of device logs
+    fetchDeviceLogsAndUpdateStatus();
+
+    return () => {
+      subscription.unsubscribe();
+      clearInterval(intervalId);
+    };
+  }, [dispatch]);
+
+  // Add this function to debug a specific user
+const debugUserStatus = async () => {
+  try {
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('user_name', 'Hem Kumar Jagat');
+    
+    if (error) {
+      console.error('Error fetching user:', error);
+      return;
+    }
+    
+    if (users && users.length > 0) {
+      const user = users[0];
+      console.log('🔍 DEBUG - Hem Kumar Jagat:', {
+        id: user.id,
+        username: user.user_name,
+        employee_id: user.employee_id,
+        current_status: user.status,
+        last_punch_time: user.last_punch_time,
+        last_punch_device: user.last_punch_device
+      });
+    } else {
+      console.log('User "Hem Kumar Jagat" not found');
+    }
+  } catch (error) {
+    console.error('Error in debug:', error);
+  }
+};
+
+// Call this to check the current status
+// debugUserStatus();
+
+  // Add manual refresh button handler
+  const handleManualRefresh = () => {
+    fetchDeviceLogsAndUpdateStatus();
+  };
+
+  // Your existing functions remain the same...
   const handleLeaveUsernameFilter = (username) => {
     setLeaveUsernameFilter(username);
   };
@@ -32,29 +220,20 @@ const [leaveUsernameFilter, setLeaveUsernameFilter] = useState('');
     setLeaveUsernameFilter('');
   };
 
-  // Add this function to handle username filter selection
   const handleUsernameFilterSelect = (username) => {
     setUsernameFilter(username);
     setUsernameDropdownOpen(false);
   };
 
-  // Add this function to clear username filter
   const clearUsernameFilter = () => {
     setUsernameFilter('');
     setUsernameDropdownOpen(false);
   };
 
-  // Add this function to toggle username dropdown
   const toggleUsernameDropdown = () => {
     setUsernameDropdownOpen(!usernameDropdownOpen);
   };
 
-  // const { settings, userData, department } = useSelector((state) => state.setting)
-  // Update the useSelector to include the new state
-// const { settings, userData, department, departmentsOnly, givenBy } = useSelector((state) => state.setting)
-// In your Setting component, update the useSelector:
-const { userData, department, departmentsOnly, givenBy, loading, error } = useSelector((state) => state.setting);
-  const dispatch = useDispatch();
 
   const handleAddButtonClick = () => {
     if (activeTab === 'users') {
@@ -450,60 +629,96 @@ const handleSubmitLeave = async () => {
     <AdminLayout>
       <div className="space-y-8">
         {/* Header and Tabs */}
-        <div className="my-5 flex justify-between">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font bold text-purple-600 font-bold">User Management System</h1>
-          </div>
+       {/* Header and Tabs */}
+<div className="my-5 flex justify-between">
+  <div className="flex justify-between items-center mb-6">
+    <h1 className="text-2xl font bold text-purple-600 font-bold">User Management System</h1>
+  </div>
 
-         <div className="flex border border-purple-200 rounded-md overflow-hidden self-start">
-  <button
-    className={`flex px-4 py-3 text-sm font-medium ${activeTab === 'users' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
-    onClick={() => {
-      handleTabChange('users');
-      dispatch(userDetails());
-    }}
-  >
-    <User size={18} />
-    Users
-  </button>
-  <button
-    className={`flex px-4 py-3 text-sm font-medium ${activeTab === 'departments' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
-    onClick={() => {
-      handleTabChange('departments');
-      dispatch(departmentOnlyDetails()); // Fetch departments only
-      dispatch(givenByDetails()); // Fetch given by data
-    }}
-  >
-    <Building size={18} />
-    Departments
-  </button>
-  <button
-    className={`flex px-4 py-3 text-sm font-medium ${activeTab === 'leave' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
-    onClick={() => {
-      handleTabChange('leave');
-      dispatch(userDetails());
-    }}
-  >
-    <Calendar size={18} />
-    Leave Management
-  </button>
-</div>
+  <div className="flex items-center gap-4">
+    <div className="flex border border-purple-200 rounded-md overflow-hidden self-start">
+      {/* Your existing tab buttons */}
+      <button
+        className={`flex px-4 py-3 text-sm font-medium ${activeTab === 'users' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
+        onClick={() => {
+          handleTabChange('users');
+          dispatch(userDetails());
+        }}
+      >
+        <User size={18} />
+        Users
+      </button>
+      <button
+        className={`flex px-4 py-3 text-sm font-medium ${activeTab === 'departments' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
+        onClick={() => {
+          handleTabChange('departments');
+          dispatch(departmentOnlyDetails());
+          dispatch(givenByDetails());
+        }}
+      >
+        <Building size={18} />
+        Departments
+      </button>
+      <button
+        className={`flex px-4 py-3 text-sm font-medium ${activeTab === 'leave' ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 hover:bg-purple-50'}`}
+        onClick={() => {
+          handleTabChange('leave');
+          dispatch(userDetails());
+        }}
+      >
+        <Calendar size={18} />
+        Leave Management
+      </button>
+    </div>
 
+    {/* Add this debug button temporarily next to your refresh button */}
+<button
+  onClick={debugUserStatus}
+  className="rounded-md bg-yellow-600 py-2 px-4 text-white hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2"
+>
+  <div className="flex items-center">
+    <Search size={18} className="mr-2" />
+    <span>Debug User</span>
+  </div>
+</button>
 
-          {/* Add button - hide for leave tab */}
-          {activeTab !== 'leave' && (
-            <button
-              onClick={handleAddButtonClick}
-              className="rounded-md gradient-bg py-2 px-4 text-white hover:from-blue-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              <div className="flex items-center">
-                <Plus size={18} className="mr-2" />
-                <span>{activeTab === 'users' ? 'Add User' : 'Add Department'}</span>
-              </div>
-            </button>
-          )}
+    {/* Refresh Button */}
+    <button
+      onClick={handleManualRefresh}
+      disabled={isRefreshing}
+      className="rounded-md bg-green-600 py-2 px-4 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      <div className="flex items-center">
+        <RefreshCw size={18} className={`mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+        <span>{isRefreshing ? 'Refreshing...' : 'Refresh Status'}</span>
+      </div>
+    </button>
+
+    {/* Add button - hide for leave tab */}
+    {activeTab !== 'leave' && (
+      <button
+        onClick={handleAddButtonClick}
+        className="rounded-md gradient-bg py-2 px-4 text-white hover:from-blue-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+      >
+        <div className="flex items-center">
+          <Plus size={18} className="mr-2" />
+          <span>{activeTab === 'users' ? 'Add User' : 'Add Department'}</span>
         </div>
-
+      </button>
+    )}
+  </div>
+</div>
+<div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+        <h3 className="text-sm font-medium text-yellow-800">Debug Info</h3>
+        <p className="text-xs text-yellow-700">
+          Total Users: {userData?.length || 0} | 
+          Active: {userData?.filter(u => u.status === 'active').length || 0} | 
+          Inactive: {userData?.filter(u => u.status === 'inactive').length || 0}
+        </p>
+        <p className="text-xs text-yellow-700">
+          Employee IDs in DB: {userData?.map(u => u.employee_id).filter(Boolean).join(', ') || 'None'}
+        </p>
+      </div>
         
 
         {/* Leave Management Tab */}
@@ -731,88 +946,90 @@ const handleSubmitLeave = async () => {
               </div>
             </div>
 
-            <div className=" h-[calc(100vh-275px)] overflow-auto" style={{ maxHeight: 'calc(100vh - 220px)' }} >
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Username
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Email
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Phone No.
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Department
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Role
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {userData
-                    ?.filter(user =>
-                      !usernameFilter || user.user_name.toLowerCase().includes(usernameFilter.toLowerCase())
-                    )
-                    .map((user, index) => (
-
-                      <tr key={index} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="text-sm font-medium text-gray-900">{user?.user_name}</div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{user?.email_id}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{user?.number}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{user?.user_access || 'N/A'}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(user?.status)}`}>
-                            {user?.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getRoleColor(user?.role)}`}>
-                            {user?.role}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => handleEditUser(user?.id)}
-                              className="text-blue-600 hover:text-blue-900"
-                            >
-                              <Edit size={18} />
-                            </button>
-                            {/* <button
-                            onClick={() => handleDeleteUser(user?.id)}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            <Trash2 size={18} />
-                          </button> */}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+            <div className="h-[calc(100vh-275px)] overflow-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead className="bg-gray-50">
+          <tr>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Username
+            </th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Email
+            </th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Phone No.
+            </th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Department
+            </th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Status
+            </th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Role
+            </th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Actions
+            </th>
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {userData
+            ?.filter(user =>
+              !usernameFilter || user.user_name.toLowerCase().includes(usernameFilter.toLowerCase())
+            )
+            .map((user, index) => (
+              <tr key={index} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center">
+                    <div className="text-sm font-medium text-gray-900">{user?.user_name}</div>
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm text-gray-900">{user?.email_id}</div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm text-gray-900">{user?.number}</div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm text-gray-900">{user?.user_access || 'N/A'}</div>
+                </td>
+                
+                {/* ADD THE STATUS CELL HERE */}
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center">
+                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(user?.status)}`}>
+                      {user?.status}
+                    </span>
+                    {user?.status === 'active' && (
+                      <span className="ml-2 w-2 h-2 bg-green-500 rounded-full animate-pulse" title="Live Status"></span>
+                    )}
+                  </div>
+                </td>
+                {/* END OF STATUS CELL */}
+                
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getRoleColor(user?.role)}`}>
+                    {user?.role}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleEditUser(user?.id)}
+                      className="text-blue-600 hover:text-blue-900"
+                    >
+                      <Edit size={18} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+)}
 
         {/* Departments Tab */}
        {/* Departments Tab */}

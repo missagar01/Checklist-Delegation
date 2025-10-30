@@ -1,11 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom"
+import { useState } from "react"
 import LoginPage from "./pages/LoginPage"
 import AdminDashboard from "./pages/admin/Dashboard"
 import AdminAssignTask from "./pages/admin/AssignTask"
-// import AllTasks from "./pages/admin/AllTasks"
 import DataPage from "./pages/admin/DataPage"
 import AdminDataPage from "./pages/admin/admin-data-page"
 import AccountDataPage from "./pages/delegation"
@@ -15,6 +14,7 @@ import "./index.css"
 import Demo from "./pages/user/Demo"
 import Setting from "./pages/Setting"
 import MisReport from "./pages/MisReport"
+import RealtimeLogoutListener from "./components/RealtimeLogoutListener"   // ✅ Added listener
 
 // Auth wrapper component to protect routes
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
@@ -35,10 +35,11 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
 }
 
 function App() {
-  
-
   return (
     <Router>
+      {/* ✅ Realtime listener inside Router so useNavigate works */}
+      <RealtimeLogoutListener />
+
       <Routes>
         {/* Root redirect */}
         <Route path="/" element={<Navigate to="/login" replace />} />
@@ -67,7 +68,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
 
         {/* Assign Task route - only for admin */}
         <Route

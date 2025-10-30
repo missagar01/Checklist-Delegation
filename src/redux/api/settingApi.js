@@ -4,7 +4,7 @@ export const fetchUserDetailsApi = async () => {
   try {
     const { data, error } = await supabase
       .from("users")
-      .select('*, user_access, leave_date, leave_end_date, remark') // Add leave_end_date
+      .select('*, user_access, leave_date, leave_end_date, remark, employee_id') // Add employee_id
       .not("user_name", "is", null)
       .neq("user_name", "");
 
@@ -20,6 +20,28 @@ export const fetchUserDetailsApi = async () => {
     return [];
   }
 };
+
+
+// export const fetchUserDetailsApi = async () => {
+//   try {
+//     const { data, error } = await supabase
+//       .from("users")
+//       .select('*, user_access, leave_date, leave_end_date, remark') // Add leave_end_date
+//       .not("user_name", "is", null)
+//       .neq("user_name", "");
+
+//     if (error) {
+//       console.log("Error when fetching data", error);
+//       return [];
+//     }
+
+//     console.log("Fetched successfully", data);
+//     return data;
+//   } catch (error) {
+//     console.log("Error from Supabase", error);
+//     return [];
+//   }
+// };
 
 export const fetchDepartmentDataApi = async () => {
   try {

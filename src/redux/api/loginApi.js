@@ -27,11 +27,18 @@ export const LoginCredentialsApi = async (formData) => {
     .select('*')
     .eq('user_name', formData.username)
     .eq('password', formData.password)
-    .eq('status', 'active')
-    .single();
+    .single(); // remove .eq('status', 'active')
 
+  // Handle error or no data
   if (error || !data) {
     return { error: 'Invalid username or password' };
+  }
+
+  // 🔴 Add this check — if user is inactive, log them out immediately
+  if (data.status !== 'active') {
+    // Clear localStorage and reject login
+    localStorage.clear();
+    return { error: 'Your account is inactive. Please contact admin.' };
   }
 
   // Store user access in localStorage
