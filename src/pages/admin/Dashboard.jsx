@@ -801,20 +801,23 @@ export default function AdminDashboard() {
               </div>
             </div> */}
             {/* Other overview components */}
-            <div className="rounded-lg border border-purple-200 shadow-md bg-white">
-              <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple-100 p-4">
-                <h3 className="text-purple-700 font-medium">Staff Task Summary</h3>
-                <p className="text-purple-600 text-sm">Overview of tasks assigned to each staff member</p>
+          
+             {userRole === "admin" && (
+              <div className="rounded-lg border border-purple-200 shadow-md bg-white">
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple-100 p-4">
+                  <h3 className="text-purple-700 font-medium">Staff Task Summary</h3>
+                  <p className="text-purple-600 text-sm">Overview of tasks assigned to each staff member</p>
+                </div>
+                <div className="p-4">
+                  <StaffTasksTable
+                    dashboardType={dashboardType}
+                    dashboardStaffFilter={dashboardStaffFilter}
+                    departmentFilter={departmentFilter} // Add this line
+                    parseTaskStartDate={parseTaskStartDate}
+                  />
+                </div>
               </div>
-              <div className="p-4">
-                <StaffTasksTable
-                  dashboardType={dashboardType}
-                  dashboardStaffFilter={dashboardStaffFilter}
-                  departmentFilter={departmentFilter} // Add this line
-                  parseTaskStartDate={parseTaskStartDate}
-                />
-              </div>
-            </div>
+            )}
           </div>
         )}
 
