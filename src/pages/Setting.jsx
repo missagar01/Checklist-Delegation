@@ -47,7 +47,7 @@ const fetchDeviceLogsAndUpdateStatus = async () => {
     
     const allLogs = [...inLogs, ...outLogs];
     
-    console.log('All logs received:', allLogs.length);
+    // console.log('All logs received:', allLogs.length);
     
     // Process logs to get latest status for each employee
     const employeeStatus = {};
@@ -67,7 +67,7 @@ const fetchDeviceLogsAndUpdateStatus = async () => {
       }
     });
     
-    console.log('Employee status to update:', Object.keys(employeeStatus).length);
+    // console.log('Employee status to update:', Object.keys(employeeStatus).length);
     
     // Update users in database
     const updatePromises = Object.entries(employeeStatus).map(async ([employeeCode, statusInfo]) => {
@@ -85,11 +85,11 @@ const fetchDeviceLogsAndUpdateStatus = async () => {
           
         if (users && users.length > 0) {
           const user = users[0];
-          console.log(`Found user: ${user.user_name}, current status: ${user.status}, new status: ${statusInfo.status}, punch: ${statusInfo.punchDirection}`);
+          // console.log(`Found user: ${user.user_name}, current status: ${user.status}, new status: ${statusInfo.status}, punch: ${statusInfo.punchDirection}`);
           
           // Only update if status changed
           if (user.status !== statusInfo.status) {
-            console.log(`Updating ${user.user_name} from ${user.status} to ${statusInfo.status}`);
+            // console.log(`Updating ${user.user_name} from ${user.status} to ${statusInfo.status}`);
             
             // Prepare update data - only include fields that exist in your table
             const updateData = {
@@ -114,13 +114,13 @@ const fetchDeviceLogsAndUpdateStatus = async () => {
                 hint: error.hint
               });
             } else {
-              console.log(`✅ SUCCESS: Updated user ${user.user_name} to ${statusInfo.status}`);
+              // console.log(`✅ SUCCESS: Updated user ${user.user_name} to ${statusInfo.status}`);
             }
           } else {
-            console.log(`No change needed for ${user.user_name}, status already ${user.status}`);
+            // console.log(`No change needed for ${user.user_name}, status already ${user.status}`);
           }
         } else {
-          console.log(`No user found with employee_id: ${employeeCode}`);
+          // console.log(`No user found with employee_id: ${employeeCode}`);
         }
       } catch (error) {
         console.error(`Error processing employee ${employeeCode}:`, error);
@@ -132,7 +132,7 @@ const fetchDeviceLogsAndUpdateStatus = async () => {
     // Refresh the user data
     dispatch(userDetails());
     
-    console.log(`Processed ${Object.keys(employeeStatus).length} employee records`);
+    // console.log(`Processed ${Object.keys(employeeStatus).length} employee records`);
     
   } catch (error) {
     console.error('Error fetching device logs:', error);
@@ -153,7 +153,7 @@ const fetchDeviceLogsAndUpdateStatus = async () => {
           table: 'users'
         },
         (payload) => {
-          console.log('Real-time update received:', payload);
+          // console.log('Real-time update received:', payload);
           // Refresh user data when any change occurs
           dispatch(userDetails());
         }
@@ -187,14 +187,14 @@ const debugUserStatus = async () => {
     
     if (users && users.length > 0) {
       const user = users[0];
-      console.log('🔍 DEBUG - Hem Kumar Jagat:', {
-        id: user.id,
-        username: user.user_name,
-        employee_id: user.employee_id,
-        current_status: user.status,
-        last_punch_time: user.last_punch_time,
-        last_punch_device: user.last_punch_device
-      });
+      // console.log('🔍 DEBUG - Hem Kumar Jagat:', {
+      //   id: user.id,
+      //   username: user.user_name,
+      //   employee_id: user.employee_id,
+      //   current_status: user.status,
+      //   last_punch_time: user.last_punch_time,
+      //   last_punch_device: user.last_punch_device
+      // });
     } else {
       console.log('User "Hem Kumar Jagat" not found');
     }
@@ -303,7 +303,7 @@ const handleSubmitLeave = async () => {
           const formattedStartDate = `${leaveStartDate}T00:00:00`;
           const formattedEndDate = `${leaveEndDate}T23:59:59`;
 
-          console.log(`Deleting tasks for ${user.user_name} from ${leaveStartDate} to ${leaveEndDate}`);
+          // console.log(`Deleting tasks for ${user.user_name} from ${leaveStartDate} to ${leaveEndDate}`);
 
           // Delete checklist tasks where name matches and date falls within the range
           const { error } = await supabase
@@ -708,7 +708,7 @@ const handleSubmitLeave = async () => {
     )}
   </div>
 </div>
-<div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+{/* <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
         <h3 className="text-sm font-medium text-yellow-800">Debug Info</h3>
         <p className="text-xs text-yellow-700">
           Total Users: {userData?.length || 0} | 
@@ -718,7 +718,7 @@ const handleSubmitLeave = async () => {
         <p className="text-xs text-yellow-700">
           Employee IDs in DB: {userData?.map(u => u.employee_id).filter(Boolean).join(', ') || 'None'}
         </p>
-      </div>
+      </div> */}
         
 
         {/* Leave Management Tab */}
