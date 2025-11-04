@@ -88,11 +88,11 @@ export const createUserApi = async (newUser) => {
       return;
     }
 
-    const lastId = maxIdData?.[0]?.id || 0; // default to 0 if no users yet
+    const lastId = maxIdData?.[0]?.id || 0;
     const newId = lastId + 1;
 
     // Step 2: Insert user with new ID
-     const { data, error } = await supabase
+    const { data, error } = await supabase
       .from("users")
       .insert([
         {
@@ -101,9 +101,10 @@ export const createUserApi = async (newUser) => {
           password: newUser.password,
           email_id: newUser.email,
           number: newUser.phone,
+          employee_id: newUser.employee_id, // Add this line
           role: newUser.role,
           status: newUser.status,
-          user_access: newUser.user_access // Add this line
+          user_access: newUser.user_access
         }
       ]);
 
@@ -126,6 +127,7 @@ export const updateUserDataApi = async ({ id, updatedUser }) => {
       password: updatedUser.password,
       email_id: updatedUser.email_id,
       number: updatedUser.number,
+      employee_id: updatedUser.employee_id, // Add this line
       role: updatedUser.role,
       status: updatedUser.status,
       user_access: updatedUser.user_access
