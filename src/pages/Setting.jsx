@@ -400,7 +400,7 @@ const handleSubmitLeave = async () => {
     email: '',
     password: '',
     phone: '',
-
+    employee_id: '',
     role: 'user',
     status: 'active'
   });
@@ -417,45 +417,46 @@ const handleSubmitLeave = async () => {
 
   // In your handleAddUser function:
   // Modified handleAddUser
-  const handleAddUser = async (e) => {
-    e.preventDefault();
-    const newUser = {
-      ...userForm,
-      user_access: userForm.department, // Add this line
-    };
-
-    try {
-      await dispatch(createUser(newUser)).unwrap();
-      resetUserForm();
-      setShowUserModal(false);
-      setTimeout(() => window.location.reload(), 1000);
-    } catch (error) {
-      console.error('Error adding user:', error);
-    }
+const handleAddUser = async (e) => {
+  e.preventDefault();
+  const newUser = {
+    ...userForm,
+    user_access: userForm.department,
   };
+
+  try {
+    await dispatch(createUser(newUser)).unwrap();
+    resetUserForm();
+    setShowUserModal(false);
+    setTimeout(() => window.location.reload(), 1000);
+  } catch (error) {
+    console.error('Error adding user:', error);
+  }
+};
 
   // Modified handleUpdateUser
-  const handleUpdateUser = async (e) => {
-    e.preventDefault();
-    const updatedUser = {
-      user_name: userForm.username,
-      password: userForm.password,
-      email_id: userForm.email,
-      number: userForm.phone,
-      role: userForm.role,
-      status: userForm.status,
-      user_access: userForm.department // Add this line
-    };
-
-    try {
-      await dispatch(updateUser({ id: currentUserId, updatedUser })).unwrap();
-      resetUserForm();
-      setShowUserModal(false);
-      setTimeout(() => window.location.reload(), 1000);
-    } catch (error) {
-      console.error('Error updating user:', error);
-    }
+const handleUpdateUser = async (e) => {
+  e.preventDefault();
+  const updatedUser = {
+    user_name: userForm.username,
+    password: userForm.password,
+    email_id: userForm.email,
+    number: userForm.phone,
+    employee_id: userForm.employee_id, // Add this line
+    role: userForm.role,
+    status: userForm.status,
+    user_access: userForm.department
   };
+
+  try {
+    await dispatch(updateUser({ id: currentUserId, updatedUser })).unwrap();
+    resetUserForm();
+    setShowUserModal(false);
+    setTimeout(() => window.location.reload(), 1000);
+  } catch (error) {
+    console.error('Error updating user:', error);
+  }
+};
 
   // Modified handleAddDepartment
   const handleAddDepartment = async (e) => {
@@ -518,21 +519,22 @@ const handleSubmitLeave = async () => {
   //   resetUserForm();
   //   setShowUserModal(false);
   // };
-  const handleEditUser = (userId) => {
-    const user = userData.find(u => u.id === userId);
-    setUserForm({
-      username: user.user_name,
-      email: user.email_id,
-      password: user.password,
-      phone: user.number,
-      department: user.user_access || '', // Add this line
-      role: user.role,
-      status: user.status
-    });
-    setCurrentUserId(userId);
-    setIsEditing(true);
-    setShowUserModal(true);
-  };
+const handleEditUser = (userId) => {
+  const user = userData.find(u => u.id === userId);
+  setUserForm({
+    username: user.user_name,
+    email: user.email_id,
+    password: user.password,
+    phone: user.number,
+    employee_id: user.employee_id || '', // Add this line
+    department: user.user_access || '',
+    role: user.role,
+    status: user.status
+  });
+  setCurrentUserId(userId);
+  setIsEditing(true);
+  setShowUserModal(true);
+};
 
   const handleEditDepartment = (deptId) => {
     const dept = department.find(d => d.id === deptId);
@@ -560,6 +562,7 @@ const handleSubmitLeave = async () => {
       email: '',
       password: '',
       phone: '',
+      employee_id: '',
       department: '', // Add this line
       givenBy: '',
       role: 'user',
@@ -963,6 +966,9 @@ const handleSubmitLeave = async () => {
               Phone No.
             </th>
             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+  Employee ID
+</th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Department
             </th>
             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -994,6 +1000,9 @@ const handleSubmitLeave = async () => {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900">{user?.number}</div>
                 </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+  <div className="text-sm text-gray-900">{user?.employee_id || 'N/A'}</div>
+</td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900">{user?.user_access || 'N/A'}</div>
                 </td>
@@ -1262,7 +1271,20 @@ const handleSubmitLeave = async () => {
 
 
 
-
+                        <div className="sm:col-span-3">
+  <label htmlFor="employee_id" className="block text-sm font-medium text-gray-700">
+    Employee ID
+  </label>
+  <input
+    type="text"
+    name="employee_id"
+    id="employee_id"
+    value={userForm.employee_id}
+    onChange={handleUserInputChange}
+    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+    placeholder="Enter Employee ID"
+  />
+</div>
 
                         <div className="sm:col-span-3">
                           <label htmlFor="role" className="block text-sm font-medium text-gray-700">
