@@ -1,28 +1,6 @@
-// {
-//     "rewrites": [
-//       { "source": "/(.*)", "destination": "/" }
-//     ]
-//   }
-  
-
-
 {
-  "functions": {
-    "functions/device-logs.js": {
-      "maxDuration": 30
-    }
-  },
-  "routes": [
-    {
-      "src": "/api/device-logs",
-      "dest": "/functions/device-logs.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ],
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "devCommand": "npm run dev"
-}
+    "rewrites": [
+      { "source": "/(.*)", "destination": "/" }
+    ]
+  }
+  
