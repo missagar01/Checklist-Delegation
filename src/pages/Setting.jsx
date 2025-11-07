@@ -152,17 +152,23 @@ const fetchDeviceLogsAndUpdateStatus = async () => {
     setIsRefreshing(true);
     const today = new Date().toISOString().split('T')[0];
     
-    const IN_API_URL = `http://139.167.179.193:90/api/v2/WebAPI/GetDeviceLogs?APIKey=205511032522&SerialNumber=E03C1CB34D83AA02&FromDate=${today}&ToDate=${today}`;
-    const OUT_API_URL = `http://139.167.179.193:90/api/v2/WebAPI/GetDeviceLogs?APIKey=205511032522&SerialNumber=E03C1CB36042AA02&FromDate=${today}&ToDate=${today}`;
+    // Use relative API path that works in both dev and production
+    const baseUrl = window.location.origin;
+    
+    console.log('Fetching device logs for date:', today);
     
     const [inResponse, outResponse] = await Promise.all([
-      fetch(IN_API_URL),
-      fetch(OUT_API_URL)
+      fetch(`/api/device-logs?serialNumber=E03C1CB34D83AA02&date=${today}`),
+      fetch(`/api/device-logs?serialNumber=E03C1CB36042AA02&date=${today}`)
     ]);
-    
+
+    if (!inResponse.ok || !outResponse.ok) {
+      throw new Error('Failed to fetch device logs from API');
+    }
+
     const inLogs = await inResponse.json();
     const outLogs = await outResponse.json();
-    
+
     const allLogs = [...inLogs, ...outLogs];
     
     // Sort logs by date (latest first)
@@ -185,6 +191,8 @@ const fetchDeviceLogsAndUpdateStatus = async () => {
         };
       }
     });
+    
+    console.log('Employee status updates:', Object.keys(employeeStatus).length);
     
     // Update users in database
     const updatePromises = Object.entries(employeeStatus).map(async ([employeeCode, statusInfo]) => {
@@ -215,6 +223,8 @@ const fetchDeviceLogsAndUpdateStatus = async () => {
             
             if (error) {
               console.error(`Error updating user ${user.user_name}:`, error);
+            } else {
+              console.log(`Updated ${user.user_name} status to: ${statusInfo.status}`);
             }
           }
         }
