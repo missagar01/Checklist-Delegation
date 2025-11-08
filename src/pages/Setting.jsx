@@ -147,108 +147,108 @@ const Setting = () => {
 
 
 // Simplified status logic: IN = active, OUT = inactive (today's date only)
+// const fetchDeviceLogsAndUpdateStatus = async () => {
+//   try {
+//     setIsRefreshing(true);
+//     const today = new Date().toISOString().split('T')[0];
+    
+//     const IN_API_URL = `http://139.167.179.193:90/api/v2/WebAPI/GetDeviceLogs?APIKey=205511032522&SerialNumber=E03C1CB34D83AA02&FromDate=${today}&ToDate=${today}`;
+//     const OUT_API_URL = `http://139.167.179.193:90/api/v2/WebAPI/GetDeviceLogs?APIKey=205511032522&SerialNumber=E03C1CB36042AA02&FromDate=${today}&ToDate=${today}`;
+    
+//     const [inResponse, outResponse] = await Promise.all([
+//       fetch(IN_API_URL),
+//       fetch(OUT_API_URL)
+//     ]);
+    
+//     const inLogs = await inResponse.json();
+//     const outLogs = await outResponse.json();
+    
+//     const allLogs = [...inLogs, ...outLogs];
+    
+//     // Sort logs by date (latest first)
+//     allLogs.sort((a, b) => new Date(b.LogDate) - new Date(a.LogDate));
+    
+//     // Simple logic: Check latest punch for each employee
+//     const employeeStatus = {};
+    
+//     allLogs.forEach(log => {
+//       const employeeCode = log.EmployeeCode;
+//       const punchDirection = log.PunchDirection?.toLowerCase();
+      
+//       // Only process if this employee hasn't been processed yet (we want the latest punch)
+//       if (!employeeStatus[employeeCode]) {
+//         // Simple rule: IN = active, OUT = inactive
+//         employeeStatus[employeeCode] = {
+//           status: punchDirection === 'in' ? 'active' : 'inactive',
+//           logDate: log.LogDate,
+//           serialNumber: log.SerialNumber
+//         };
+//       }
+//     });
+    
+//     // Update users in database
+//     const updatePromises = Object.entries(employeeStatus).map(async ([employeeCode, statusInfo]) => {
+//       try {
+//         const { data: users, error: userError } = await supabase
+//           .from('users')
+//           .select('*')
+//           .eq('employee_id', employeeCode);
+        
+//         if (userError) {
+//           console.error('Error finding user:', userError);
+//           return;
+//         }
+          
+//         if (users && users.length > 0) {
+//           const user = users[0];
+          
+//           // Only update if status changed
+//           if (user.status !== statusInfo.status) {
+//             const updateData = {
+//               status: statusInfo.status
+//             };
+            
+//             const { data, error } = await supabase
+//               .from('users')
+//               .update(updateData)
+//               .eq('id', user.id);
+            
+//             if (error) {
+//               console.error(`Error updating user ${user.user_name}:`, error);
+//             }
+//           }
+//         }
+//       } catch (error) {
+//         console.error(`Error processing employee ${employeeCode}:`, error);
+//       }
+//     });
+    
+//     await Promise.all(updatePromises);
+//     dispatch(userDetails());
+    
+//   } catch (error) {
+//     console.error('Error fetching device logs:', error);
+//   } finally {
+//     setIsRefreshing(false);
+//   }
+// };
+
+
+
 const fetchDeviceLogsAndUpdateStatus = async () => {
   try {
     setIsRefreshing(true);
-    const today = new Date().toISOString().split('T')[0];
-    
-    // Use single API call that gets both IN and OUT logs
-    const API_URL = `http://139.167.179.193:90/api/v2/WebAPI/GetDeviceLogs?APIKey=205511032522&FromDate=${today}&ToDate=${today}`;
-    
-    const response = await fetch(API_URL);
-    const allLogs = await response.json();
-    
-    console.log('🔍 DEBUG - All logs for today:', allLogs);
-    
-    // Sort logs by date (latest first)
-    allLogs.sort((a, b) => new Date(b.LogDate) - new Date(a.LogDate));
-    
-    // Get all users from database
-    const { data: allUsers, error: usersError } = await supabase
-      .from('users')
-      .select('*');
-    
-    if (usersError) {
-      console.error('Error fetching users:', usersError);
-      return;
-    }
-    
-    // Create a map of latest punch for each employee
-    const employeeLatestPunch = {};
-    
-    allLogs.forEach(log => {
-      const employeeCode = log.EmployeeCode;
-      const punchDirection = log.PunchDirection?.toLowerCase();
-      
-      // Only keep the most recent punch for each employee
-      if (!employeeLatestPunch[employeeCode]) {
-        employeeLatestPunch[employeeCode] = {
-          punchDirection: punchDirection,
-          logDate: log.LogDate,
-          serialNumber: log.SerialNumber
-        };
-      }
-    });
-    
-    console.log('🔍 DEBUG - Latest punches:', employeeLatestPunch);
-    
-    // Update users in database
-    const updatePromises = allUsers.map(async (user) => {
-      try {
-        let newStatus = 'inactive'; // Default to inactive for ALL users
-        let lastPunchTime = null;
-        let lastPunchDevice = null;
-        
-        // Check if user has employee_id and has punches today
-        if (user.employee_id && employeeLatestPunch[user.employee_id]) {
-          const punchInfo = employeeLatestPunch[user.employee_id];
-          
-          // Only set to active if they have an IN punch today
-          newStatus = punchInfo.punchDirection === 'in' ? 'active' : 'inactive';
-          lastPunchTime = punchInfo.logDate;
-          lastPunchDevice = punchInfo.serialNumber;
-          
-          console.log(`🔍 ${user.employee_id}: Latest punch = ${punchInfo.punchDirection} → ${newStatus}`);
-        } else {
-          // User has no punches today OR no employee_id → inactive
-          console.log(`🔍 ${user.employee_id || 'No ID'}: No punches today → inactive`);
-        }
-        
-        // Only update if status changed
-        if (user.status !== newStatus) {
-          const updateData = {
-            status: newStatus,
-            last_punch_time: lastPunchTime,
-            last_punch_device: lastPunchDevice
-          };
-          
-          const { data, error } = await supabase
-            .from('users')
-            .update(updateData)
-            .eq('id', user.id);
-          
-          if (error) {
-            console.error(`Error updating user ${user.user_name}:`, error);
-          } else {
-            console.log(`✅ Updated ${user.user_name} from ${user.status} to ${newStatus}`);
-          }
-        } else {
-          console.log(`➡️ No change for ${user.user_name}: ${user.status}`);
-        }
-      } catch (error) {
-        console.error(`Error processing user ${user.user_name}:`, error);
-      }
-    });
-    
-    await Promise.all(updatePromises);
+    const response = await fetch('https://checklist-backend-yan3.onrender.com/api/device-sync');
+    const data = await response.json();
+    console.log(data.message);
     dispatch(userDetails());
-    
   } catch (error) {
-    console.error('Error fetching device logs:', error);
+    console.error('Error syncing device logs:', error);
   } finally {
     setIsRefreshing(false);
   }
 };
+
   // Add real-time subscription
   useEffect(() => {
     // Subscribe to users table changes
