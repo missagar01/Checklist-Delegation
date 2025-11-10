@@ -1091,7 +1091,9 @@ const handleEditUser = (userId) => {
         <tbody className="bg-white divide-y divide-gray-200">
           {userData
             ?.filter(user =>
-              !usernameFilter || user.user_name.toLowerCase().includes(usernameFilter.toLowerCase())
+               user.user_name !== 'admin' &&
+                user.user_name !== 'DSMC' && (
+              !usernameFilter || user.user_name.toLowerCase().includes(usernameFilter.toLowerCase()))
             )
             .map((user, index) => (
               <tr key={index} className="hover:bg-gray-50">
