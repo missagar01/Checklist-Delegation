@@ -235,35 +235,37 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
             ))}
           </ul>
         </nav>
-        <div className="border-t border-blue-200 p-4 bg-gradient-to-r from-blue-50 to-purple-50 ">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-full gradient-bg flex items-center justify-center">
-                <span className="text-sm font-medium text-black">
-                  {username ? username.charAt(0).toUpperCase() : "U"}
-                </span>
+        <div className="border-t border-blue-200 p-4 bg-gradient-to-r from-blue-50 to-purple-50">
+          <div className="flex flex-col">
+            {/* User info section */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-full gradient-bg flex items-center justify-center">
+                  <span className="text-sm font-medium text-black">
+                    {username ? username.charAt(0).toUpperCase() : "U"}
+                  </span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-blue-700 truncate">
+                    {username || "User"}{" "}
+                    {userRole === "admin"
+                      ? isSuperAdmin
+                        ? "(Super Admin)"
+                        : "(Admin)"
+                      : ""}
+                  </p>
+                  <p className="text-xs text-blue-600 truncate">
+                    {userEmail || "user@example.com"}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium text-blue-700">
-                  {username || "User"}{" "}
-                  {userRole === "admin"
-                    ? isSuperAdmin
-                      ? "(Super Admin)"
-                      : "(Admin)"
-                    : ""}
-                </p>
-                <p className="text-xs text-blue-600">
-                  {userEmail || "user@example.com"}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
+
+              {/* Dark mode toggle (if available) */}
               {toggleDarkMode && (
                 <button
                   onClick={toggleDarkMode}
                   className="text-blue-700 hover:text-blue-900 p-1 rounded-full hover:bg-blue-100"
                 >
-                  {/* Dark mode toggle icons remain the same */}
                   {darkMode ? (
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -300,12 +302,16 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
                   </span>
                 </button>
               )}
+            </div>
+
+            {/* Logout button positioned below user info */}
+            <div className="mt-2 flex justify-center">
               <button
                 onClick={handleLogout}
-                className="text-blue-700 hover:text-blue-900 p-1 rounded-full hover:bg-blue-100"
+                className="flex items-center gap-1 text-blue-700 hover:text-blue-900 px-2 py-1 rounded hover:bg-blue-100 text-sm"
               >
                 <LogOut className="h-4 w-4" />
-                <span className="sr-only">Log out</span>
+                <span>Logout</span>
               </button>
             </div>
           </div>
@@ -475,15 +481,18 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
                       </span>
                     </button>
                   )}
-                  <button
-                    onClick={handleLogout}
-                    className="text-blue-700 hover:text-blue-900 p-1 rounded-full hover:bg-blue-100 "
-                  >
-                    <LogOut className="h-4 w-4" />
-                    <span className="sr-only">Log out</span>
-                  </button>
+                  
                 </div>
               </div>
+               <div className="mt-2 flex justify-center">
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-1 text-blue-700 hover:text-blue-900 px-2 py-1 rounded hover:bg-blue-100 text-sm"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Logout</span>
+              </button>
+            </div>
             </div>
           </div>
         </div>
