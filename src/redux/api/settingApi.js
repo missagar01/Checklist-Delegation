@@ -1,25 +1,16 @@
-import supabase from "../../SupabaseClient";
+// import supabase from "../../SupabaseClient";
 
 export const fetchUserDetailsApi = async () => {
   try {
-    const { data, error } = await supabase
-      .from("users")
-      .select('*, user_access, leave_date, leave_end_date, remark, employee_id') // Add employee_id
-      .not("user_name", "is", null)
-      .neq("user_name", "");
-
-    if (error) {
-      console.log("Error when fetching data", error);
-      return [];
-    }
-
-    console.log("Fetched successfully", data);
+    const response = await fetch("http://localhost:5050/api/settings/users");
+    const data = await response.json();
     return data;
   } catch (error) {
-    console.log("Error from Supabase", error);
+    console.log("Error fetching users", error);
     return [];
   }
 };
+
 
 
 // export const fetchUserDetailsApi = async () => {
@@ -45,213 +36,90 @@ export const fetchUserDetailsApi = async () => {
 
 export const fetchDepartmentDataApi = async () => {
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('id, department, given_by') 
-      .not('department', 'is', null)     // Exclude null departments
-      .neq('department', '')             // Exclude empty string departments
-      .order('department', { ascending: true });
-
-    if (error) {
-      console.log("error when fetching data", error);
-      return [];
-    }
-
-    // Filter unique combinations of department + given_by
-    const uniqueDepartments = Array.from(
-      new Map(
-        data.map((item) => [`${item.department}-${item.given_by}`, item])
-      ).values()
-    );
-
-    console.log("fetch successfully", uniqueDepartments);
-    return uniqueDepartments;
+    const res = await fetch("http://localhost:5050/api/settings/departments");
+    return await res.json();
   } catch (error) {
-    console.log("error from supabase", error);
+    console.log("Error fetching departments", error);
     return [];
   }
 };
 
 
 
+
 export const createUserApi = async (newUser) => {
   try {
-    // Step 1: Get the current max ID
-    const { data: maxIdData, error: maxIdError } = await supabase
-      .from("users")
-      .select("id")
-      .order("id", { ascending: false })
-      .limit(1);
+    const res = await fetch("http://localhost:5050/api/settings/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newUser)
+    });
 
-    if (maxIdError) {
-      console.error("Error fetching last ID:", maxIdError);
-      return;
-    }
-
-    const lastId = maxIdData?.[0]?.id || 0;
-    const newId = lastId + 1;
-
-    // Step 2: Insert user with new ID
-    const { data, error } = await supabase
-      .from("users")
-      .insert([
-        {
-          id: newId,
-          user_name: newUser.username,
-          password: newUser.password,
-          email_id: newUser.email,
-          number: newUser.phone,
-          employee_id: newUser.employee_id, // Add this line
-          role: newUser.role,
-          status: newUser.status,
-          user_access: newUser.user_access
-        }
-      ]);
-
-    if (error) {
-      console.log("Error when posting data:", error);
-    } else {
-      console.log("Posted successfully", data);
-    }
-
+    const data = await res.json();
     return data;
   } catch (error) {
-    console.log("Error from Supabase:", error);
+    console.log("Error creating user", error);
   }
 };
+
 
 export const updateUserDataApi = async ({ id, updatedUser }) => {
   try {
-    const updateData = {
-      user_name: updatedUser.user_name,
-      password: updatedUser.password,
-      email_id: updatedUser.email_id,
-      number: updatedUser.number,
-      employee_id: updatedUser.employee_id, // Add this line
-      role: updatedUser.role,
-      status: updatedUser.status,
-      user_access: updatedUser.user_access
-    };
+    const res = await fetch(`http://localhost:5050/api/settings/users/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updatedUser)
+    });
 
-    // Add leave data if provided
-    if (updatedUser.leave_date !== undefined) {
-      updateData.leave_date = updatedUser.leave_date;
-    }
-    if (updatedUser.leave_end_date !== undefined) {
-      updateData.leave_end_date = updatedUser.leave_end_date;
-    }
-    if (updatedUser.remark !== undefined) {
-      updateData.remark = updatedUser.remark;
-    }
-
-    const { data, error } = await supabase
-      .from("users")
-      .update(updateData)
-      .eq("id", id);
-
-    if (error) {
-      console.log("Error when update data", error);
-      throw error;
-    }
-
-    console.log("update successfully", data);
-    return data;
+    return await res.json();
   } catch (error) {
-    console.log("Error from Supabase", error);
-    throw error;
+    console.log("Error updating user", error);
   }
 };
+
 
 
 export const createDepartmentApi = async (newDept) => {
   try {
-    // Step 1: Get the current max ID
-    const { data: maxIdData, error: maxIdError } = await supabase
-      .from("users")
-      .select("id")
-      .order("id", { ascending: false })
-      .limit(1);
+    const res = await fetch("http://localhost:5050/api/settings/departments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newDept)
+    });
 
-    if (maxIdError) {
-      console.error("Error fetching last ID:", maxIdError);
-      return;
-    }
-
-    const lastId = maxIdData?.[0]?.id || 0; // default to 0 if no users yet
-    const newId = lastId + 1;
-
-    // Step 2: Insert user with new ID
-    const { data, error } = await supabase
-      .from("users")
-      .insert([
-        {
-          id: newId, // 👈 manually setting the next ID
-         department:newDept.name,
-         given_by:newDept.givenBy,
-        }
-      ]);
-
-    if (error) {
-      console.log("Error when posting data:", error);
-    } else {
-      console.log("Posted successfully", data);
-    }
-
-    return data;
+    return await res.json();
   } catch (error) {
-    console.log("Error from Supabase:", error);
+    console.log("Error adding department", error);
   }
 };
 
-export const updateDepartmentDataApi = async ({id, updatedDept}) => {
-  console.log(updatedDept);
-  
+
+export const updateDepartmentDataApi = async ({ id, updatedDept }) => {
   try {
-    if (!updatedDept || !updatedDept.department || !updatedDept.given_by) {
-      throw new Error("Missing department or given_by data");
-    }
+    const res = await fetch(`http://localhost:5050/api/settings/departments/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updatedDept)
+    });
 
-    const { data, error } = await supabase
-      .from("users")
-      .update({
-        department: updatedDept.department,
-        given_by: updatedDept.given_by,
-      })
-      .eq("id", id);
-
-    if (error) {
-      console.log("Error when updating data", error);
-      throw error;
-    }
-
-    console.log("Updated successfully", data);
-    return data;
+    return await res.json();
   } catch (error) {
-    console.log("Error from Supabase", error);
-    throw error;
+    console.log("Error updating department", error);
   }
 };
+
 
 
 export const deleteUserByIdApi = async (id) => {
   try {
-    const { data, error } = await supabase
-      .from("users")
-      .delete()
-      .eq("id", id);
-
-    if (error) {
-      console.log("Error deleting user:", error);
-      throw error;
-    }
-
-    console.log("User deleted successfully:", data);
-    return data;
+    await fetch(`http://localhost:5050/api/settings/users/${id}`, {
+      method: "DELETE",
+    });
   } catch (error) {
-    console.log("Error from Supabase:", error);
-    throw error;
+    console.log("Error deleting user", error);
   }
 };
+
 
 
 

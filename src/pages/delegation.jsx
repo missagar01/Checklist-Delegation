@@ -12,9 +12,10 @@ import {
 import AdminLayout from "../components/layout/AdminLayout";
 import { useDispatch, useSelector } from "react-redux";
 import {
-  delegation_DoneData,
+  delegationDoneData,
   delegationData,
 } from "../redux/slice/delegationSlice";
+
 import { insertDelegationDoneAndUpdate } from "../redux/api/delegationApi";
 
 // Configuration object - Move all configurations here
@@ -86,7 +87,8 @@ function DelegationDataPage() {
 
   useEffect(() => {
     dispatch(delegationData());
-    dispatch(delegation_DoneData());
+    // dispatch(delegation_DoneData());
+    dispatch(delegationDoneData());
   }, [dispatch]);
 
   const formatDateTimeToDDMMYYYY = useCallback((date) => {
@@ -459,118 +461,224 @@ function DelegationDataPage() {
     resetFilters();
   }, [resetFilters]);
 
-  const handleSubmit = async () => {
-    const selectedItemsArray = Array.from(selectedItems);
+//   const handleSubmit = async () => {
+//     const selectedItemsArray = Array.from(selectedItems);
 
-    if (selectedItemsArray.length === 0) {
-      alert("Please select at least one item to submit");
-      return;
-    }
+//     if (selectedItemsArray.length === 0) {
+//       alert("Please select at least one item to submit");
+//       return;
+//     }
 
-    const missingStatus = selectedItemsArray.filter((id) => !statusData[id]);
-    if (missingStatus.length > 0) {
-      alert(
-        `Please select a status for all selected items. ${missingStatus.length} item(s) are missing status.`
-      );
-      return;
-    }
+//     const missingStatus = selectedItemsArray.filter((id) => !statusData[id]);
+//     if (missingStatus.length > 0) {
+//       alert(
+//         `Please select a status for all selected items. ${missingStatus.length} item(s) are missing status.`
+//       );
+//       return;
+//     }
 
-    const missingNextDate = selectedItemsArray.filter(
-      (id) => statusData[id] === "Extend date" && !nextTargetDate[id]
-    );
-    if (missingNextDate.length > 0) {
-      alert(
-        `Please select a next target date for all items with "Extend date" status. ${missingNextDate.length} item(s) are missing target date.`
-      );
-      return;
-    }
+//     const missingNextDate = selectedItemsArray.filter(
+//       (id) => statusData[id] === "Extend date" && !nextTargetDate[id]
+//     );
+//     if (missingNextDate.length > 0) {
+//       alert(
+//         `Please select a next target date for all items with "Extend date" status. ${missingNextDate.length} item(s) are missing target date.`
+//       );
+//       return;
+//     }
 
-    const missingRequiredImages = selectedItemsArray.filter((id) => {
-      const item = delegation.find((account) => account.task_id === id);
-      const requiresAttachment =
-        item.require_attachment &&
-        item.require_attachment.toUpperCase() === "YES";
-      return requiresAttachment && !uploadedImages[id] && !item.image;
-    });
+//     const missingRequiredImages = selectedItemsArray.filter((id) => {
+//       const item = delegation.find((account) => account.task_id === id);
+//       const requiresAttachment =
+//         item.require_attachment &&
+//         item.require_attachment.toUpperCase() === "YES";
+//       return requiresAttachment && !uploadedImages[id] && !item.image;
+//     });
 
-    if (missingRequiredImages.length > 0) {
-      alert(
-        `Please upload images for all required attachments. ${missingRequiredImages.length} item(s) are missing required images.`
-      );
-      return;
-    }
+//     if (missingRequiredImages.length > 0) {
+//       alert(
+//         `Please upload images for all required attachments. ${missingRequiredImages.length} item(s) are missing required images.`
+//       );
+//       return;
+//     }
 
-    setIsSubmitting(true);
+//     setIsSubmitting(true);
 
-    try {
-      const selectedData = selectedItemsArray.map((id) => {
-        const item = delegation.find((account) => account.task_id === id);
+//     try {
+//       const selectedData = selectedItemsArray.map((id) => {
+//         const item = delegation.find((account) => account.task_id === id);
 
-        const dbStatus = statusData[id] === "Done" ? "done" :
-          statusData[id] === "Extend date" ? "extend" :
-            statusData[id];
+//         const dbStatus = statusData[id] === "Done" ? "done" :
+//           statusData[id] === "Extend date" ? "extend" :
+//             statusData[id];
 
-        return {
-          task_id: item.task_id,
-          department: item.department,
-          given_by: item.given_by,
-          name: item.name,
-          task_description: item.task_description,
-          task_start_date: item.task_start_date,
-          planned_date: item.planned_date,
-          status: dbStatus,
-          next_extend_date: statusData[id] === "Extend date" ? nextTargetDate[id] : null,
-          reason: remarksData[id] || "",
-          image_url: uploadedImages[id] ? null : item.image,
-          require_attachment: item.require_attachment,
-          submission_timestamp: new Date().toISOString()
-        };
-      });
+//         return {
+//   task_id: item.task_id,
+//   given_by: item.given_by,
+//   name: item.name,
+//   task_description: item.task_description,
+//   task_start_date: item.task_start_date,
+//   planned_date: item.planned_date,
+//   status: dbStatus,
+//   next_extend_date: statusData[id] === "Extend date" ? nextTargetDate[id] : null,
+//   reason: remarksData[id] || "",
+//   image_url: uploadedImages[id] ? null : item.image,
+//   require_attachment: item.require_attachment
+// };
 
-      console.log("Selected Data for submission:", selectedData);
+//       });
 
-      const submissionPromises = selectedData.map(async (taskData) => {
-        const taskImage = uploadedImages[taskData.task_id];
+//       console.log("Selected Data for submission:", selectedData);
 
-        return dispatch(
-          insertDelegationDoneAndUpdate({
-            selectedDataArray: [taskData],
-            uploadedImages: taskImage ? { [taskData.task_id]: taskImage } : {},
-          })
-        );
-      });
+//       const submissionPromises = selectedData.map(async (taskData) => {
+//         const taskImage = uploadedImages[taskData.task_id];
 
-      const results = await Promise.allSettled(submissionPromises);
+//         return dispatch(
+//           insertDelegationDoneAndUpdate({
+//             selectedDataArray: [taskData],
+//             uploadedImages: taskImage ? { [taskData.task_id]: taskImage } : {},
+//           })
+//         );
+//       });
 
-      const failedSubmissions = results.filter(result => result.status === 'rejected');
+//       const results = await Promise.allSettled(submissionPromises);
 
-      if (failedSubmissions.length > 0) {
-        console.error('Some submissions failed:', failedSubmissions);
-        alert(`${failedSubmissions.length} out of ${selectedItemsArray.length} submissions failed. Please check the console for details.`);
-      } else {
-        setSuccessMessage(
-          `Successfully submitted ${selectedItemsArray.length} task records!`
-        );
+//       const failedSubmissions = results.filter(result => result.status === 'rejected');
+
+//       if (failedSubmissions.length > 0) {
+//         console.error('Some submissions failed:', failedSubmissions);
+//         alert(`${failedSubmissions.length} out of ${selectedItemsArray.length} submissions failed. Please check the console for details.`);
+//       } else {
+//         setSuccessMessage(
+//           `Successfully submitted ${selectedItemsArray.length} task records!`
+//         );
+//       }
+
+//       setSelectedItems(new Set());
+//       setAdditionalData({});
+//       setRemarksData({});
+//       setStatusData({});
+//       setNextTargetDate({});
+
+//       setTimeout(() => {
+//         dispatch(delegationData());
+//         // dispatch(delegation_DoneData());
+//         dispatch(delegationDoneData());
+//       }, 1000);
+
+//     } catch (error) {
+//       console.error('Submission error:', error);
+//       alert('An error occurred during submission. Please try again.');
+//     } finally {
+//       setIsSubmitting(false);
+//     }
+//   };
+
+
+// const handleSubmit = async () => {
+//   if (selectedItems.size === 0) {
+//     alert("Please select at least one task");
+//     return;
+//   }
+
+//   const selectedData = Array.from(selectedItems).map((id) => {
+//     const item = delegation.find((x) => x.task_id === id);
+
+//     return {
+//       task_id: item.task_id,
+//       given_by: item.given_by,
+//       name: item.name,
+//       task_description: item.task_description,
+//       task_start_date: item.task_start_date,
+//       planned_date: item.planned_date,
+//       status:
+//         statusData[id] === "Done"
+//           ? "done"
+//           : statusData[id] === "Extend date"
+//           ? "extend"
+//           : null,
+//       next_extend_date:
+//         statusData[id] === "Extend date" ? nextTargetDate[id] : null,
+//       reason: remarksData[id] || "",
+//       image_url: null,
+//       require_attachment: item.require_attachment,
+//     };
+//   });
+
+//   const result = await dispatch(
+//     insertDelegationDoneAndUpdate({
+//       selectedDataArray: selectedData,
+//     })
+//   );
+
+//   if (result.meta.requestStatus === "fulfilled") {
+//     alert("Successfully submitted!");
+//   } else {
+//     alert("Submission failed!");
+//     console.error(result.payload);
+//   }
+
+//   setSelectedItems(new Set());
+//   setRemarksData({});
+//   setNextTargetDate({});
+//   setStatusData({});
+// };
+
+
+const handleSubmit = async () => {
+  if (selectedItems.size === 0) {
+    alert("Please select at least one task");
+    return;
+  }
+
+  // Convert to base64
+  const selectedData = await Promise.all(
+    Array.from(selectedItems).map(async (id) => {
+      const item = delegation.find((x) => x.task_id === id);
+      const file = uploadedImages[id];
+
+      let base64Image = null;
+      if (file) {
+        base64Image = await fileToBase64(file);
       }
 
-      setSelectedItems(new Set());
-      setAdditionalData({});
-      setRemarksData({});
-      setStatusData({});
-      setNextTargetDate({});
+      return {
+        task_id: item.task_id,
+        given_by: item.given_by,
+        name: item.name,
+        task_description: item.task_description,
+        task_start_date: item.task_start_date,
+        planned_date: item.planned_date,
+        status:
+          statusData[id] === "Done"
+            ? "done"
+            : statusData[id] === "Extend date"
+            ? "extend"
+            : null,
+        next_extend_date:
+          statusData[id] === "Extend date" ? nextTargetDate[id] : null,
+        reason: remarksData[id] || "",
+        image_base64: base64Image,   // ⭐ SEND BASE64 FROM FRONTEND
+      };
+    })
+  );
 
-      setTimeout(() => {
-        dispatch(delegationData());
-        dispatch(delegation_DoneData());
-      }, 1000);
+  const result = await dispatch(
+    insertDelegationDoneAndUpdate({ selectedDataArray: selectedData })
+  );
 
-    } catch (error) {
-      console.error('Submission error:', error);
-      alert('An error occurred during submission. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  if (result.meta.requestStatus === "fulfilled") {
+    alert("Successfully submitted!");
+  } else {
+    alert("Submission failed");
+  }
+
+  setSelectedItems(new Set());
+  setRemarksData({});
+  setNextTargetDate({});
+  setStatusData({});
+};
+
 
   const selectedItemsCount = selectedItems.size;
 

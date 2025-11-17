@@ -607,14 +607,15 @@ function AccountDataPage() {
     );
   };
 
-  const fileToBase64 = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.readAsDataURL(file)
-      reader.onload = () => resolve(reader.result)
-      reader.onerror = (error) => reject(error)
-    })
-  }
+const fileToBase64 = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = (error) => reject(error);
+  });
+};
+
 
   const toggleHistory = () => {
     setShowHistory((prev) => !prev)
@@ -696,104 +697,97 @@ function AccountDataPage() {
 
 
   // UPDATED: MAIN SUBMIT FUNCTION with date-time formatting
-  const handleSubmit = async () => {
-    const selectedItemsArray = Array.from(selectedItems);
-    if (selectedItemsArray.length === 0) {
-      alert("Please select at least one item to submit");
-      return;
+const handleSubmit = async () => {
+  const selectedItemsArray = Array.from(selectedItems);
+  if (selectedItemsArray.length === 0) {
+    alert("Please select at least one item to submit");
+    return;
+  }
+
+  // NEW: Check if all selected items have status selected
+  const missingStatus = selectedItemsArray.filter((id) => {
+    const status = additionalData[id];
+    return !status || status === ""; 
+  });
+
+  if (missingStatus.length > 0) {
+    alert(`Please select status (Yes/No) for all selected tasks.`);
+    return;
+  }
+
+  // Check remarks for "No"
+  const missingRemarks = selectedItemsArray.filter((id) => {
+    const additionalStatus = additionalData[id];
+    const remarks = remarksData[id];
+    return additionalStatus === "No" && (!remarks || remarks.trim() === "");
+  });
+
+  if (missingRemarks.length > 0) {
+    alert(`Please provide remarks for items marked as "No".`);
+    return;
+  }
+
+  // Required images
+  const missingRequiredImages = selectedItemsArray.filter((id) => {
+    const item = checklist.find((acc) => acc.task_id === id);
+    const requiresAttachment = item.require_attachment?.toUpperCase() === "YES";
+    const hasImage = uploadedImages[id] || item.image;
+    const statusIsNo = additionalData[id] === "No";
+
+    return requiresAttachment && !hasImage && !statusIsNo;
+  });
+
+  if (missingRequiredImages.length > 0) {
+    alert(`Please upload images for all required attachments.`);
+    return;
+  }
+
+  setIsSubmitting(true);
+
+  // 🔥 FIXED: Convert image to BASE64
+const submissionData = await Promise.all(
+  selectedItemsArray.map(async (id) => {
+    const item = checklist.find((acc) => acc.task_id === id);
+    const imageData = uploadedImages[id];
+
+    let finalBase64Image = null;
+
+    if (imageData?.file) {
+      finalBase64Image = await fileToBase64(imageData.file); // <– FileReader se base64
     }
 
-    // NEW: Check if all selected items have status selected
-    const missingStatus = selectedItemsArray.filter((id) => {
-      const status = additionalData[id];
-      return !status || status === ""; // Status is empty or not selected
-    });
+    return {
+      taskId: item.task_id,
+      status: additionalData[id] || "",
+      remarks: remarksData[id] || "",
+      image: finalBase64Image || item.image || null, // <– yahi backend ko milega
+    };
+  })
+);
 
-    if (missingStatus.length > 0) {
-      alert(`Please select status (Yes/No) for all selected tasks. ${missingStatus.length} item(s) are missing status selection.\n\nकृपया सभी चयनित कार्यों के लिए स्थिति (हाँ/नहीं) चुनें। ${missingStatus.length} आइटम स्थिति चयन से छूट गए हैं।`);
-      return;
-    }
 
-    // Check for missing remarks (only for items with status "No")
-    const missingRemarks = selectedItemsArray.filter((id) => {
-      const additionalStatus = additionalData[id];
-      const remarks = remarksData[id];
-      return additionalStatus === "No" && (!remarks || remarks.trim() === "");
-    });
+  console.log("Submission Data:", submissionData);
 
-    if (missingRemarks.length > 0) {
-      alert(`Please provide remarks for items marked as "No". ${missingRemarks.length} item(s) are missing remarks.\n\nकृपया "नहीं" चिह्नित आइटमों के लिए टिप्पणियाँ प्रदान करें। ${missingRemarks.length} आइटम टिप्पणियों से छूट गए हैं।`);
-      return;
-    }
+  await dispatch(updateChecklist(submissionData));
 
-    // Check for missing required images (only if status is not "No")
-    const missingRequiredImages = selectedItemsArray.filter((id) => {
-      const item = checklist.find((account) => account.task_id === id);
-      const requiresAttachment = item.require_attachment && item.require_attachment.toUpperCase() === "YES";
-      const hasImage = uploadedImages[id] || item.image;
-      const statusIsNo = additionalData[id] === "No";
+  setTimeout(() => {
+    setIsSubmitting(false);
+    setSuccessMessage(
+      `Successfully logged ${selectedItemsArray.length} task records!`
+    );
 
-      // Only require image if attachment is required AND status is not "No"
-      return requiresAttachment && !hasImage && !statusIsNo;
-    });
+    // Reset
+    setSelectedItems(new Set());
+    setAdditionalData({});
+    setRemarksData({});
+    setUploadedImages({});
 
-    if (missingRequiredImages.length > 0) {
-      alert(
-        `Please upload images for all required attachments. ${missingRequiredImages.length} item(s) are missing required images.`,
-      );
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    // Prepare the submission data
-    const submissionData = selectedItemsArray.map((id) => {
-      const item = checklist.find((account) => account.task_id === id);
-      const imageData = uploadedImages[id];
-
-      return {
-        taskId: item.task_id,
-        department: item.department,
-        givenBy: item.given_by,
-        name: item.name,
-        taskDescription: item.task_description,
-        taskStartDate: item.task_start_date,
-        frequency: item.frequency,
-        enableReminder: item.enable_reminder,
-        requireAttachment: item.require_attachment,
-        status: additionalData[id] || "",
-        remarks: remarksData[id] || "",
-        image: imageData ? {
-          name: imageData.file.name,
-          type: imageData.file.type,
-          size: imageData.file.size,
-          previewUrl: imageData.previewUrl
-        } : item.image ? {
-          existingImage: typeof item.image === 'string' ? item.image : 'File object'
-        } : null
-      };
-    });
-
-    console.log("Submission Data:", submissionData);
-    await dispatch(updateChecklist(submissionData));
-
-    // Simulate submission delay
     setTimeout(() => {
-      setIsSubmitting(false);
-      setSuccessMessage(`Successfully logged ${selectedItemsArray.length} task records to console!`);
+      window.location.reload();
+    }, 1000);
+  }, 1500);
+};
 
-      // Clear selections after submission
-      setSelectedItems(new Set());
-      setAdditionalData({});
-      setRemarksData({});
-      setUploadedImages({});
-
-      // Refresh the page after showing success message
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000); // Refresh after 1 second (adjust as needed)
-    }, 1500);
-  };
 
   // Convert Set to Array for display
   const selectedItemsCount = selectedItems.size

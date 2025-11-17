@@ -1,56 +1,63 @@
-// loginSlice.js
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-import { fetchUniqueDepartmentDataApi, fetchUniqueDoerNameDataApi, fetchUniqueGivenByDataApi, pushAssignTaskApi } from '../api/assignTaskApi';
+import { 
+  fetchUniqueDepartmentDataApi, 
+  fetchUniqueDoerNameDataApi, 
+  fetchUniqueGivenByDataApi, 
+  pushAssignTaskApi 
+} from '../api/assignTaskApi';
 
-export const uniqueDepartmentData = createAsyncThunk( 'fetch/department',async (user_name) => {
-    const department = await fetchUniqueDepartmentDataApi(user_name);
-   
-   
-    return department;
-  }
-);
-export const uniqueGivenByData = createAsyncThunk( 'fetch/given_by',async () => {
-    const givenBy = await fetchUniqueGivenByDataApi();
-   
-    return givenBy;
-  }
-);
-export const uniqueDoerNameData = createAsyncThunk( 'fetch/doerName',async (department) => {
-    const doerName = await fetchUniqueDoerNameDataApi(department);
-   
-    return doerName;
+// 1️⃣ Fetch Departments
+export const uniqueDepartmentData = createAsyncThunk(
+  'assignTask/fetchDepartments',
+  async (user_name) => {
+    return await fetchUniqueDepartmentDataApi(user_name);
   }
 );
 
-export const assignTaskInTable = createAsyncThunk( 'post/delegation',async (generatedTasks) => {
-    const assignTask = await pushAssignTaskApi(generatedTasks);
-   
-    return assignTask;
+// 2️⃣ Fetch Given-By
+export const uniqueGivenByData = createAsyncThunk(
+  'assignTask/fetchGivenBy',
+  async () => {
+    return await fetchUniqueGivenByDataApi();
   }
 );
 
+// 3️⃣ Fetch Doer Names
+export const uniqueDoerNameData = createAsyncThunk(
+  'assignTask/fetchDoerNames',
+  async (department) => {
+    return await fetchUniqueDoerNameDataApi(department);
+  }
+);
 
+// 4️⃣ Insert Tasks
+export const assignTaskInTable = createAsyncThunk(
+  'assignTask/postTasks',
+  async (generatedTasks) => {
+    return await pushAssignTaskApi(generatedTasks);
+  }
+);
+
+// ---------------- Slice ------------------
 
 const assignTaskSlice = createSlice({
-  name: 'department',
-  name: 'givenBy',
-  name: 'doerName',
-  name:'assignTask',
+  name: 'assignTask',
   initialState: {
     department: [],
-    givenBy:[],
-    doerName:[],
-    assignTask:[],
-    error: null,
+    givenBy: [],
+    doerName: [],
+    assignTask: [],
     loading: false,
-   
+    error: null
   },
+
   reducers: {},
+
   extraReducers: (builder) => {
     builder
+      // Department
       .addCase(uniqueDepartmentData.pending, (state) => {
         state.loading = true;
-        state.error = null;
       })
       .addCase(uniqueDepartmentData.fulfilled, (state, action) => {
         state.loading = false;
@@ -58,43 +65,22 @@ const assignTaskSlice = createSlice({
       })
       .addCase(uniqueDepartmentData.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
+        state.error = action.error;
       })
-       .addCase(uniqueGivenByData.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
+
+      // Given By
       .addCase(uniqueGivenByData.fulfilled, (state, action) => {
-        state.loading = false;
         state.givenBy = action.payload;
       })
-      .addCase(uniqueGivenByData.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
-       .addCase(uniqueDoerNameData.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
+
+      // Doer Name
       .addCase(uniqueDoerNameData.fulfilled, (state, action) => {
-        state.loading = false;
         state.doerName = action.payload;
       })
-      .addCase(uniqueDoerNameData.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
-       .addCase(assignTaskInTable.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
+
+      // Insert Tasks
       .addCase(assignTaskInTable.fulfilled, (state, action) => {
-        state.loading = false;
         state.assignTask.push(action.payload);
-      })
-      .addCase(assignTaskInTable.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
       });
   },
 });

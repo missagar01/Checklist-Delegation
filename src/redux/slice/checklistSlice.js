@@ -1,127 +1,166 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { fetchChechListDataForHistory, fetchChechListDataSortByDate, postChecklistAdminDoneAPI, updateChecklistData } from "../api/checkListApi";
+import { 
+  fetchChechListDataForHistory, 
+  fetchChechListDataSortByDate, 
+  postChecklistAdminDoneAPI, 
+  updateChecklistData 
+} from "../api/checkListApi";
 
 
-export const checklistHistoryData = createAsyncThunk(
-  'fetch/history',
-  async (page = 1) => {
-    const histroydata = await fetchChechListDataForHistory(page);
-    return { data: histroydata, page };
-  }
-);
-
-
+// ============================================================
+// 1️⃣ FETCH PENDING CHECKLIST
+// ============================================================
 export const checklistData = createAsyncThunk(
-  'fetch/checklist',
+  "fetch/checklist",
   async (page = 1) => {
     const { data, totalCount } = await fetchChechListDataSortByDate(page);
-    return { data, page, totalCount };
+    return { data, totalCount, page };
   }
 );
 
 
-
-export const checklistAdminDone=createAsyncThunk( 'insert/admin_done',async () => {
-  const admin_done = await postChecklistAdminDoneAPI();
- 
-  return admin_done;
-}
+// ============================================================
+// 2️⃣ FETCH HISTORY CHECKLIST
+// ============================================================
+export const checklistHistoryData = createAsyncThunk(
+  "fetch/history",
+  async (page = 1) => {
+    const historyData = await fetchChechListDataForHistory(page);
+    return { data: historyData, page };
+  }
 );
 
-// checkListSlice.js
+
+// ============================================================
+// 3️⃣ UPDATE CHECKLIST (USER SUBMISSION)
+// ============================================================
 export const updateChecklist = createAsyncThunk(
-  'update/checklist',
+  "update/checklist",
   async (submissionData) => {
     const updated = await updateChecklistData(submissionData);
-    return updated;
+    return updated;  // returns only message
   }
 );
 
 
+// ============================================================
+// 4️⃣ ADMIN DONE
+// ============================================================
+export const checklistAdminDone = createAsyncThunk(
+  "insert/admin_done",
+  async (items) => {
+    const admin_done = await postChecklistAdminDoneAPI(items);
+    return admin_done;
+  }
+);
 
+
+// ============================================================
+// 5️⃣ SLICE
+// ============================================================
 const checkListSlice = createSlice({
-  name: 'checklist',
- 
+  name: "checklist",
   initialState: {
     checklist: [],
-    history:[],
-    error: null,
+    history: [],
     loading: false,
-   
+    error: null,
+    hasMore: true,
+    currentPage: 1,
   },
+
   reducers: {},
+
   extraReducers: (builder) => {
     builder
-   
+
+      // -----------------------------
+      // FETCH PENDING CHECKLIST
+      // -----------------------------
       .addCase(checklistData.pending, (state) => {
         state.loading = true;
-        state.error = null;
       })
+
       .addCase(checklistData.fulfilled, (state, action) => {
         state.loading = false;
-        
-        // If it's the first page, replace the data
+
         if (action.payload.page === 1) {
           state.checklist = action.payload.data;
         } else {
-          // Otherwise, append to existing data
           state.checklist = [...state.checklist, ...action.payload.data];
         }
-        
+
         state.currentPage = action.payload.page;
-        
-        // Calculate if there are more pages
-        const itemsPerPage = 50;
+
+        // Determine pagination
         state.hasMore = state.checklist.length < action.payload.totalCount;
       })
+
       .addCase(checklistData.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
+        state.error = action.error?.message || "Failed fetching checklist";
       })
-         .addCase(updateChecklist.pending, (state) => {
+
+
+
+      // -----------------------------
+      // FETCH HISTORY
+      // -----------------------------
+      .addCase(checklistHistoryData.pending, (state) => {
         state.loading = true;
-        state.error = null;
       })
-      .addCase(updateChecklist.fulfilled, (state, action) => {
+
+      .addCase(checklistHistoryData.fulfilled, (state, action) => {
         state.loading = false;
-        state.checklist=action.payload;
+
+        if (action.payload.page === 1) {
+          state.history = action.payload.data;
+        } else {
+          state.history = [...state.history, ...action.payload.data];
+        }
       })
-      .addCase(updateChecklist.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
-         .addCase(checklistHistoryData.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-     .addCase(checklistHistoryData.fulfilled, (state, action) => {
-  state.loading = false;
-  
-  // If it's the first page, replace the data
-  if (action.payload.page === 1) {
-    state.history = action.payload.data;
-  } else {
-    // Otherwise, append to existing data
-    state.history = [...state.history, ...action.payload.data];
-  }
-})
+
       .addCase(checklistHistoryData.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
+        state.error = action.error?.message || "Failed fetching history";
       })
+
+
+
+      // -----------------------------
+      // UPDATE CHECKLIST (USER SUBMIT)
+      // -----------------------------
+      .addCase(updateChecklist.pending, (state) => {
+        state.loading = true;
+      })
+
+      .addCase(updateChecklist.fulfilled, (state) => {
+        state.loading = false;
+        // No need to update state.checklist – backend already saved
+      })
+
+      .addCase(updateChecklist.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error?.message || "Failed updating checklist";
+      })
+
+
+
+      // -----------------------------
+      // ADMIN DONE
+      // -----------------------------
       .addCase(checklistAdminDone.pending, (state) => {
         state.loading = true;
-        state.error = null;
       })
-      .addCase(checklistAdminDone.fulfilled, (state, action) => {
+
+      .addCase(checklistAdminDone.fulfilled, (state) => {
         state.loading = false;
-        state.history.push(action.payload);
       })
+
       .addCase(checklistAdminDone.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
+        state.error = action.error?.message || "Admin update failed";
       });
-     
   },
 });
 

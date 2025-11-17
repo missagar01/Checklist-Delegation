@@ -19,32 +19,14 @@
 // };
 
 
-import supabase from "../../SupabaseClient";
+import axios from "axios";
 
 export const LoginCredentialsApi = async (formData) => {
-  const { data, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('user_name', formData.username)
-    .eq('password', formData.password)
-    .single(); // remove .eq('status', 'active')
+  try {
+    const res = await axios.post("http://localhost:5050/api/login", formData);
 
-  // Handle error or no data
-  if (error || !data) {
-    return { error: 'Invalid username or password' };
+    return { data: res.data };  // same format
+  } catch (err) {
+    return { error: err.response?.data?.error || "Login failed" };
   }
-
-  // 🔴 Add this check — if user is inactive, log them out immediately
-  if (data.status !== 'active') {
-    // Clear localStorage and reject login
-    localStorage.clear();
-    return { error: 'Your account is inactive. Please contact admin.' };
-  }
-
-  // Store user access in localStorage
-  if (data.user_access) {
-    localStorage.setItem("user_access", data.user_access);
-  }
-
-  return { data };
 };

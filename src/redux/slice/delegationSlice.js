@@ -1,76 +1,78 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { fetchDelegation_DoneDataSortByDate, fetchDelegationDataSortByDate} from "../api/delegationApi";
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import {
+  fetchDelegationDataSortByDate,
+  fetchDelegation_DoneDataSortByDate,
+  insertDelegationDoneAndUpdate,
+} from "../api/delegationApi";
 
-// export const delegationDoneData=createAsyncThunk( 'post/delegation',async (selectedData) => {
-//     const doneTask = await postDelegationDonedata(selectedData);
-   
-//     return doneTask;
-//   }
-// );
-
-export const delegationData=createAsyncThunk( 'fetch/delegation',async () => {
-    const Task = await fetchDelegationDataSortByDate();
-   
-    return Task;
+export const delegationData = createAsyncThunk(
+  "delegation/fetchPending",
+  async () => {
+    return await fetchDelegationDataSortByDate();
   }
 );
 
-export const delegation_DoneData=createAsyncThunk( 'fetch/delegation_done',async () => {
-    const Task = await fetchDelegation_DoneDataSortByDate();
-   
-    return Task;
+export const delegationDoneData = createAsyncThunk(
+  "delegation/fetchDone",
+  async () => {
+    return await fetchDelegation_DoneDataSortByDate();
+  }
+);
+
+export const submitDelegation = createAsyncThunk(
+  "delegation/submit",
+  async (payload) => {
+    return await insertDelegationDoneAndUpdate(payload);
   }
 );
 
 const delegationSlice = createSlice({
-  name: 'delegation',
-   name: 'delegation_done',
- 
+  name: "delegation",
   initialState: {
     delegation: [],
-   delegation_done: [],
-    error: null,
+    delegation_done: [],
     loading: false,
-   
+    error: null,
   },
   reducers: {},
   extraReducers: (builder) => {
     builder
-    //  .addCase(delegationDoneData.pending, (state) => {
-    //     state.loading = true;
-    //     state.error = null;
-    //   })
-    //   .addCase(delegationDoneData.fulfilled, (state, action) => {
-    //     state.loading = false;
-    //     state.delegation.push(action.payload);
-    //   })
-    //   .addCase(delegationDoneData.rejected, (state, action) => {
-    //     state.loading = false;
-    //     state.error = action.payload;
-    //   })
+      // Fetch Pending
       .addCase(delegationData.pending, (state) => {
         state.loading = true;
-        state.error = null;
       })
       .addCase(delegationData.fulfilled, (state, action) => {
         state.loading = false;
-        state.delegation=action.payload;
+        state.delegation = action.payload;
       })
-      .addCase(delegationData.rejected, (state, action) => {
+      .addCase(delegationData.rejected, (state) => {
         state.loading = false;
-        state.error = action.payload;
+        state.error = "Failed to fetch delegation";
       })
-      .addCase(delegation_DoneData.pending, (state) => {
+
+      // Fetch Done
+      .addCase(delegationDoneData.pending, (state) => {
         state.loading = true;
-        state.error = null;
       })
-      .addCase(delegation_DoneData.fulfilled, (state, action) => {
+      .addCase(delegationDoneData.fulfilled, (state, action) => {
         state.loading = false;
-        state.delegation_done=action.payload;
+        state.delegation_done = action.payload;
       })
-      .addCase(delegation_DoneData.rejected, (state, action) => {
+      .addCase(delegationDoneData.rejected, (state) => {
         state.loading = false;
-        state.error = action.payload;
+        state.error = "Failed to fetch done delegation";
+      })
+
+      // Submit
+      .addCase(submitDelegation.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(submitDelegation.fulfilled, (state) => {
+        state.loading = false;
+      })
+      .addCase(submitDelegation.rejected, (state) => {
+        state.loading = false;
+        state.error = "Submission failed";
       });
   },
 });

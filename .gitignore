@@ -1,24 +1,92 @@
-# Logs
-logs
-*.log
+# -----------------------------------------
+# Node.js Essentials
+# -----------------------------------------
+node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Production builds
+dist/
+build/
+dist-ssr/
 
-# Editor directories and files
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+*.out
+*.err
+
+# PM2 logs
+.pm2/logs/
+.pm2/pids/
+.pm2/*.log
+
+# -----------------------------------------
+# OS / System Files
+# -----------------------------------------
+.DS_Store
+Thumbs.db
+
+# -----------------------------------------
+# Editor / IDE Files
+# -----------------------------------------
 .vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
+.idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# -----------------------------------------
+# Temporary / Cache
+# -----------------------------------------
+*.tmp
+*.temp
+*.cache
+.cache/
+tmp/
+temp/
+
+# -----------------------------------------
+# TypeScript (if used)
+# -----------------------------------------
+*.tsbuildinfo
+
+# -----------------------------------------
+# Uploads / Generated Files
+# (Keep if uploading locally; remove if storing on S3 or DB)
+# -----------------------------------------
+uploads/
+public/uploads/
+
+# -----------------------------------------
+# MAC / Linux
+# -----------------------------------------
+*.pid
+*.seed
+*.pid.lock
+
+# -----------------------------------------
+# AWS Keys / Private Keys (Very Important)
+# -----------------------------------------
+*.pem
+*.key
+*.crt
+*.pub
+
+# -----------------------------------------
+# Misc
+# -----------------------------------------
+coverage/
+eslintcache/
+.cache-loader/

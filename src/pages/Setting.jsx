@@ -3,7 +3,7 @@ import { Plus, User, Building, X, Save, Edit, Trash2, Settings, Search, ChevronD
 import AdminLayout from '../components/layout/AdminLayout';
 import { useDispatch, useSelector } from 'react-redux';
 import { createDepartment, createUser, deleteUser, departmentOnlyDetails, givenByDetails, departmentDetails, updateDepartment, updateUser, userDetails } from '../redux/slice/settingSlice';
-import supabase from '../SupabaseClient';
+// import supabase from '../SupabaseClient';
 
 const Setting = () => {
   const [activeTab, setActiveTab] = useState('users');
@@ -235,51 +235,51 @@ const Setting = () => {
 
 
 
-const fetchDeviceLogsAndUpdateStatus = async () => {
-  try {
-    setIsRefreshing(true);
-    const response = await fetch('https://checklist-backend-yan3.onrender.com/api/device-sync');
-    const data = await response.json();
-    console.log(data.message);
-    dispatch(userDetails());
-  } catch (error) {
-    console.error('Error syncing device logs:', error);
-  } finally {
-    setIsRefreshing(false);
-  }
-};
+// const fetchDeviceLogsAndUpdateStatus = async () => {
+//   try {
+//     setIsRefreshing(true);
+//     const response = await fetch('https://checklist-backend-yan3.onrender.com/api/device-sync');
+//     const data = await response.json();
+//     console.log(data.message);
+//     dispatch(userDetails());
+//   } catch (error) {
+//     console.error('Error syncing device logs:', error);
+//   } finally {
+//     setIsRefreshing(false);
+//   }
+// };
 
   // Add real-time subscription
-  useEffect(() => {
-    // Subscribe to users table changes
-    const subscription = supabase
-      .channel('users-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'users'
-        },
-        (payload) => {
-          // console.log('Real-time update received:', payload);
-          // Refresh user data when any change occurs
-          dispatch(userDetails());
-        }
-      )
-      .subscribe();
+  // useEffect(() => {
+  //   // Subscribe to users table changes
+  //   const subscription = supabase
+  //     .channel('users-changes')
+  //     .on(
+  //       'postgres_changes',
+  //       {
+  //         event: '*',
+  //         schema: 'public',
+  //         table: 'users'
+  //       },
+  //       (payload) => {
+  //         // console.log('Real-time update received:', payload);
+  //         // Refresh user data when any change occurs
+  //         dispatch(userDetails());
+  //       }
+  //     )
+  //     .subscribe();
 
-    // Set up interval to check device logs every 30 seconds
-    const intervalId = setInterval(fetchDeviceLogsAndUpdateStatus, 30000);
+  //   // Set up interval to check device logs every 30 seconds
+  //   const intervalId = setInterval(fetchDeviceLogsAndUpdateStatus, 30000);
 
-    // Initial fetch of device logs
-    fetchDeviceLogsAndUpdateStatus();
+  //   // Initial fetch of device logs
+  //   fetchDeviceLogsAndUpdateStatus();
 
-    return () => {
-      subscription.unsubscribe();
-      clearInterval(intervalId);
-    };
-  }, [dispatch]);
+  //   return () => {
+  //     subscription.unsubscribe();
+  //     clearInterval(intervalId);
+  //   };
+  // }, [dispatch]);
 
   // Add this function to debug a specific user
 const debugUserStatus = async () => {
@@ -316,9 +316,9 @@ const debugUserStatus = async () => {
 // debugUserStatus();
 
   // Add manual refresh button handler
-  const handleManualRefresh = () => {
-    fetchDeviceLogsAndUpdateStatus();
-  };
+  // const handleManualRefresh = () => {
+  //   fetchDeviceLogsAndUpdateStatus();
+  // };
 
   // Your existing functions remain the same...
   const handleLeaveUsernameFilter = (username) => {
@@ -415,14 +415,16 @@ const handleSubmitLeave = async () => {
           // console.log(`Deleting tasks for ${user.user_name} from ${leaveStartDate} to ${leaveEndDate}`);
 
           // Delete checklist tasks where name matches and date falls within the range
-          const { error } = await supabase
-            .from('checklist')
-            .delete()
-            .eq('name', user.user_name)
-            .gte('task_start_date', formattedStartDate)
-            .lte('task_start_date', formattedEndDate);
-
-          if (error) {
+          const { error } = await fetch(`https://YOUR_SERVER/api/checklist/delete-range`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    username: user.user_name,
+    startDate: formattedStartDate,
+    endDate: formattedEndDate
+  })
+});
+   if (error) {
             console.error('Error deleting checklist tasks:', error);
           } else {
             console.log(`Deleted checklist tasks for ${user.user_name} from ${leaveStartDate} to ${leaveEndDate}`);
@@ -794,7 +796,7 @@ const handleEditUser = (userId) => {
   </div>
 </button>
 
-    {/* Refresh Button */}
+    {/* Refresh Button
     <button
       onClick={handleManualRefresh}
       disabled={isRefreshing}
@@ -804,7 +806,7 @@ const handleEditUser = (userId) => {
         <RefreshCw size={18} className={`mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
         <span>{isRefreshing ? 'Refreshing...' : 'Refresh Status'}</span>
       </div>
-    </button>
+    </button> */}
 
     {/* Add button - hide for leave tab */}
     {activeTab !== 'leave' && (
