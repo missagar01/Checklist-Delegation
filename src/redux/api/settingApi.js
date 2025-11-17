@@ -127,61 +127,6 @@
 
 // // In your settingApi.js file, add these functions:
 
-// // Fetch only unique departments (without given_by)
-// export const fetchDepartmentsOnlyApi = async () => {
-//   try {
-//     const { data, error } = await supabase
-//       .from('users')
-//       .select('department')
-//       .not('department', 'is', null)
-//       .neq('department', '')
-//       .order('department', { ascending: true });
-
-//     if (error) {
-//       console.log("error when fetching departments", error);
-//       return [];
-//     }
-
-//     // Get unique departments only
-//     const uniqueDepartments = [...new Set(data.map(item => item.department))]
-//       .filter(dept => dept) // Remove empty values
-//       .map(dept => ({ department: dept }));
-
-//     console.log("departments fetched successfully", uniqueDepartments);
-//     return uniqueDepartments;
-//   } catch (error) {
-//     console.log("error from supabase", error);
-//     return [];
-//   }
-// };
-
-// // Fetch only given_by data
-// export const fetchGivenByDataApi = async () => {
-//   try {
-//     const { data, error } = await supabase
-//       .from('users')
-//       .select('given_by')
-//       .not('given_by', 'is', null)
-//       .neq('given_by', '')
-//       .order('given_by', { ascending: true });
-
-//     if (error) {
-//       console.log("error when fetching given_by data", error);
-//       return [];
-//     }
-
-//     // Get unique given_by values only
-//     const uniqueGivenBy = [...new Set(data.map(item => item.given_by))]
-//       .filter(givenBy => givenBy) // Remove empty values
-//       .map(givenBy => ({ given_by: givenBy }));
-
-//     console.log("given_by fetched successfully", uniqueGivenBy);
-//     return uniqueGivenBy;
-//   } catch (error) {
-//     console.log("error from supabase", error);
-//     return [];
-//   }
-// };
 
 
 
@@ -226,7 +171,7 @@ export const createUserApi = async (newUser) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(newUser),
     });
-
+    
     return await response.json();
   } catch (error) {
     console.log("Error creating user", error);
@@ -244,7 +189,7 @@ export const updateUserDataApi = async ({ id, updatedUser }) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updatedUser),
     });
-
+    
     return await response.json();
   } catch (error) {
     console.log("Error updating user", error);
@@ -275,7 +220,7 @@ export const createDepartmentApi = async (newDept) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(newDept),
     });
-
+    
     return await response.json();
   } catch (error) {
     console.log("Error adding department", error);
@@ -293,10 +238,65 @@ export const updateDepartmentDataApi = async ({ id, updatedDept }) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updatedDept),
     });
-
+    
     return await response.json();
   } catch (error) {
     console.log("Error updating department", error);
     return null;
+  }
+};
+// Fetch only unique departments (without given_by)
+export const fetchDepartmentsOnlyApi = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('department')
+      .not('department', 'is', null)
+      .neq('department', '')
+      .order('department', { ascending: true });
+
+    if (error) {
+      console.log("error when fetching departments", error);
+      return [];
+    }
+
+    // Get unique departments only
+    const uniqueDepartments = [...new Set(data.map(item => item.department))]
+      .filter(dept => dept) // Remove empty values
+      .map(dept => ({ department: dept }));
+
+    console.log("departments fetched successfully", uniqueDepartments);
+    return uniqueDepartments;
+  } catch (error) {
+    console.log("error from supabase", error);
+    return [];
+  }
+};
+
+// Fetch only given_by data
+export const fetchGivenByDataApi = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('given_by')
+      .not('given_by', 'is', null)
+      .neq('given_by', '')
+      .order('given_by', { ascending: true });
+
+    if (error) {
+      console.log("error when fetching given_by data", error);
+      return [];
+    }
+
+    // Get unique given_by values only
+    const uniqueGivenBy = [...new Set(data.map(item => item.given_by))]
+      .filter(givenBy => givenBy) // Remove empty values
+      .map(givenBy => ({ given_by: givenBy }));
+
+    console.log("given_by fetched successfully", uniqueGivenBy);
+    return uniqueGivenBy;
+  } catch (error) {
+    console.log("error from supabase", error);
+    return [];
   }
 };
