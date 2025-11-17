@@ -1,6 +1,8 @@
 // API BASE URL
 // const API_BASE = "http://localhost:5050/api";
-const API_BASE = `${import.meta.env.VITE_API_BASE_URL}/tasks`;
+// const API_BASE = `${import.meta.env.VITE_API_BASE_URL}/tasks`;
+const API_BASE = `${import.meta.env.VITE_API_BASE_URL}`;
+
 
 // =========================
 // FETCH CHECKLIST (PAGINATED)
