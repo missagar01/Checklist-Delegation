@@ -672,15 +672,12 @@ const handleSubmit = async () => {
         const file = uploadedImages[id];
 
         let base64Image = null;
-        if (file) {
-          // Check file size (limit to 5MB)
-          if (file.size > 5 * 1024 * 1024) {
-            throw new Error(`File ${file.name} is too large. Maximum size is 5MB.`);
-          }
-          base64Image = await fileToBase64(file);
-        } else if (item.image) {
-          base64Image = item.image;
-        }
+       if (file) {
+  base64Image = await fileToBase64(file);   // Always correct base64
+} else if (item.image) {
+  base64Image = null;   // Prevent backend confusion
+}
+
 
         return {
           task_id: item.task_id,
