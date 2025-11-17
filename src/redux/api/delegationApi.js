@@ -1,6 +1,7 @@
 import axios from "axios";
 import { createAsyncThunk } from "@reduxjs/toolkit";
-const API = "http://localhost:5050/api";
+// const API = "http://localhost:5050/api";
+const API = `${import.meta.env.VITE_API_BASE_URL}`;
 
 // FETCH PENDING
 export const fetchDelegationDataSortByDate = async () => {

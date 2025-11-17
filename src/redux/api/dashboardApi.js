@@ -1,7 +1,10 @@
 // import supabase from "../../SupabaseClient";
 
 // frontend/src/redux/api/dashboardApi.js
-const BASE_URL = "http://localhost:5050/api/dashboard";
+// const BASE_URL = "http://localhost:5050/api/dashboard";
+
+const BASE_URL = `${import.meta.env.VITE_API_BASE_URL}/dashboard`;
+const BASE_URL1 = `${import.meta.env.VITE_API_BASE_URL}/staff-tasks`;
 
 export const fetchDashboardDataApi = async (
   dashboardType,
@@ -31,7 +34,7 @@ export const fetchDashboardDataApi = async (
 };
 
 
-
+1
 
 export const getDashboardDataCount = async (dashboardType, staffFilter = null, taskView = 'recent', departmentFilter = null) => {
   try {
@@ -160,7 +163,7 @@ export const getDashboardSummaryApi = async (dashboardType, staffFilter = null) 
   }
 };
 
-const BASE_URL1 = "http://localhost:5050/api/staff-tasks";
+// const BASE_URL1 = "http://localhost:5050/api/staff-tasks";
 
 export const fetchStaffTasksDataApi = async (
   dashboardType,

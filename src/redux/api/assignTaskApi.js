@@ -1,7 +1,8 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: "http://localhost:5050/api/assign-task",
+  // baseURL: "http://localhost:5050/api/assign-task",
+  baseURL: `${import.meta.env.VITE_API_BASE_URL}/assign-task`,
 });
 
 export const fetchUniqueDepartmentDataApi = async (user_name) => {
