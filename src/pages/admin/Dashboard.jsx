@@ -80,6 +80,19 @@ export default function AdminDashboard() {
   const { dashboard, totalTask, completeTask, pendingTask, overdueTask } = useSelector((state) => state.dashBoard)
   const dispatch = useDispatch()
 
+useEffect(() => {
+  const role = localStorage.getItem("role");
+  const username = localStorage.getItem("user-name");
+
+  if (role === "user") {
+    setDashboardStaffFilter(username);
+    setFilterStaff(username);
+    setDepartmentFilter("all");        // user cannot filter department
+  }
+}, []);
+
+
+
   // Handle date range change from DashboardHeader
   const handleDateRangeChange = async (startDate, endDate) => {
     if (startDate && endDate) {
