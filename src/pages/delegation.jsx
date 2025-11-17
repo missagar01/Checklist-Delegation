@@ -626,57 +626,129 @@ function DelegationDataPage() {
 
 
 const handleSubmit = async () => {
-  if (selectedItems.size === 0) {
+  const selectedItemsArray = Array.from(selectedItems);
+
+  if (selectedItemsArray.length === 0) {
     alert("Please select at least one task");
     return;
   }
 
-  // Convert to base64
-  const selectedData = await Promise.all(
-    Array.from(selectedItems).map(async (id) => {
-      const item = delegation.find((x) => x.task_id === id);
-      const file = uploadedImages[id];
-
-      let base64Image = null;
-      if (file) {
-        base64Image = await fileToBase64(file);
-      }
-
-      return {
-        task_id: item.task_id,
-        given_by: item.given_by,
-        name: item.name,
-        task_description: item.task_description,
-        task_start_date: item.task_start_date,
-        planned_date: item.planned_date,
-        status:
-          statusData[id] === "Done"
-            ? "done"
-            : statusData[id] === "Extend date"
-            ? "extend"
-            : null,
-        next_extend_date:
-          statusData[id] === "Extend date" ? nextTargetDate[id] : null,
-        reason: remarksData[id] || "",
-        image_base64: base64Image,   // ⭐ SEND BASE64 FROM FRONTEND
-      };
-    })
-  );
-
-  const result = await dispatch(
-    insertDelegationDoneAndUpdate({ selectedDataArray: selectedData })
-  );
-
-  if (result.meta.requestStatus === "fulfilled") {
-    alert("Successfully submitted!");
-  } else {
-    alert("Submission failed");
+  // Validation checks
+  const missingStatus = selectedItemsArray.filter((id) => !statusData[id]);
+  if (missingStatus.length > 0) {
+    alert(`Please select status for all selected items. ${missingStatus.length} item(s) are missing status.`);
+    return;
   }
 
-  setSelectedItems(new Set());
-  setRemarksData({});
-  setNextTargetDate({});
-  setStatusData({});
+  const missingNextDate = selectedItemsArray.filter(
+    (id) => statusData[id] === "Extend date" && !nextTargetDate[id]
+  );
+  if (missingNextDate.length > 0) {
+    alert(`Please select next target date for "Extend date" items. ${missingNextDate.length} item(s) are missing date.`);
+    return;
+  }
+
+  const missingRequiredImages = selectedItemsArray.filter((id) => {
+    const item = delegation.find((account) => account.task_id === id);
+    const requiresAttachment = item.require_attachment?.toUpperCase() === "YES";
+    return requiresAttachment && !uploadedImages[id] && !item.image;
+  });
+
+  if (missingRequiredImages.length > 0) {
+    alert(`Please upload images for required attachments. ${missingRequiredImages.length} item(s) missing images.`);
+    return;
+  }
+
+  setIsSubmitting(true);
+  setError(null);
+
+  try {
+    console.log('🔄 Starting submission process...');
+
+    // Convert to base64 - but check file sizes first
+    const selectedData = await Promise.all(
+      selectedItemsArray.map(async (id) => {
+        const item = delegation.find((x) => x.task_id === id);
+        const file = uploadedImages[id];
+
+        let base64Image = null;
+        if (file) {
+          // Check file size (limit to 5MB)
+          if (file.size > 5 * 1024 * 1024) {
+            throw new Error(`File ${file.name} is too large. Maximum size is 5MB.`);
+          }
+          base64Image = await fileToBase64(file);
+        } else if (item.image) {
+          base64Image = item.image;
+        }
+
+        return {
+          task_id: item.task_id,
+          given_by: item.given_by,
+          name: item.name,
+          task_description: item.task_description,
+          task_start_date: item.task_start_date,
+          planned_date: item.planned_date,
+          status: statusData[id] === "Done" ? "done" : 
+                 statusData[id] === "Extend date" ? "extend" : null,
+          next_extend_date: statusData[id] === "Extend date" ? nextTargetDate[id] : null,
+          reason: remarksData[id] || "",
+          image_base64: base64Image,
+        };
+      })
+    );
+
+    console.log('📦 Data prepared for submission:', {
+      itemCount: selectedData.length,
+      hasImages: selectedData.some(item => item.image_base64)
+    });
+
+    const result = await dispatch(
+      insertDelegationDoneAndUpdate({ selectedDataArray: selectedData })
+    );
+
+    console.log('📨 Dispatch result:', result);
+
+    if (result.meta.requestStatus === "fulfilled") {
+      setSuccessMessage(`✅ Successfully submitted ${selectedItemsArray.length} tasks!`);
+      
+      // Reset form
+      setSelectedItems(new Set());
+      setRemarksData({});
+      setNextTargetDate({});
+      setStatusData({});
+      setUploadedImages({});
+
+      // Refresh data after a short delay
+      setTimeout(() => {
+        dispatch(delegationData());
+        dispatch(delegationDoneData());
+      }, 2000);
+
+    } else {
+      throw new Error(result.payload || "Submission failed on server");
+    }
+
+  } catch (error) {
+    console.error('❌ Submission error:', error);
+    
+    let errorMessage = "Submission failed. ";
+    
+    if (error.message.includes('Network error') || error.message.includes('network')) {
+      errorMessage += "Please check your internet connection and try again.";
+    } else if (error.message.includes('timeout')) {
+      errorMessage += "The request timed out. Please try again.";
+    } else if (error.message.includes('large')) {
+      errorMessage = error.message;
+    } else {
+      errorMessage += error.message;
+    }
+    
+    setError(errorMessage);
+    setSuccessMessage(`❌ ${errorMessage}`);
+  } finally {
+    setIsSubmitting(false);
+  }
 };
 
 
