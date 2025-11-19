@@ -513,22 +513,18 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
             />
           </div>
         </header>
-
-        {/* Main content area with bottom padding for mobile footer */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-gradient-to-br from-blue-50 to-purple-50 pb-20 md:pb-6">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-gradient-to-br from-blue-50 to-purple-50 pb-20 sm:pb-6">
           {children}
-        </main>
 
-        {/* Mobile Footer Navigation - Fixed at bottom */}
-        <div className="fixed md:left-64 left-0 right-0 bottom-0 py-2 px-4 gradient-bg text-white text-center text-sm shadow-lg z-10 backdrop-blur-sm">
-          <div className="sm:hidden flex justify-between items-center mb-1">
+          <div className="fixed md:left-64 left-0 right-0 bottom-0 py-1 px-4 gradient-bg text-white text-center text-sm shadow-lg z-10 backdrop-blur-sm">  <div className="sm:hidden flex justify-between items-center mb-[-10px]">
             <div className="p-2 rounded-full hover:bg-white/20 transition-all duration-300 cursor-pointer transform hover:scale-110">
               <Link
                 to={"/dashboard/admin"}
                 className={` ${location.pathname === `/dashboard/admin`
-                  ? "bg-white/20 rounded-full p-1"
+                  ? "bg-white/20"
                   : ""
                   }`}
+              // onClick={() => setIsMobileMenuOpen(false)}
               >
                 <Home size={29} className="drop-shadow-md" />
               </Link>
@@ -537,7 +533,7 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
               <Link
                 to={"/dashboard/data/sales"}
                 className={` ${location.pathname === `/dashboard/data/sales`
-                  ? "bg-white/20 rounded-full p-1"
+                  ? "bg-white/20"
                   : ""
                   }`}
               >
@@ -547,8 +543,8 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
             <div className="p-3 rounded-full bg-white text-purple-600 hover:bg-purple-100 transition-all duration-300 cursor-pointer transform hover:scale-110 shadow-lg -mt-6">
               <Link
                 to={"/dashboard/assign-task"}
-                className={`flex items-center justify-center rounded-full ${location.pathname === `/dashboard/assign-task`
-                  ? "bg-purple-50 rounded-full"
+                className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${location.pathname === `/dashboard/assign-task`
+                  ? "bg-white/20"
                   : ""
                   }`}
               >
@@ -558,8 +554,8 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
             <div className="p-2 rounded-full hover:bg-white/20 transition-all duration-300 cursor-pointer transform hover:scale-110">
               <Link
                 to={"/dashboard/delegation"}
-                className={` ${location.pathname === `/dashboard/delegation`
-                  ? "bg-white/20 rounded-full p-1"
+                className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${location.pathname === `/dashboard/delegation`
+                  ? "bg-white/20"
                   : ""
                   }`}
               >
@@ -573,35 +569,38 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
               <UserRound size={29} className="drop-shadow-md" />
             </div>
           </div>
-          <a
-            // href="https://www.botivate.in/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="sm:hidden sm:hover:underline flex items-center justify-center gap-1 text-gray-900 transition-colors duration-300"
-          >
-            Powered by-
-            <span className="font-bold drop-shadow-md text-gray-900">
-              Botivate
-            </span>
-          </a>
+            <a
+              // href="https://www.botivate.in/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="sm:hidden sm:hover:underline flex items-center justify-center gap-1 text-gray-900 transition-colors duration-300 mb-[-5px]"
+            >
+              Powered by-
+              <span className="font-bold drop-shadow-md text-gray-900">
+                Botivate
+              </span>
+            </a>
 
-          <a
-            href="https://www.botivate.in/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hidden hover:underline sm:flex items-center justify-center gap-1 text-white/90 hover:text-white transition-colors duration-300"
-          >
-            Powered by-
-            <span className="font-bold text-white drop-shadow-md">
-              Botivate
-            </span>
-          </a>
-        </div>
+            <a
+              href="https://www.botivate.in/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden  hover:underline sm:flex items-center justify-center gap-1 text-white/90 hover:text-white transition-colors duration-300 mb-[-5px]"
+            >
+              Powered by-
+              <span className="font-bold text-white drop-shadow-md">
+                Botivate
+              </span>
+            </a>
+          </div>
+        </main>
 
         {/* User Popup */}
         {isUserPopupOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
             <div className="bg-white rounded-lg p-6 w-80 shadow-xl">
+              {/* <div onClick={() => setIsUserPopupOpen(false)}  className="flex justify-end"><X size={25}/></div> */}
+
               <div className="flex flex-col items-center justify-between">
                 <div className="flex flex-col items-center gap-2">
                   <div className="h-20 w-20 rounded-full gradient-bg flex items-center justify-center">
@@ -623,7 +622,7 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center justify-around w-full gap-2 mt-4">
+                <div className="flex items-center  justify-around w-full gap-2 mt-4">
                   <button
                     onClick={() => setIsUserPopupOpen(false)}
                     className="outline p-1 rounded-md px-2"
@@ -638,7 +637,7 @@ export default function AdminLayout({ children, darkMode, toggleDarkMode }) {
                     className="bg-blue-700 text-white hover:bg-blue-900 p-1 rounded-md px-2"
                   >
                     <span className="flex justify-center items-center">
-                      Log out <LogOut className="h-4 w-4 ml-1" />
+                      Log out <LogOut className="h-4 w-4" />
                     </span>
                   </button>
                 </div>
