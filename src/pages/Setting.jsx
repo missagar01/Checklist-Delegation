@@ -30,29 +30,12 @@ const Setting = () => {
 const fetchDeviceLogsAndUpdateStatus = async () => {
   try {
     setIsRefreshing(true);
-
-    const response = await fetch(
-      `${import.meta.env.VITE_API_BASE_URL}/logs/device-sync`
-    );
-
-    let data;
-    try {
-      // ✔ Safe JSON parsing
-      data = await response.json();
-    } catch (err) {
-      console.error("❌ Non-JSON response from backend:", err);
-      return; // Stop here → don't crash UI
-    }
-
-    if (!response.ok) {
-      console.error("❌ Device sync failed:", data?.error);
-      return;
-    }
-
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/logs/device-sync`);
+    const data = await response.json();
     console.log(data.message);
     dispatch(userDetails());
   } catch (error) {
-    console.error("❌ Fetch failed:", error);
+    console.error('Error syncing device logs:', error);
   } finally {
     setIsRefreshing(false);
   }
