@@ -44,7 +44,7 @@ const fetchDeviceLogsAndUpdateStatus = async () => {
 
 
 useEffect(() => {
-  const intervalId = setInterval(fetchDeviceLogsAndUpdateStatus, 1000);
+  const intervalId = setInterval(fetchDeviceLogsAndUpdateStatus, 60000);
 
   return () => clearInterval(intervalId);
 }, []);
