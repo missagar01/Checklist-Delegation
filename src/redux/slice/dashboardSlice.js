@@ -4,7 +4,8 @@ import {
   countOverDueORExtendedTaskApi,
   countPendingOrDelayTaskApi,
   countTotalTaskApi,
-  fetchDashboardDataApi
+  fetchDashboardDataApi,
+  countNotDoneTaskApi
 } from "../api/dashboardApi";
 
 // Dashboard data thunk
@@ -28,6 +29,24 @@ export const totalTaskInTable = createAsyncThunk(
     }
   }
 )
+
+export const notDoneTaskInTable = createAsyncThunk(
+  "dashboard/notDoneTaskInTable",
+  async ({ dashboardType, staffFilter, departmentFilter }) => {
+    try {
+      const response = await countNotDoneTaskApi(
+        dashboardType,
+        staffFilter,
+        departmentFilter
+      );
+      return response;
+    } catch (error) {
+      console.error("Error fetching NOT DONE tasks:", error);
+      throw error;
+    }
+  }
+);
+
 
 // Update completeTaskInTable
 export const completeTaskInTable = createAsyncThunk(
@@ -98,6 +117,7 @@ const dashboardSlice = createSlice({
     dashboard: [],
     totalTask: 0,
     completeTask: 0,
+    notDoneTask: 0,   // <-- ADD THIS
     pendingTask: 0,
     overdueTask: 0,
     error: null,
@@ -144,6 +164,20 @@ const dashboardSlice = createSlice({
         state.loading = false;
         state.totalTask = action.payload || 0;
       })
+      // NOT DONE Task cases
+.addCase(notDoneTaskInTable.pending, (state) => {
+  state.loading = true;
+  state.error = null;
+})
+.addCase(notDoneTaskInTable.fulfilled, (state, action) => {
+  state.loading = false;
+  // state.notDoneTask = action.payload || 0;
+  state.notDoneTask = typeof action.payload === "number" ? action.payload : 0;
+})
+.addCase(notDoneTaskInTable.rejected, (state, action) => {
+  state.loading = false;
+  state.error = action.error?.message || "Failed to fetch NOT DONE tasks";
+})
       .addCase(totalTaskInTable.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error?.message || 'Failed to fetch total tasks';

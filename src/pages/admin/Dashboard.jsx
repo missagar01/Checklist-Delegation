@@ -15,6 +15,7 @@ import {
   overdueTaskInTable,
   pendingTaskInTable,
   totalTaskInTable,
+  notDoneTaskInTable
 } from "../../redux/slice/dashboardSlice.js"
 import {
   fetchDashboardDataApi,
@@ -815,6 +816,13 @@ useEffect(() => {
         departmentFilter,
       }),
     )
+    dispatch(
+  notDoneTaskInTable({
+    dashboardType,
+    staffFilter: dashboardStaffFilter,
+    departmentFilter,
+  })
+)
   }, [dashboardType, dashboardStaffFilter, departmentFilter, dispatch])
 
   // Filter tasks based on criteria
@@ -975,7 +983,8 @@ useEffect(() => {
     overdueTasks: overdueTask || 0,
   };
 
-  const notDoneTask = (displayStats.totalTasks || 0) - (displayStats.completedTasks || 0);
+  // const notDoneTask = (displayStats.totalTasks || 0) - (displayStats.completedTasks || 0);
+  const notDoneTask = useSelector((state) => state.dashBoard.notDoneTask);
 
   return (
     <AdminLayout>

@@ -6,15 +6,19 @@ export default function StatisticsCards({
   completeTask,
   pendingTask,
   overdueTask,
-  dateRange = null // Add dateRange prop to show filter info
+  notDoneTask,     // <-- take from props (REAL backend value)
+  dateRange = null
 }) {
-  const completionRate = totalTask > 0 ? (completeTask / totalTask) * 100 : 0;
-  const notDoneTask = totalTask - completeTask - pendingTask - overdueTask;
 
-  // Calculate all percentages
+  const completionRate = totalTask > 0 ? (completeTask / totalTask) * 100 : 0;
+
+  // DO NOT calculate notDone here!
+  // const notDoneTask = totalTask - completeTask - pendingTask - overdueTask;
+
   const pendingRate = totalTask > 0 ? (pendingTask / totalTask) * 100 : 0;
   const notDoneRate = totalTask > 0 ? (notDoneTask / totalTask) * 100 : 0;
   const overdueRate = totalTask > 0 ? (overdueTask / totalTask) * 100 : 0;
+
 
   // Calculate stroke dash arrays for each segment
   const circumference = 251.3; // 2 * π * 40

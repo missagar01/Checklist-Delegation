@@ -322,3 +322,16 @@ export const getChecklistDateRangeStatsApi = async (
   const res = await fetch(url);
   return res.json();
 };
+
+
+export const countNotDoneTaskApi = async (dashboardType, staffFilter = "all", departmentFilter = "all") => {
+  staffFilter = getFinalStaffFilter(staffFilter);
+
+  const role = localStorage.getItem("role");
+  const username = localStorage.getItem("user-name");
+
+  const url = `${BASE_URL}/not-done?dashboardType=${dashboardType}&staffFilter=${staffFilter}&departmentFilter=${departmentFilter}&role=${role}&username=${username}`;
+
+  const res = await fetch(url);
+  return res.json();
+};
