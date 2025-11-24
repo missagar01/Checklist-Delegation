@@ -38,7 +38,7 @@ function App() {
   return (
     <Router>
       {/* ✅ Realtime listener inside Router so useNavigate works */}
-      <RealtimeLogoutListener />
+      {/* <RealtimeLogoutListener /> */}
 
       <Routes>
         {/* Root redirect */}
