@@ -52,7 +52,7 @@ export default function StatisticsCards({
                 ) : dashboardType === "delegation" ? (
                   "All tasks"
                 ) : (
-                  "Total tasks in checklist"
+                  "Current Month's tasks"
                 )}
               </p>
             </div>
@@ -81,7 +81,7 @@ export default function StatisticsCards({
                 ) : dashboardType === "delegation" ? (
                   "Tasks completed once"
                 ) : (
-                  "Total completed"
+                  "Current Month's completed"
                 )}
               </p>
             </div>
@@ -127,7 +127,7 @@ export default function StatisticsCards({
                 ) : dashboardType === "delegation" ? (
                   "Tasks not completed"
                 ) : (
-                  "Absent Day's tasks"
+                  "Current month's not done"
                 )}
               </p>
             </div>
@@ -153,7 +153,7 @@ export default function StatisticsCards({
                 ) : dashboardType === "delegation" ? (
                   "Tasks completed 3+ times"
                 ) : (
-                  "Past due"
+                  "Current Month's due"
                 )}
               </p>
             </div>
