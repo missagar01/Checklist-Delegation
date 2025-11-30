@@ -221,9 +221,11 @@ export default function AssignTask() {
 
   // Fetch working days from Supabase on component mount
 useEffect(() => {
+  const BASE_URL = `${import.meta.env.VITE_API_BASE_URL}/assign-task`;
   const fetchWorkingDays = async () => {
     try {
-      const res = await fetch("http://localhost:5050/api/assign-task/working-days");
+      // const res = await fetch("http://localhost:5050/api/assign-task/working-days");
+      const res = await fetch(`${BASE_URL}/working-days`);
       const data = await res.json();
 
       const formattedDays = data.map((day) => {
