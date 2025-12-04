@@ -38,9 +38,10 @@ const Setting = () => {
 };
 
 const fetchDeviceLogsAndUpdateStatus = async () => {
+  return
   try {
     setIsRefreshing(true);
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/logs/device-sync`);
+    // const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/logs/device-sync`);
     const data = await response.json();
     console.log(data.message);
     dispatch(userDetails());
