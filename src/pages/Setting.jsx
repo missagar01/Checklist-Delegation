@@ -26,6 +26,7 @@ const Setting = () => {
   const [leaveUsernameFilter, setLeaveUsernameFilter] = useState('');
   const [showPasswords, setShowPasswords] = useState({}); // Track which passwords are visibl
   const [showModalPassword, setShowModalPassword] = useState(false);
+  const [showDeptDropdown, setShowDeptDropdown] = useState(false);
   
   const { userData, department, departmentsOnly, givenBy, loading, error } = useSelector((state) => state.setting);
   const dispatch = useDispatch();
@@ -314,15 +315,18 @@ const handleSubmitLeave = async () => {
   // ]);
 
   // Form states
-  const [userForm, setUserForm] = useState({
-    username: '',
-    email: '',
-    password: '',
-    phone: '',
-    employee_id: '',
-    role: 'user',
-    status: 'active'
-  });
+  // Change this in your form state initialization:
+const [userForm, setUserForm] = useState({
+  username: '',
+  email: '',
+  password: '',
+  phone: '',
+  employee_id: '',
+  departments: [], // Change from single department to array
+  givenBy: '',
+  role: 'user',
+  status: 'active'
+});
 
   const [deptForm, setDeptForm] = useState({
     name: '',
@@ -340,7 +344,7 @@ const handleAddUser = async (e) => {
   e.preventDefault();
   const newUser = {
     ...userForm,
-    user_access: userForm.department,
+    user_access: userForm.departments.join(','), // Join array into comma-separated string
   };
 
   try {
@@ -365,7 +369,7 @@ const handleUpdateUser = async (e) => {
     employee_id: userForm.employee_id,
     role: userForm.role,
     status: userForm.status,
-    user_access: userForm.department
+    user_access: userForm.departments.join(',') // Join array into comma-separated string
   };
 
   // Only include password if it's not empty
@@ -428,10 +432,43 @@ const handleUpdateUser = async (e) => {
 
 
   // User form handlers
-  const handleUserInputChange = (e) => {
-    const { name, value } = e.target;
+const handleUserInputChange = (e) => {
+  const { name, value, type, options } = e.target;
+  
+  if (name === 'departments') {
+    // For multi-select dropdown
+    const selectedValues = Array.from(options)
+      .filter(option => option.selected)
+      .map(option => option.value);
+    
+    setUserForm(prev => ({ ...prev, [name]: selectedValues }));
+  } else {
     setUserForm(prev => ({ ...prev, [name]: value }));
+  }
+};
+
+// Get unique departments from department data
+const availableDepartments = React.useMemo(() => {
+  if (department && department.length > 0) {
+    return [...new Set(department.map(dept => dept.department))]
+      .filter(deptName => deptName && deptName.trim() !== '')
+      .sort();
+  }
+  return [];
+}, [department]);
+
+useEffect(() => {
+  const handleClickOutside = (event) => {
+    if (showDeptDropdown && !event.target.closest('.relative')) {
+      setShowDeptDropdown(false);
+    }
   };
+
+  document.addEventListener('mousedown', handleClickOutside);
+  return () => {
+    document.removeEventListener('mousedown', handleClickOutside);
+  };
+}, [showDeptDropdown]);
 
   // const handleAddUser = (e) => {
   //   e.preventDefault();
@@ -452,7 +489,7 @@ const handleEditUser = (userId) => {
     password: '', // Leave empty initially, user can change if needed
     phone: user.number,
     employee_id: user.employee_id || '',
-    department: user.user_access || '',
+    departments: user.user_access ? user.user_access.split(',').map(d => d.trim()) : [], // Split comma-separated string into array
     role: user.role,
     status: user.status
   });
@@ -481,21 +518,21 @@ const handleEditUser = (userId) => {
 
 
 
-  const resetUserForm = () => {
-    setUserForm({
-      username: '',
-      email: '',
-      password: '',
-      phone: '',
-      employee_id: '',
-      department: '', // Add this line
-      givenBy: '',
-      role: 'user',
-      status: 'active'
-    });
-    setIsEditing(false);
-    setCurrentUserId(null);
-  };
+const resetUserForm = () => {
+  setUserForm({
+    username: '',
+    email: '',
+    password: '',
+    phone: '',
+    employee_id: '',
+    departments: [], // Reset to empty array
+    givenBy: '',
+    role: 'user',
+    status: 'active'
+  });
+  setIsEditing(false);
+  setCurrentUserId(null);
+};
 
   // Department form handlers
   const handleDeptInputChange = (e) => {
@@ -1317,32 +1354,125 @@ const handleEditUser = (userId) => {
                           </select>
                         </div>
 
-                        <div className="sm:col-span-3">
-                          <label htmlFor="department" className="block text-sm font-medium text-gray-700">
-                            Department
-                          </label>
-                          <select
-                            id="department"
-                            name="department"
-                            value={userForm.department}
-                            onChange={handleUserInputChange}
-                            className="mt-1 block w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                          >
-                            <option value="">Select Department</option>
-                            {department && department.length > 0 ? (
-                              // Get unique departments using Set
-                              [...new Set(department.map(dept => dept.department))]
-                                .filter(deptName => deptName) // Remove empty values
-                                .map((deptName, index) => (
-                                  <option key={index} value={deptName}>
-                                    {deptName}
-                                  </option>
-                                ))
-                            ) : (
-                              <option value="" disabled>Loading departments...</option>
-                            )}
-                          </select>
-                        </div>
+                      {/* In the User Modal form - Replace the existing department field */}
+<div className="sm:col-span-6">
+  <label htmlFor="departments" className="block text-sm font-medium text-gray-700">
+    Departments (Multiple Selection)
+  </label>
+  
+  {/* Dropdown trigger button */}
+  <div className="relative mt-1">
+    <button
+      type="button"
+      onClick={() => setShowDeptDropdown(!showDeptDropdown)}
+      className="w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 text-left focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+    >
+      <div className="flex justify-between items-center">
+        <span className="block truncate">
+          {userForm.departments.length === 0 
+            ? 'Select Departments' 
+            : `${userForm.departments.length} department(s) selected`}
+        </span>
+        <ChevronDown size={16} className={`text-gray-400 transition-transform ${showDeptDropdown ? 'rotate-180' : ''}`} />
+      </div>
+    </button>
+    
+    {/* Dropdown with checkboxes */}
+    {showDeptDropdown && (
+      <div className="absolute z-50 mt-1 w-full bg-white shadow-lg border border-gray-300 rounded-md max-h-60 overflow-y-auto">
+        <div className="p-2">
+          {/* Select All option */}
+          <div className="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
+            <input
+              type="checkbox"
+              id="selectAllDepartments"
+              checked={userForm.departments.length === availableDepartments.length && availableDepartments.length > 0}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  setUserForm(prev => ({ ...prev, departments: availableDepartments }));
+                } else {
+                  setUserForm(prev => ({ ...prev, departments: [] }));
+                }
+              }}
+              className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <label htmlFor="selectAllDepartments" className="ml-3 text-sm text-gray-700 cursor-pointer">
+              Select All
+            </label>
+          </div>
+          
+          <div className="border-t border-gray-200 my-2"></div>
+          
+          {/* Department checkboxes */}
+          {availableDepartments.map((dept, index) => (
+            <div key={index} className="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
+              <input
+                type="checkbox"
+                id={`dept-${index}`}
+                checked={userForm.departments.includes(dept)}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setUserForm(prev => ({ 
+                      ...prev, 
+                      departments: [...prev.departments, dept] 
+                    }));
+                  } else {
+                    setUserForm(prev => ({ 
+                      ...prev, 
+                      departments: prev.departments.filter(d => d !== dept) 
+                    }));
+                  }
+                }}
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <label htmlFor={`dept-${index}`} className="ml-3 text-sm text-gray-700 cursor-pointer">
+                {dept}
+              </label>
+            </div>
+          ))}
+          
+          {/* No departments available */}
+          {availableDepartments.length === 0 && (
+            <div className="p-3 text-center text-sm text-gray-500">
+              No departments available
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+  </div>
+  
+  {/* Selected departments display */}
+  <div className="mt-2">
+    <p className="text-xs font-medium text-gray-700 mb-1">Selected Departments:</p>
+    <div className="flex flex-wrap gap-1">
+      {userForm.departments.length > 0 ? (
+        userForm.departments.map((dept, index) => (
+          <span 
+            key={index} 
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+          >
+            {dept}
+            <button
+              type="button"
+              onClick={() => {
+                setUserForm(prev => ({
+                  ...prev,
+                  departments: prev.departments.filter(d => d !== dept)
+                }));
+              }}
+              className="text-blue-600 hover:text-blue-800 focus:outline-none"
+            >
+              <X size={12} />
+            </button>
+          </span>
+        ))
+      ) : (
+        <span className="text-xs text-gray-500">No departments selected</span>
+      )}
+    </div>
+  </div>
+</div>
 
                         <div className="sm:col-span-3">
                           <label htmlFor="status" className="block text-sm font-medium text-gray-700">
