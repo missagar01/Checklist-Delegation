@@ -10,16 +10,16 @@
 
 
 
-import { createClient } from "@supabase/supabase-js";
+// import { createClient } from "@supabase/supabase-js";
 
-const supabaseURL = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// const supabaseURL = import.meta.env.VITE_SUPABASE_URL;
+// const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-const supabase = createClient(supabaseURL, supabaseKey, {
-  realtime: { params: { eventsPerSecond: 10 } },
-});
+// const supabase = createClient(supabaseURL, supabaseKey, {
+//   realtime: { params: { eventsPerSecond: 10 } },
+// });
 
-export default supabase;
+// export default supabase;
 
 
 

@@ -58,72 +58,29 @@ export const getDashboardDataCount = async (dashboardType, staffFilter = "all", 
   try {
     const role = localStorage.getItem("role");
     const username = localStorage.getItem("user-name");
-    const today = new Date().toISOString().split("T")[0];
 
     staffFilter = getFinalStaffFilter(staffFilter);
 
-    let query = supabase
-      .from(dashboardType)
-      .select("*", { count: "exact", head: true });
+    const params = new URLSearchParams({
+      dashboardType,
+      staffFilter,
+      taskView,
+      departmentFilter,
+      role,
+      username
+    });
 
-    // USER → Filter his own tasks only
-    if (role === "user") query = query.eq("name", username);
-
-    // ADMIN staff filter
-    if (role === "admin" && staffFilter !== "all") {
-      query = query.eq("name", staffFilter);
+    const url = `${BASE_URL}/count?${params.toString()}`;
+    const res = await fetch(url);
+    
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
     }
-
-    if (departmentFilter !== "all" && dashboardType === "checklist") {
-      query = query.eq("department", departmentFilter);
-    }
-
-    // TASK VIEW LOGIC
-    switch (taskView) {
-      case "recent":
-        query = query
-          .gte("task_start_date", `${today}T00:00:00`)
-          .lte("task_start_date", `${today}T23:59:59`);
-
-        if (dashboardType === "checklist") {
-          query = query.or("status.is.null,status.neq.Yes");
-        }
-        break;
-
-      case "upcoming":
-        const tmr = new Date();
-        tmr.setDate(tmr.getDate() + 1);
-        const ts = tmr.toISOString().split("T")[0];
-
-        query = query
-          .gte("task_start_date", `${ts}T00:00:00`)
-          .lte("task_start_date", `${ts}T23:59:59`);
-        break;
-
-      case "overdue":
-        query = query
-          .lt("task_start_date", `${today}T00:00:00`)
-          .is("submission_date", null);
-
-        if (dashboardType === "checklist") {
-          query = query.or("status.is.null,status.neq.Yes");
-        } else if (dashboardType === "delegation") {
-          query = query.neq("status", "done");
-        }
-        break;
-
-      default:
-        break;
-    }
-
-    const { count, error } = await query;
-
-    if (error) throw error;
-
-    return count || 0;
+    
+    return await res.json();
 
   } catch (err) {
-    console.error("Supabase Count Error:", err);
+    console.error("Dashboard Count Error:", err);
     return 0;
   }
 };
@@ -213,12 +170,25 @@ export const fetchStaffTasksDataApi = async (
   dashboardType,
   staffFilter = "all",
   page = 1,
-  limit = 50
+  limit = 50,
+  monthYear = "" // Add this parameter
 ) => {
   staffFilter = getFinalStaffFilter(staffFilter);
 
+  const params = new URLSearchParams({
+    dashboardType,
+    staffFilter,
+    page,
+    limit
+  });
+  
+  // Add monthYear if provided
+  if (monthYear) {
+    params.append('monthYear', monthYear);
+  }
+
   const res = await fetch(
-    `${BASE_URL1}/tasks?dashboardType=${dashboardType}&staffFilter=${staffFilter}&page=${page}&limit=${limit}`
+    `${BASE_URL1}/tasks?${params.toString()}`
   );
 
   return await res.json();
@@ -231,6 +201,29 @@ export const getStaffTasksCountApi = async (dashboardType, staffFilter = "all") 
     `${BASE_URL1}/count?dashboardType=${dashboardType}&staffFilter=${staffFilter}`
   );
   return res.json();
+};
+
+// dashboardApi.js - Add this function
+export const getStaffTaskSummaryApi = async (dashboardType, departmentFilter = "all") => {
+  try {
+    const params = new URLSearchParams({
+      dashboardType,
+      departmentFilter
+    });
+
+    const url = `${BASE_URL}/staff-summary?${params.toString()}`;
+    const res = await fetch(url);
+    
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+    
+    return await res.json();
+
+  } catch (err) {
+    console.error("Staff Summary Error:", err);
+    return [];
+  }
 };
 
 // ---------------------------------------------------------------------
@@ -273,40 +266,35 @@ export const getChecklistDateRangeCountApi = async (
   departmentFilter = "all",
   statusFilter = "all"
 ) => {
-  staffFilter = getFinalStaffFilter(staffFilter);
+  try {
+    const role = localStorage.getItem("role");
+    const username = localStorage.getItem("user-name");
 
-  const role = localStorage.getItem("role");
-  const username = localStorage.getItem("user-name");
-  const today = new Date().toISOString().split("T")[0];
+    staffFilter = getFinalStaffFilter(staffFilter);
 
-  let query = supabase
-    .from("checklist")
-    .select("*", { count: "exact", head: true });
+    const params = new URLSearchParams({
+      startDate,
+      endDate,
+      staffFilter,
+      departmentFilter,
+      statusFilter,
+      role,
+      username
+    });
 
-  if (startDate) query = query.gte("task_start_date", `${startDate}T00:00:00`);
-  if (endDate) query = query.lte("task_start_date", `${endDate}T23:59:59`);
+    const url = `${BASE_URL}/checklist/date-range/count?${params.toString()}`;
+    const res = await fetch(url);
+    
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+    
+    return await res.json();
 
-  if (role === "user") query = query.eq("name", username);
-  if (role === "admin" && staffFilter !== "all") query = query.eq("name", staffFilter);
-  if (departmentFilter !== "all") query = query.eq("department", departmentFilter);
-
-  switch (statusFilter) {
-    case "completed":
-      query = query.eq("status", "Yes");
-      break;
-    case "pending":
-      query = query.or("status.is.null,status.neq.Yes");
-      break;
-    case "overdue":
-      query = query
-        .or("status.is.null,status.neq.Yes")
-        .is("submission_date", null)
-        .lt("task_start_date", `${today}T00:00:00`);
-      break;
+  } catch (err) {
+    console.error("Date Range Count Error:", err);
+    return 0;
   }
-
-  const { count } = await query;
-  return count || 0;
 };
 
 export const getChecklistDateRangeStatsApi = async (

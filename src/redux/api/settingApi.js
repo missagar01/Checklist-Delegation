@@ -161,6 +161,7 @@ export const fetchDepartmentDataApi = async () => {
   }
 };
 
+
 // =======================================================
 // 3️⃣ CREATE USER
 // =======================================================
@@ -248,27 +249,10 @@ export const updateDepartmentDataApi = async ({ id, updatedDept }) => {
 // Fetch only unique departments (without given_by)
 export const fetchDepartmentsOnlyApi = async () => {
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('department')
-      .not('department', 'is', null)
-      .neq('department', '')
-      .order('department', { ascending: true });
-
-    if (error) {
-      console.log("error when fetching departments", error);
-      return [];
-    }
-
-    // Get unique departments only
-    const uniqueDepartments = [...new Set(data.map(item => item.department))]
-      .filter(dept => dept) // Remove empty values
-      .map(dept => ({ department: dept }));
-
-    console.log("departments fetched successfully", uniqueDepartments);
-    return uniqueDepartments;
+    const response = await fetch(`${BASE_URL}/departments-only`);
+    return await response.json();
   } catch (error) {
-    console.log("error from supabase", error);
+    console.log("Error fetching departments only", error);
     return [];
   }
 };
@@ -276,27 +260,10 @@ export const fetchDepartmentsOnlyApi = async () => {
 // Fetch only given_by data
 export const fetchGivenByDataApi = async () => {
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('given_by')
-      .not('given_by', 'is', null)
-      .neq('given_by', '')
-      .order('given_by', { ascending: true });
-
-    if (error) {
-      console.log("error when fetching given_by data", error);
-      return [];
-    }
-
-    // Get unique given_by values only
-    const uniqueGivenBy = [...new Set(data.map(item => item.given_by))]
-      .filter(givenBy => givenBy) // Remove empty values
-      .map(givenBy => ({ given_by: givenBy }));
-
-    console.log("given_by fetched successfully", uniqueGivenBy);
-    return uniqueGivenBy;
+    const response = await fetch(`${BASE_URL}/given-by`);
+    return await response.json();
   } catch (error) {
-    console.log("error from supabase", error);
+    console.log("Error fetching given_by data", error);
     return [];
   }
 };

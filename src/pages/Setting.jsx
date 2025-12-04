@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, User, Building, X, Save, Edit, Trash2, Settings, Search, ChevronDown, Calendar, RefreshCw } from 'lucide-react';
+// import { Plus, User, Building, X, Save, Edit, Trash2, Settings, Search, ChevronDown, Calendar, RefreshCw } from 'lucide-react';
+import { Plus, User, Building, X, Save, Edit, Trash2, Settings, Search, ChevronDown, Calendar, RefreshCw, Eye, EyeOff } from 'lucide-react';
 import AdminLayout from '../components/layout/AdminLayout';
 import { useDispatch, useSelector } from 'react-redux';
 import { createDepartment, createUser, deleteUser, departmentOnlyDetails, givenByDetails, departmentDetails, updateDepartment, updateUser, userDetails } from '../redux/slice/settingSlice';
@@ -23,9 +24,18 @@ const Setting = () => {
   const [leaveEndDate, setLeaveEndDate] = useState('');
   const [remark, setRemark] = useState('');
   const [leaveUsernameFilter, setLeaveUsernameFilter] = useState('');
+  const [showPasswords, setShowPasswords] = useState({}); // Track which passwords are visibl
+  const [showModalPassword, setShowModalPassword] = useState(false);
   
   const { userData, department, departmentsOnly, givenBy, loading, error } = useSelector((state) => state.setting);
   const dispatch = useDispatch();
+
+  const togglePasswordVisibility = (userId) => {
+  setShowPasswords(prev => ({
+    ...prev,
+    [userId]: !prev[userId]
+  }));
+};
 
 const fetchDeviceLogsAndUpdateStatus = async () => {
   try {
@@ -345,16 +355,22 @@ const handleAddUser = async (e) => {
   // Modified handleUpdateUser
 const handleUpdateUser = async (e) => {
   e.preventDefault();
+  
+  // Prepare updated user data
   const updatedUser = {
     user_name: userForm.username,
-    password: userForm.password,
     email_id: userForm.email,
     number: userForm.phone,
-    employee_id: userForm.employee_id, // Add this line
+    employee_id: userForm.employee_id,
     role: userForm.role,
     status: userForm.status,
     user_access: userForm.department
   };
+
+  // Only include password if it's not empty
+  if (userForm.password.trim() !== '') {
+    updatedUser.password = userForm.password;
+  }
 
   try {
     await dispatch(updateUser({ id: currentUserId, updatedUser })).unwrap();
@@ -432,9 +448,9 @@ const handleEditUser = (userId) => {
   setUserForm({
     username: user.user_name,
     email: user.email_id,
-    password: user.password,
+    password: '', // Leave empty initially, user can change if needed
     phone: user.number,
-    employee_id: user.employee_id || '', // Add this line
+    employee_id: user.employee_id || '',
     department: user.user_access || '',
     role: user.role,
     status: user.status
@@ -802,82 +818,86 @@ const handleEditUser = (userId) => {
 
 
         {/* Users Tab */}
-        {activeTab === 'users' && (
-          <div className="bg-white shadow rounded-lg overflow-hidden border border-purple-200">
-            <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple px-6 py-4 border-gray-200 flex justify-between items-center">
-              <h2 className="text-lg font-medium text-purple-700">User List</h2>
+        {/* Users Tab */}
+{activeTab === 'users' && (
+  <div className="bg-white shadow rounded-lg overflow-hidden border border-purple-200">
+    <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple px-6 py-4 border-gray-200 flex justify-between items-center">
+      <h2 className="text-lg font-medium text-purple-700">User List</h2>
 
-              {/* Username Filter */}
-              <div className="relative">
-                <div className="flex items-center gap-2">
-                  {/* Input with datalist for autocomplete */}
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-                    <input
-                      type="text"
-                      list="usernameOptions"
-                      placeholder="Filter by username..."
-                      value={usernameFilter}
-                      onChange={(e) => setUsernameFilter(e.target.value)}
-                      className="w-48 pl-10 pr-8 py-2 border border-purple-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-                    />
-                    <datalist id="usernameOptions">
-                      {userData?.map(user => (
-                        <option key={user.id} value={user.user_name} />
-                      ))}
-                    </datalist>
+      {/* Username Filter */}
+      <div className="relative">
+        <div className="flex items-center gap-2">
+          {/* Input with datalist for autocomplete */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+            <input
+              type="text"
+              list="usernameOptions"
+              placeholder="Filter by username..."
+              value={usernameFilter}
+              onChange={(e) => setUsernameFilter(e.target.value)}
+              className="w-48 pl-10 pr-8 py-2 border border-purple-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+            />
+            <datalist id="usernameOptions">
+              {userData?.map(user => (
+                <option key={user.id} value={user.user_name} />
+              ))}
+            </datalist>
 
-                    {/* Clear button for input */}
-                    {usernameFilter && (
-                      <button
-                        onClick={clearUsernameFilter}
-                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      >
-                        <X size={16} />
-                      </button>
-                    )}
-                  </div>
+            {/* Clear button for input */}
+            {usernameFilter && (
+              <button
+                onClick={clearUsernameFilter}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
 
-                  {/* Dropdown button */}
-                  <button
-                    onClick={toggleUsernameDropdown}
-                    className="flex items-center gap-1 px-3 py-2 border border-purple-200 rounded-md bg-white text-sm text-gray-700 hover:bg-gray-50"
-                  >
-                    <ChevronDown size={16} className={`transition-transform ${usernameDropdownOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                </div>
+          {/* Dropdown button */}
+          <button
+            onClick={toggleUsernameDropdown}
+            className="flex items-center gap-1 px-3 py-2 border border-purple-200 rounded-md bg-white text-sm text-gray-700 hover:bg-gray-50"
+          >
+            <ChevronDown size={16} className={`transition-transform ${usernameDropdownOpen ? 'rotate-180' : ''}`} />
+          </button>
+        </div>
 
-                {/* Dropdown menu */}
-                {usernameDropdownOpen && (
-                  <div className="absolute z-50 mt-1 w-56 rounded-md bg-white shadow-lg border border-gray-200 max-h-60 overflow-auto top-full right-0">
-                    <div className="py-1">
-                      <button
-                        onClick={clearUsernameFilter}
-                        className={`block w-full text-left px-4 py-2 text-sm ${!usernameFilter ? 'bg-purple-100 text-purple-900' : 'text-gray-700 hover:bg-gray-100'}`}
-                      >
-                        All Usernames
-                      </button>
-                      {userData?.map(user => (
-                        <button
-                          key={user.id}
-                          onClick={() => handleUsernameFilterSelect(user.user_name)}
-                          className={`block w-full text-left px-4 py-2 text-sm ${usernameFilter === user.user_name ? 'bg-purple-100 text-purple-900' : 'text-gray-700 hover:bg-gray-100'}`}
-                        >
-                          {user.user_name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+        {/* Dropdown menu */}
+        {usernameDropdownOpen && (
+          <div className="absolute z-50 mt-1 w-56 rounded-md bg-white shadow-lg border border-gray-200 max-h-60 overflow-auto top-full right-0">
+            <div className="py-1">
+              <button
+                onClick={clearUsernameFilter}
+                className={`block w-full text-left px-4 py-2 text-sm ${!usernameFilter ? 'bg-purple-100 text-purple-900' : 'text-gray-700 hover:bg-gray-100'}`}
+              >
+                All Usernames
+              </button>
+              {userData?.map(user => (
+                <button
+                  key={user.id}
+                  onClick={() => handleUsernameFilterSelect(user.user_name)}
+                  className={`block w-full text-left px-4 py-2 text-sm ${usernameFilter === user.user_name ? 'bg-purple-100 text-purple-900' : 'text-gray-700 hover:bg-gray-100'}`}
+                >
+                  {user.user_name}
+                </button>
+              ))}
             </div>
+          </div>
+        )}
+      </div>
+    </div>
 
-            <div className="h-[calc(100vh-275px)] overflow-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
+    <div className="h-[calc(100vh-275px)] overflow-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Username
+            </th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Password
             </th>
             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Email
@@ -886,8 +906,8 @@ const handleEditUser = (userId) => {
               Phone No.
             </th>
             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-  Employee ID
-</th>
+              Employee ID
+            </th>
             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Department
             </th>
@@ -905,15 +925,41 @@ const handleEditUser = (userId) => {
         <tbody className="bg-white divide-y divide-gray-200">
           {userData
             ?.filter(user =>
-               user.user_name !== 'admin' &&
-                user.user_name !== 'DSMC' && (
-              !usernameFilter || user.user_name.toLowerCase().includes(usernameFilter.toLowerCase()))
+              user.user_name !== 'admin' &&
+              user.user_name !== 'DSMC' && (
+                !usernameFilter || user.user_name.toLowerCase().includes(usernameFilter.toLowerCase()))
             )
             .map((user, index) => (
               <tr key={index} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
                     <div className="text-sm font-medium text-gray-900">{user?.user_name}</div>
+                  </div>
+                </td>
+               <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm text-gray-900">
+                    <div className="flex items-center space-x-2">
+                      <span className="font-mono">
+                        {showPasswords[user.id] ? user?.password : '••••••••'}
+                      </span>
+                      <button
+                        onClick={() => togglePasswordVisibility(user.id)}
+                        className="text-gray-500 hover:text-blue-600 text-xs"
+                        title={showPasswords[user.id] ? "Hide Password" : "Show Password"}
+                      >
+                        {showPasswords[user.id] ? '👁️‍🗨️' : '👁️'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(user?.password || '');
+                          alert('Password copied to clipboard!');
+                        }}
+                        className="text-blue-600 hover:text-blue-800 text-xs bg-blue-50 px-2 py-1 rounded"
+                        title="Copy Password"
+                      >
+                        Copy
+                      </button>
+                    </div>
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -923,13 +969,13 @@ const handleEditUser = (userId) => {
                   <div className="text-sm text-gray-900">{user?.number}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-  <div className="text-sm text-gray-900">{user?.employee_id || 'N/A'}</div>
-</td>
+                  <div className="text-sm text-gray-900">{user?.employee_id || 'N/A'}</div>
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900">{user?.user_access || 'N/A'}</div>
                 </td>
                 
-                {/* ADD THE STATUS CELL HERE */}
+                {/* Status Cell */}
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
                     <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(user?.status)}`}>
@@ -940,8 +986,8 @@ const handleEditUser = (userId) => {
                     )}
                   </div>
                 </td>
-                {/* END OF STATUS CELL */}
                 
+                {/* Role Cell */}
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getRoleColor(user?.role)}`}>
                     {user?.role}
@@ -952,8 +998,16 @@ const handleEditUser = (userId) => {
                     <button
                       onClick={() => handleEditUser(user?.id)}
                       className="text-blue-600 hover:text-blue-900"
+                      title="Edit User"
                     >
                       <Edit size={18} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteUser(user?.id)}
+                      className="text-red-600 hover:text-red-900"
+                      title="Delete User"
+                    >
+                      <Trash2 size={18} />
                     </button>
                   </div>
                 </td>
@@ -1146,6 +1200,40 @@ const handleEditUser = (userId) => {
                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                           />
                         </div>
+
+  {/* In the User Modal form */}
+<div className="sm:col-span-3">
+  <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+    Password
+  </label>
+  <div className="relative mt-1">
+    <input
+      type={showModalPassword ? "text" : "password"}
+      name="password"
+      id="password"
+      value={userForm.password}
+      onChange={handleUserInputChange}
+      className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm pr-10"
+      placeholder={isEditing ? "Leave empty to keep current password" : "Enter password"}
+    />
+    <button
+      type="button"
+      onClick={() => setShowModalPassword(!showModalPassword)}
+      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+    >
+      {showModalPassword ? (
+        <EyeOff size={18} className="text-gray-400 hover:text-gray-600" />
+      ) : (
+        <Eye size={18} className="text-gray-400 hover:text-gray-600" />
+      )}
+    </button>
+  </div>
+  {isEditing && (
+    <p className="mt-1 text-xs text-gray-500">
+      Leave empty to keep current password
+    </p>
+  )}
+</div>
 
                         <div className="sm:col-span-3">
                           <label htmlFor="email" className="block text-sm font-medium text-gray-700">
