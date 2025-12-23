@@ -58,6 +58,13 @@ export default function DashboardHeader({
   const getTodayDate = () => {
     return new Date().toISOString().split('T')[0]
   }
+  const sortedDepartments = [...availableDepartments].sort((a, b) =>
+    a.localeCompare(b)
+  )
+  
+  const sortedStaff = [...availableStaff].sort((a, b) =>
+    a.localeCompare(b)
+  )
 
   return (
     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -150,7 +157,7 @@ export default function DashboardHeader({
               className="w-full rounded-md border border-purple-200 p-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 text-sm"
             >
               <option value="all">All Departments</option>
-              {availableDepartments.map((dept) => (
+              {sortedDepartments.map((dept) => (
                 <option key={dept} value={dept}>
                   {dept}
                 </option>
@@ -166,7 +173,7 @@ export default function DashboardHeader({
               className="w-full rounded-md border border-purple-200 p-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 text-sm"
             >
               <option value="all">All Staff Members</option>
-              {availableStaff.map((staffName) => (
+              {sortedStaff.map((staffName) => (
                 <option key={staffName} value={staffName}>
                   {staffName}
                 </option>
@@ -263,7 +270,7 @@ export default function DashboardHeader({
             className="w-[110px] sm:w-[160px] rounded-md border border-purple-200 p-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
           >
             <option value="all">All Departments</option>
-            {availableDepartments.map((dept) => (
+            {sortedDepartments.map((dept) => (
               <option key={dept} value={dept}>
                 {dept}
               </option>
@@ -279,7 +286,7 @@ export default function DashboardHeader({
             className="w-[140px] sm:w-[180px] rounded-md border border-purple-200 p-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
           >
             <option value="all">All Staff Members</option>
-            {availableStaff.map((staffName) => (
+            {sortedStaff.map((staffName) => (
               <option key={staffName} value={staffName}>
                 {staffName}
               </option>
