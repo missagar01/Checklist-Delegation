@@ -153,8 +153,13 @@ const quickTaskSlice = createSlice({
       })
       .addCase(deleteChecklistTask.fulfilled, (state, action) => {
         state.loading = false;
+        // action.payload is an array of { name, task_description } that were deleted
+        const deletedItems = action.payload;
         state.quickTask = state.quickTask.filter(
-          task => !action.payload.includes(task.task_id)
+          task => !deletedItems.some(
+            deleted => deleted.name === task.name && 
+                       deleted.task_description === task.task_description
+          )
         );
       })
       .addCase(deleteChecklistTask.rejected, (state, action) => {
